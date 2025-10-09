@@ -39,9 +39,33 @@ class ResPartner(models.Model):
         if len(s) != 8:
             raise ValidationError(_("En POS, %s debe tener exactamente 8 dígitos.") % label)
         if s == "11111111":
-            raise ValidationError(_("En POS, %s no puede ser 11111111.") % label)
+            raise ValidationError(_("En POS, %s debe ser un número correcto.") % label)
+        if s == "22222222":
+            raise ValidationError(_("En POS, %s debe ser un número correcto.") % label)
+        if s == "00000000":
+            raise ValidationError(_("En POS, %s debe ser un número correcto.") % label)
+        if s == "33333333":
+            raise ValidationError(_("En POS, %s debe ser un número correcto.") % label)
+        if s == "44444444":
+            raise ValidationError(_("En POS, %s debe ser un número correcto.") % label)
+        if s == "55555555":
+            raise ValidationError(_("En POS, %s debe ser un número correcto.") % label)
+        if s == "66666666":
+            raise ValidationError(_("En POS, %s debe ser un número correcto.") % label)
+        if s == "77777777":
+            raise ValidationError(_("En POS, %s debe ser un número correcto.") % label)
+        if s == "88888888":
+            raise ValidationError(_("En POS, %s debe ser un número correcto.") % label)
+        if s == "99999999":
+            raise ValidationError(_("En POS, %s debe ser un número correcto.") % label)
+        if s == "12345678":
+            raise ValidationError(_("En POS, %s debe ser un número correcto.") % label)
+        if s == "87654321":
+            raise ValidationError(_("En POS, %s debe ser un número correcto.") % label)
 
-    # ---------- Overrides ----------
+
+
+        # ---------- Overrides ----------
     @api.model_create_multi
     def create(self, vals_list):
         if self._is_pos_request():
