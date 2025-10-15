@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="mrp_custom_fabric_wizard" model="ir.ui.view">
+            <field name="name">mrp.custom.fabric.form</field>
+            <field name="model">mrp.custom.fabric</field>
+            <field name="arch" type="xml">
+                <form string="Fabricación masiva por Pie Tablar">
+                    <sheet>
+                        <group>
+                            <group string="Materia Prima">
+                                <field name="product_id" 
+                                       options="{'no_create': True, 'no_create_edit': True}"/>
+                                <field name="quantity" string="Cantidad de Trozas"/>
+                                <field name="pie_tablar_mp" 
+                                       string="Total Pie Tablar Disponible"
+                                       widget="float" 
+                                       decoration-info="1"/>
+                            </group>
+                            <group string="Información General">
+                                <field name="date"/>
+                                <field name="total_pie_tablar_usado" 
+                                       string="Pie Tablar Usado"
+                                       widget="float"
+                                       decoration-warning="total_pie_tablar_usado &gt; pie_tablar_mp"/>
+                                <field name="pie_tablar_disponible" 
+                                       string="Pie Tablar Restante"
+                                       widget="float"
+                                       decoration-success="pie_tablar_disponible &gt;= 0"
+                                       decoration-danger="pie_tablar_disponible &lt; 0"/>
+                            </group>
+                        </group>
+                        
+                        <notebook>
+                            <page name="fabric_lines" string="Productos a Fabricar">
+                                <field name="fabric_lines">
+                                    <tree editable="bottom" 
+                                          decoration-danger="porcent &gt; (100 - fabric_id.total_percent + porcent)">
+                                        
+                                        <!-- Producto a fabricar -->
+                                        <field name="product_id" 
+                                               string="Producto a Fabricar"
+                                               options="{'no_create': True, 'no_create_edit': True}"/>
+                                        
+                                        <!-- Pie Tablar unitario del producto (solo lectura) -->
+                                        <field name="pie_tablar_producto" 
+                                               string="Pie Tablar Unitario"
+                                               widget="float"
+                                               readonly="1"/>
+                                        
+                                        <!-- Unidades a producir -->
+                                        <field name="quantity_to_produce" 
+                                               string="Unidades a Producir"/>
+                                        
+                                        <!-- Pie Tablar que se consumirá (calculado) -->
+                                        <field name="pie_tablar_consumido" 
+                                               string="Pie Tablar Consumido"
+                                               widget="float"
+                                               readonly="1"
+                                               decoration-bf="1"/>
+                                        
+                                        <!-- Porcentaje calculado -->
+                                        <field name="porcent" 
+                                               string="% Uso" 
+                                               readonly="1"
+                                               
+                                               decoration-success="porcent &lt;= 100"
+                                               decoration-danger="porcent &gt; 100"/>
+                                        
+                                        <!-- Cantidad de trozas a usar (calculado) -->
+                                        <field name="consu_quan" 
+                                               string="Trozas a Usar"
+                                               widget="float"
+                                               readonly="1"
+                                               decoration-info="1"/>
+                                        
+                                        <!-- Fecha de producción -->
+                                        <field name="date"/>
+                                        
+                                        <!-- Campo oculto del wizard padre -->
+                                        <field name="fabric_id" column_invisible="1"/>
+                                    </tree>
+                                </field>
+                                
+                                <group>
+                                    <group>
+                                        <label for="total_percent" 
+                                               string="Resumen de Uso"/>
+                                        <div class="o_row">
+                                            <field name="total_percent" 
+                                                   string="Total % Usado" 
+                                                   readonly="1"
+                                                   widget="percentage"
+                                                   class="oe_inline"
+                                                   decoration-danger="total_percent &gt; 100"
+                                                   decoration-success="total_percent &lt;= 100 and total_percent &gt; 0"
+                                                   decoration-bf="total_percent &gt; 100"/>
+                                        </div>
+                                    </group>
+                                    <group>
+                                        <div class="alert alert-danger" 
+                                             role="alert" 
+                                             invisible="total_percent &lt;= 100">
+                                            <i class="fa fa-exclamation-triangle"/> 
+                                            <strong>Error:</strong> El total de Pie Tablar asignado supera el 100% disponible.
+                                            <br/>
+                                            <small>No podrá crear órdenes hasta ajustar las cantidades.</small>
+                                        </div>
+                                        <div class="alert alert-success" 
+                                             role="alert" 
+                                             invisible="total_percent &lt; 95 or total_percent &gt; 100">
+                                            <i class="fa fa-check-circle"/> 
+                                            <strong>Óptimo:</strong> Está utilizando eficientemente la materia prima disponible.
+                                        </div>
+                                        <div class="alert alert-warning" 
+                                             role="alert" 
+                                             invisible="total_percent &gt;= 95 or total_percent &lt;= 0">
+                                            <i class="fa fa-info-circle"/> 
+                                            <strong>Información:</strong> Aún tiene 
+                                            <field name="pie_tablar_disponible" readonly="1" class="oe_inline"/> 
+                                            pie tablar disponible (<field name="total_percent" readonly="1" widget="percentage" class="oe_inline"/> usado).
+                                        </div>
+                                    </group>
+                                </group>
+                            </page>
+                        </notebook>
+                    </sheet>
+                    
+                    <footer>
+                        <button name="create_productions" 
+                                string="Crear Órdenes de Fabricación" 
+                                type="object" 
+                                class="btn-primary"
+                                confirm="¿Está seguro de crear las órdenes de fabricación?"/>
+                        <button string="Cancelar" 
+                                class="btn-secondary" 
+                                special="cancel"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+        <record id="action_mrp_custom_fabric" model="ir.actions.act_window">
+            <field name="name">Fabricación masiva por Pie Tablar</field>
+            <field name="res_model">mrp.custom.fabric</field>
+            <field name="view_mode">form</field>
+            <field name="view_id" ref="mrp_custom_fabric_wizard"/>
+            <field name="target">new</field>
+            <field name="context">{}</field>
+        </record>
+
+        <menuitem id="menu_mrp_custom_fabric" 
+                  name="Fabricación por Pie Tablar"
+                  parent="mrp.menu_mrp_manufacturing" 
+                  action="action_mrp_custom_fabric"
+                  sequence="30"/>
+    </data>
+</odoo>
