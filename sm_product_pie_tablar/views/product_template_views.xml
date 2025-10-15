@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Form view: add the field after the unit of measure -->
+    <record id="view_product_form_inherit_pie_tablar" model="ir.ui.view">
+        <field name="name">product.template.form.pie_tablar</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_only_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='uom_id']" position="after">
+                <field name="pie_tablar"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Tree/List view: show the field after list_price -->
+    <record id="view_product_tree_inherit_pie_tablar" model="ir.ui.view">
+        <field name="name">product.template.tree.pie_tablar</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_tree_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//tree/field[@name='list_price']" position="after">
+                <field name="pie_tablar"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
