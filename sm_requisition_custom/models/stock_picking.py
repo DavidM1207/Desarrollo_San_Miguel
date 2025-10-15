@@ -77,7 +77,7 @@ class StockMove(models.Model):
     
     @api.depends_context('uid')
     def _compute_user_can_edit_quantity(self):
-        group_id = "dv_requisition_custom.group_requisition_quantity_manager"
+        group_id = "sm_requisition_custom.group_requisition_quantity_manager"
         has_group = self.env.user.has_group(group_id)
         for move in self:
             move.user_can_edit_quantity = has_group
