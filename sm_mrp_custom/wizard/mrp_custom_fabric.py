@@ -30,7 +30,7 @@ class MrpCustomFabric(models.TransientModel):
         for record in self:
             if record.pie_tablar_mp > 0:
                 total_usado = sum(record.fabric_lines.mapped('pie_tablar_consumido'))
-                record.total_percent = (total_usado / record.pie_tablar_mp) 
+                record.total_percent = (total_usado / record.pie_tablar_mp) * 100.0
             else:
                 record.total_percent = 0.0
 
@@ -218,42 +218,28 @@ class MrpCustomFabricLines(models.TransientModel):
     @api.onchange('quantity_to_produce')
     def _onchange_quantity_to_produce(self):
         """Validar que no se supere el pie tablar disponible"""
-        if self.quantity_to_produce > 0 and self.product_id and self.fabric_id.pie_tablar_mp > 0:
-            # Calcular pie tablar que consumiría esta línea
-            pie_tablar_necesario = self.product_id.pie_tablar * self.quantity_to_produce
-            
-            # Calcular total consumido por otras líneas
-            otras_lineas = self.fabric_id.fabric_lines.filtered(lambda l: l.id != self.id)
-            total_otras = sum(otras_lineas.mapped('pie_tablar_consumido'))
-            
-            # Pie tablar disponible restante
-            disponible = self.fabric_id.pie_tablar_mp - total_otras
-            
-            if pie_tablar_necesario > disponible:
-                porcentaje = (pie_tablar_necesario / self.fabric_id.pie_tablar_mp) * 100.0
-                return {
-                    'warning': {
-                        'title': _('Advertencia: Pie Tablar Insuficiente'),
-                        'message': _(
-                            'La cantidad a producir requiere %.2f pie tablar (%.2f%%), pero solo hay %.2f disponible.\n\n'
-                            'Detalle:\n'
-                            '• Total Pie Tablar MP: %.2f\n'
-                            '• Ya usado en otras líneas: %.2f\n'
-                            '• Disponible: %.2f\n'
-                            '• Requerido para esta línea: %.2f\n'
-                            '• Excedente: %.2f'
-                        ) % (
-                            pie_tablar_necesario,
-                            porcentaje,
-                            disponible,
-                            self.fabric_id.pie_tablar_mp,
-                            total_otras,
-                            disponible,
-                            pie_tablar_necesario,
-                            pie_tablar_necesario - disponible
-                        )
-                    }
+        # Solo validar si hay valores válidos
+        if not (self.quantity_to_produce > 0 and self.product_id and self.fabric_id.pie_tablar_mp > 0):
+            return
+        
+        # Calcular pie tablar que consumiría esta línea
+        pie_tablar_necesario = self.product_id.pie_tablar * self.quantity_to_produce
+        
+        # Calcular total consumido por otras líneas (excluyendo esta)
+        otras_lineas = self.fabric_id.fabric_lines.filtered(lambda l: l.id != self.id and l.id)
+        total_otras = sum(otras_lineas.mapped('pie_tablar_consumido'))
+        
+        # Calcular cuánto quedaría disponible después de agregar esta línea
+        pie_tablar_disponible_despues = self.fabric_id.pie_tablar_mp - total_otras - pie_tablar_necesario
+        
+        # Solo mostrar advertencia si realmente se excede (queda negativo)
+        if pie_tablar_disponible_despues < -0.01:  # Margen de error por decimales
+            return {
+                'warning': {
+                    'title': _('Sin Pie Tablar Disponible'),
+                    'message': _('No hay suficiente Pie Tablar. Ya se ha consumido todo el material disponible.')
                 }
+            }
 
     @api.onchange('date')
     def _onchange_date(self):

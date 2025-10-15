@@ -63,7 +63,7 @@
                                         <field name="porcent" 
                                                string="% Uso" 
                                                readonly="1"
-                                               
+                                               widget="float"
                                                decoration-success="porcent &lt;= 100"
                                                decoration-danger="porcent &gt; 100"/>
                                         
@@ -90,11 +90,12 @@
                                             <field name="total_percent" 
                                                    string="Total % Usado" 
                                                    readonly="1"
-                                                   widget="percentage"
+                                                   widget="float"
                                                    class="oe_inline"
                                                    decoration-danger="total_percent &gt; 100"
                                                    decoration-success="total_percent &lt;= 100 and total_percent &gt; 0"
                                                    decoration-bf="total_percent &gt; 100"/>
+                                            <span class="oe_inline">%</span>
                                         </div>
                                     </group>
                                     <group>
@@ -111,14 +112,6 @@
                                              invisible="total_percent &lt; 95 or total_percent &gt; 100">
                                             <i class="fa fa-check-circle"/> 
                                             <strong>Óptimo:</strong> Está utilizando eficientemente la materia prima disponible.
-                                        </div>
-                                        <div class="alert alert-warning" 
-                                             role="alert" 
-                                             invisible="total_percent &gt;= 95 or total_percent &lt;= 0">
-                                            <i class="fa fa-info-circle"/> 
-                                            <strong>Información:</strong> Aún tiene 
-                                            <field name="pie_tablar_disponible" readonly="1" class="oe_inline"/> 
-                                            pie tablar disponible (<field name="total_percent" readonly="1" widget="percentage" class="oe_inline"/> usado).
                                         </div>
                                     </group>
                                 </group>
