@@ -47,7 +47,7 @@ class StockPicking(models.Model):
                         raise UserError(_('No se encontró un traslado previo para esta requisición!.'))
 
                     if previous_picking.state != 'done':
-                        raise UserError(_('No puede validar este movimiento hasta que se haya completado el traslado desde Transferencia Origen.'))
+                        raise UserError(_('No puede validar este movimiento hasta que se haya completado el traslado desde Transferencia Origen.!'))
 
                     for move in picking.move_ids_without_package:
                         prev_move = previous_picking.move_ids_without_package.filtered(lambda m: m.product_id.id == move.product_id.id)
@@ -104,40 +104,38 @@ class StockMove(models.Model):
             else:
                 move.quantity_readonly = False
 
-    def write(self, vals):
+    @api.constrains('quantity', 'product_uom_qty')
+    def _check_quantity_constraints(self):
         """
-        Sobrescribir write para validar cambios en la cantidad
+        Validar que las cantidades cumplan con las reglas de negocio
         """
-        if 'quantity' in vals or 'quantity_done' in vals:
-            for move in self:
-                new_quantity = vals.get('quantity', move.quantity)
+        for move in self:
+            if not move.requisition_order:
+                continue
                 
-                # Validación para movimientos de internal a transit
-                if (move.usage_origin == 'internal' and 
-                    move.usage_dest == 'transit' and 
-                    move.requisition_order and
-                    move.state not in ('done', 'cancel')):
-                    
-                    if new_quantity != move.product_uom_qty:
-                        raise ValidationError(
-                            _("No puede modificar la cantidad en el traslado de origen (Internal → Transit). "
-                              "La cantidad debe permanecer en %s para el producto: %s. "
-                              "Las cantidades no coinciden.") %
-                            (move.product_uom_qty, move.product_id.display_name)
-                        )
+            # Validación para movimientos de internal a transit
+            if (move.usage_origin == 'internal' and 
+                move.usage_dest == 'transit' and 
+                move.state not in ('done', 'cancel')):
                 
-                # Validación para movimientos de transit a internal
-                if (new_quantity > move.product_uom_qty and 
-                    move.usage_origin == 'transit' and 
-                    move.usage_dest == 'internal' and 
-                    move.requisition_order):
+                if move.quantity != move.product_uom_qty:
                     raise ValidationError(
-                        _("La cantidad realizada (%s) no puede ser mayor que la cantidad demandada (%s) "
-                          "para el producto: %s. Las cantidades no coinciden.") %
-                        (new_quantity, move.product_uom_qty, move.product_id.display_name)
+                        _("No puede modificar la cantidad en el traslado de origen (Internal → Transit). "
+                          "La cantidad debe permanecer en %s para el producto: %s. "
+                          "Las cantidades no coinciden.") %
+                        (move.product_uom_qty, move.product_id.display_name)
                     )
-        
-        return super(StockMove, self).write(vals)
+            
+            # Validación para movimientos de transit a internal
+            if (move.quantity > move.product_uom_qty and 
+                move.usage_origin == 'transit' and 
+                move.usage_dest == 'internal' and 
+                move.state not in ('done', 'cancel')):
+                raise ValidationError(
+                    _("La cantidad realizada (%s) no puede ser mayor que la cantidad demandada (%s) "
+                      "para el producto: %s. Las cantidades no coinciden.") %
+                    (move.quantity, move.product_uom_qty, move.product_id.display_name)
+                )
 
     @api.onchange('quantity')
     def _check_quantity_done(self):
@@ -148,9 +146,9 @@ class StockMove(models.Model):
                 move.requisition_order and 
                 move.quantity != move.product_uom_qty):
                 raise ValidationError(
-                    _("No puede modificar la cantidad en el traslado de origen. "
+                    _("No puede modificar la cantidad en el traslado de origen (Internal → Transit). "
                       "La cantidad debe permanecer en %s para el producto: %s. "
-                      "Las cantidades no coinciden. Por favor ponerse en contacto con abastecimiento") %
+                      "Las cantidades no coinciden.") %
                     (move.product_uom_qty, move.product_id.display_name)
                 )
             
