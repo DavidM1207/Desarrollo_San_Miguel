@@ -45,10 +45,10 @@ class EmployeePurchaseRequisition(models.Model):
                         # Si hay error al obtener el producto, continuar
                         continue
 
-        if has_purchase_order and not self.env.user.has_group('dv_requisition_custom.group_requisition_create_req_manager2'):
+        if has_purchase_order and not self.env.user.has_group('dv_requisition_custom.group_requisition_create_req_manager'):
             raise UserError(_('No tiene permiso para modificar la requisición de compra.'))
 
-        if has_sale_ok and self.env.user.has_group('dv_requisition_custom.group_requisition_create_req_manager2') and has_purchase_order:
+        if has_sale_ok and self.env.user.has_group('dv_requisition_custom.group_requisition_create_req_manager') and has_purchase_order:
             max_show = 20
             shown = bad_product_names[:max_show]
             extra = len(bad_product_names) - max_show
@@ -99,10 +99,10 @@ class EmployeePurchaseRequisition(models.Model):
                         # Si hay error al obtener el producto, continuar
                         continue
 
-        if has_purchase_order and not self.env.user.has_group('dv_requisition_custom.group_requisition_create_req_manager2'):
+        if has_purchase_order and not self.env.user.has_group('dv_requisition_custom.group_requisition_create_req_manager'):
             raise UserError(_('No tiene permiso para modificar la requisición de compra.'))
 
-        if has_sale_ok and self.env.user.has_group('dv_requisition_custom.group_requisition_create_req_manager2') and has_purchase_order:
+        if has_sale_ok and self.env.user.has_group('dv_requisition_custom.group_requisition_create_req_manager') and has_purchase_order:
             max_show = 20
             shown = bad_product_names[:max_show]
             extra = len(bad_product_names) - max_show
@@ -114,3 +114,4 @@ class EmployeePurchaseRequisition(models.Model):
             )
         
         return super(EmployeePurchaseRequisition, self).write(vals)
+
