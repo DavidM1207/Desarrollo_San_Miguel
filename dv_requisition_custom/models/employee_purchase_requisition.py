@@ -8,10 +8,8 @@ class EmployeePurchaseRequisition(models.Model):
     _inherit = "employee.purchase.requisition"
 
     def create(self, vals):
-        # Saltar validaciones si está en contexto de importación o creación de movimientos
-        if self.env.context.get('import_file') or \
-           self.env.context.get('skip_requisition_validations') or \
-           self.env.context.get('creating_stock_moves'):
+        # Saltar validaciones si está en contexto de importación
+        if self.env.context.get('import_file') or self.env.context.get('skip_requisition_validations'):
             return super(EmployeePurchaseRequisition, self).create(vals)
         
         has_purchase_order = any(
@@ -62,10 +60,8 @@ class EmployeePurchaseRequisition(models.Model):
         return super(EmployeePurchaseRequisition, self).create(vals)
 
     def write(self, vals):
-        # Saltar validaciones si está en contexto de importación o creación de movimientos
-        if self.env.context.get('import_file') or \
-           self.env.context.get('skip_requisition_validations') or \
-           self.env.context.get('creating_stock_moves'):
+        # Saltar validaciones si está en contexto de importación
+        if self.env.context.get('import_file') or self.env.context.get('skip_requisition_validations'):
             return super(EmployeePurchaseRequisition, self).write(vals)
         
         has_purchase_order = any(
@@ -113,6 +109,5 @@ class EmployeePurchaseRequisition(models.Model):
                 ) % ('\n- '.join(shown), suffix)
             )
         
+
         return super(EmployeePurchaseRequisition, self).write(vals)
-
-
