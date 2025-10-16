@@ -1,5 +1,5 @@
 <odoo>
-<data>
+  <data>
 <record id="inherit_view_stock_picking_form" model="ir.ui.view">
 <field name="name">inherit_view_stock_picking_form</field>
 <field name="model">stock.picking</field>
@@ -17,5 +17,5 @@
 </xpath>
 </field>
 </record>
-</data>
+  </data>
 </odoo>
