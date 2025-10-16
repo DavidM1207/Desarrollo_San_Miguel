@@ -25,21 +25,14 @@ class StockPicking(models.Model):
                     if previous_picking.state != 'done':
                         raise UserError(_('No puede validar este movimiento hasta que se haya completado el traslado desde Transferencia Origen.'))
 
-                    # Validación modificada: agrupa por producto todas las líneas del picking anterior
                     for move in picking.move_ids_without_package:
-                        # Buscar TODAS las líneas del producto en el picking anterior (no solo una)
-                        prev_moves = previous_picking.move_ids_without_package.filtered(
-                            lambda m: m.product_id.id == move.product_id.id
-                        )
-                        
-                        if prev_moves:
-                            # Sumar TODAS las cantidades del mismo producto (incluyendo líneas divididas)
-                            prev_qty_total = sum(prev_moves.mapped('quantity'))
-                            
-                            if move.quantity != prev_qty_total:
+                        prev_move = previous_picking.move_ids_without_package.filtered(lambda m: m.product_id.id == move.product_id.id)
+                        if prev_move:
+                            prev_qty = sum(prev_move.mapped('quantity'))
+                            if move.quantity != prev_qty:
                                 raise UserError(_(
-                                    'La cantidad del producto "%s" (%s) no coincide con la cantidad total del traslado previo (%s).'
-                                ) % (move.product_id.display_name, move.quantity, prev_qty_total))
+                                    'La cantidad del producto "%s" (%s) no coincide con la cantidad del traslado previo (%s).'
+                                ) % (move.product_id.display_name, move.quantity, prev_qty))
                 
                 if picking.location_id.usage == 'transit' and picking.location_dest_id.usage == 'internal' and picking.backorder_id:
                     previous_picking = self.env['stock.picking'].search([
@@ -56,21 +49,14 @@ class StockPicking(models.Model):
                     if previous_picking.state != 'done':
                         raise UserError(_('No puede validar este movimiento hasta que se haya completado el traslado desde Transferencia Origen.!'))
 
-                    # Validación modificada para backorders también
                     for move in picking.move_ids_without_package:
-                        # Buscar TODAS las líneas del producto en el picking anterior
-                        prev_moves = previous_picking.move_ids_without_package.filtered(
-                            lambda m: m.product_id.id == move.product_id.id
-                        )
-                        
-                        if prev_moves:
-                            # Sumar TODAS las cantidades del mismo producto
-                            prev_qty_total = sum(prev_moves.mapped('quantity'))
-                            
-                            if move.quantity != prev_qty_total:
+                        prev_move = previous_picking.move_ids_without_package.filtered(lambda m: m.product_id.id == move.product_id.id)
+                        if prev_move:
+                            prev_qty = sum(prev_move.mapped('quantity'))
+                            if move.quantity != prev_qty:
                                 raise UserError(_(
-                                    'La cantidad del producto "%s" (%s) no coincide con la cantidad total del traslado previo (%s).'
-                                ) % (move.product_id.display_name, move.quantity, prev_qty_total))
+                                    'La cantidad del producto "%s" (%s) no coincide con la cantidad del traslado previo (%s).'
+                                ) % (move.product_id.display_name, move.quantity, prev_qty))
 
         return super(StockPicking, self).button_validate()
 
@@ -82,10 +68,15 @@ class StockMove(models.Model):
     usage_origin = fields.Selection(related='picking_id.location_id.usage', string='Uso de Ubicación Origen', readonly=True)
     usage_dest = fields.Selection(related='picking_id.location_dest_id.usage', string='Uso de Ubicación Destino', readonly=True)
 
-
     user_can_edit_quantity = fields.Boolean(
         string="Puede editar cantidad",
         compute='_compute_user_can_edit_quantity',
+        store=False
+    )
+    
+    quantity_readonly = fields.Boolean(
+        string="Cantidad solo lectura",
+        compute='_compute_quantity_readonly',
         store=False
     )
     
@@ -96,41 +87,42 @@ class StockMove(models.Model):
         for move in self:
             move.user_can_edit_quantity = has_group
 
+    @api.depends('usage_origin', 'usage_dest', 'requisition_order', 'state')
+    def _compute_quantity_readonly(self):
+        """
+        Hace el campo quantity de solo lectura cuando:
+        - Es un movimiento de internal a transit
+        - Tiene requisition_order
+        - El estado no es 'done' o 'cancel'
+        """
+        for move in self:
+            if (move.usage_origin == 'internal' and 
+                move.usage_dest == 'transit' and 
+                move.requisition_order and
+                move.state not in ('done', 'cancel')):
+                move.quantity_readonly = True
+            else:
+                move.quantity_readonly = False
+
     @api.onchange('quantity')
     def _check_quantity_done(self):
-        for move in self:            
-            if move.quantity > move.product_uom_qty and move.usage_origin == 'internal' and move.usage_dest == 'transit' and move.requisition_order:
-                # Buscar el movimiento relacionado en la recepción (transit -> internal)
-                related_moves = self.env['stock.move'].search([
-                    ('requisition_order', '=', move.requisition_order),
-                    ('state', 'in', ['draft', 'waiting', 'confirmed']),
-                    ('usage_origin', '=', 'transit'),
-                    ('usage_dest', '=', 'internal'),
-                    ('product_id', '=', move.product_id.id)
-                ])
-                
-                if related_moves:
-                    # Calcular el total enviado desde origen (todas las líneas del mismo producto)
-                    origin_moves = self.env['stock.move'].search([
-                        ('requisition_order', '=', move.requisition_order),
-                        ('usage_origin', '=', 'internal'),
-                        ('usage_dest', '=', 'transit'),
-                        ('product_id', '=', move.product_id.id),
-                        ('picking_id', '=', move.picking_id.id)
-                    ])
-                    
-                    total_origin_qty = sum(origin_moves.mapped('quantity'))
-                    
-                    # Actualizar la cantidad en la recepción con el total consolidado
-                    # Si hay una sola línea en recepción, actualizar esa
-                    if len(related_moves) == 1:
-                        related_moves[0].sudo().write({'product_uom_qty': total_origin_qty})
-                    else:
-                        # Si hay múltiples líneas en recepción, actualizar la primera y eliminar las demás
-                        related_moves[0].sudo().write({'product_uom_qty': total_origin_qty})
-                        related_moves[1:].sudo().unlink()
-
-            if move.quantity > move.product_uom_qty and move.usage_origin == 'transit' and move.usage_dest == 'internal' and move.requisition_order:
+        for move in self:
+            # Bloquear edición de cantidad en movimientos de internal a transit
+            if (move.usage_origin == 'internal' and 
+                move.usage_dest == 'transit' and 
+                move.requisition_order and 
+                move.quantity != move.product_uom_qty):
+                raise ValidationError(
+                    _("No puede modificar la cantidad en el traslado de origen (Internal → Transit). "
+                      "La cantidad debe permanecer en %s para el producto: %s") %
+                    (move.product_uom_qty, move.product_id.display_name)
+                )
+            
+            # Validación para movimientos de transit a internal
+            if (move.quantity > move.product_uom_qty and 
+                move.usage_origin == 'transit' and 
+                move.usage_dest == 'internal' and 
+                move.requisition_order):
                 raise ValidationError(
                     _("La cantidad realizada (%s) no puede ser mayor que la cantidad demandada (%s) para el producto: %s") %
                     (move.quantity, move.product_uom_qty, move.product_id.display_name)
