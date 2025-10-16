@@ -10,32 +10,6 @@ class StockPicking(models.Model):
     def button_validate(self):
         for picking in self:
             if picking.requisition_order:
-                # Validar las cantidades ANTES de validar el picking
-                for move in picking.move_ids_without_package:
-                    # Validación para movimientos de internal a transit
-                    if (move.usage_origin == 'internal' and 
-                        move.usage_dest == 'transit' and 
-                        move.state not in ('done', 'cancel')):
-                        
-                        if move.quantity != move.product_uom_qty:
-                            raise UserError(
-                                _("No puede validar el traslado. La cantidad realizada (%s) debe ser igual "
-                                  "a la cantidad demandada (%s) para el producto: %s en el traslado de origen.") %
-                                (move.quantity, move.product_uom_qty, move.product_id.display_name)
-                            )
-                    
-                    # Validación para movimientos de transit a internal
-                    if (move.quantity > move.product_uom_qty and 
-                        move.usage_origin == 'transit' and 
-                        move.usage_dest == 'internal' and 
-                        move.state not in ('done', 'cancel')):
-                        raise UserError(
-                            _("No puede validar el traslado. La cantidad realizada (%s) no puede ser mayor "
-                              "que la cantidad demandada (%s) para el producto: %s.") %
-                            (move.quantity, move.product_uom_qty, move.product_id.display_name)
-                        )
-                
-                # Validaciones existentes para traslados relacionados
                 if picking.location_id.usage == 'transit' and picking.location_dest_id.usage == 'internal' and not picking.backorder_id:
                     previous_picking = self.env['stock.picking'].search([
                         ('requisition_order', '=', picking.requisition_order),
@@ -94,15 +68,10 @@ class StockMove(models.Model):
     usage_origin = fields.Selection(related='picking_id.location_id.usage', string='Uso de Ubicación Origen', readonly=True)
     usage_dest = fields.Selection(related='picking_id.location_dest_id.usage', string='Uso de Ubicación Destino', readonly=True)
 
+
     user_can_edit_quantity = fields.Boolean(
         string="Puede editar cantidad",
         compute='_compute_user_can_edit_quantity',
-        store=False
-    )
-    
-    quantity_readonly = fields.Boolean(
-        string="Cantidad solo lectura",
-        compute='_compute_quantity_readonly',
         store=False
     )
     
@@ -113,32 +82,26 @@ class StockMove(models.Model):
         for move in self:
             move.user_can_edit_quantity = has_group
 
-    @api.depends('usage_origin', 'usage_dest', 'requisition_order', 'state')
-    def _compute_quantity_readonly(self):
-        """
-        Hace el campo quantity de solo lectura cuando:
-        - Es un movimiento de internal a transit
-        - Tiene requisition_order
-        - El estado no es 'done' o 'cancel'
-        """
-        for move in self:
-            if (move.usage_origin == 'internal' and 
-                move.usage_dest == 'transit' and 
-                move.requisition_order and
-                move.state not in ('done', 'cancel')):
-                move.quantity_readonly = True
-            else:
-                move.quantity_readonly = False
+    @api.onchange('quantity')
+    def _check_quantity_done(self):
+        for move in self:            
+            if move.quantity > move.product_uom_qty and move.usage_origin == 'internal' and move.usage_dest == 'transit' and move.requisition_order:                
+                related_move = self.env['stock.move'].search([
+                    ('requisition_order', '=', move.requisition_order),
+                    ('state', 'in', ['draft', 'waiting', 'confirmed']),
+                    ('usage_origin', '=', 'transit'),
+                    ('usage_dest', '=', 'internal'),
+                    ('product_id', '=', move.product_id.id)
+                ], limit=1)
+                if related_move:
+                    related_move.sudo().write({'product_uom_qty': move.quantity})
 
-    # ELIMINAMOS @api.constrains - esta validación ahora está en button_validate()
-    # @api.constrains('quantity', 'product_uom_qty')
-    # def _check_quantity_constraints(self):
-    #     """
-    #     Validar que las cantidades cumplan con las reglas de negocio
-    #     """
-    #     ... código eliminado ...
+            if move.quantity > move.product_uom_qty and move.usage_origin == 'transit' and move.usage_dest == 'internal' and move.requisition_order:
+                raise ValidationError(
+                    _("La cantidad realizada (%s) no puede ser mayor que la cantidad demandada (%s) para el producto: %s") %
+                    (move.quantity, move.product_uom_qty, move.product_id.display_name)
+                )
+        
 
-    # ELIMINAMOS @api.onchange - esta validación ahora está en button_validate()
-    # @api.onchange('quantity')
-    # def _check_quantity_done(self):
-    #     ... código eliminado ...
+            
+
