@@ -15,6 +15,7 @@
         'base',
         'account',
         'point_of_sale',
+        'mail',
     ],
     'data': [
         'security/ir.model.access.csv',
