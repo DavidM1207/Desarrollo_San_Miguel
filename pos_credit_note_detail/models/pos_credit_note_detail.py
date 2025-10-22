@@ -1,4 +1,5 @@
 
+
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api
 
@@ -7,29 +8,33 @@ class AccountMoveLine(models.Model):
     """
     Extensión del modelo account.move.line para agregar funcionalidad POS.
     
-    Este módulo NO crea un modelo nuevo ni vistas SQL.
-    Solo agrega un campo relacionado para facilitar la agrupación por sesión POS.
-    
-    La magia está en el XML donde usamos el modelo nativo 'account.move.line'
-    con un dominio filtrado. Esto permite:
-    - Actualización en tiempo real
-    - Conciliación nativa
-    - Todas las funciones estándar de apuntes contables
+    Este módulo agrega un campo computado para obtener la sesión POS
+    desde la orden de POS relacionada con el asiento contable.
     """
     _inherit = 'account.move.line'
     
-    # Campo relacionado para poder agrupar por sesión POS
+    # Campo computado para obtener la sesión POS
     pos_session_id = fields.Many2one(
         'pos.session', 
         string='Sesión POS',
-        related='move_id.pos_session_id',  # Obtiene la sesión del asiento contable
-        store=True,  # Se guarda en BD para búsquedas rápidas
-        readonly=True,  # No se puede editar directamente
+        compute='_compute_pos_session_id',
+        store=True,
+        readonly=True,
         help='Sesión de POS asociada a este apunte contable. '
              'Este campo permite agrupar las notas de crédito por sesión.'
     )
     
-    # NOTA: No necesitamos agregar más campos porque:
-    # 1. Usamos TODOS los campos nativos de account.move.line
-    # 2. La vista XML filtra por dominio, no crea registros nuevos
-    # 3. Toda la lógica de negocio (conciliación, etc.) es nativa de Odoo
+    @api.depends('move_id.pos_order_ids', 'move_id.pos_order_ids.session_id')
+    def _compute_pos_session_id(self):
+        """
+        Calcula la sesión POS desde la orden de POS relacionada.
+        
+        La relación es: account.move.line → account.move → pos.order → pos.session
+        """
+        for line in self:
+            # Buscar si este asiento está relacionado con una orden de POS
+            if line.move_id.pos_order_ids:
+                # Tomar la primera orden (normalmente solo hay una)
+                line.pos_session_id = line.move_id.pos_order_ids[0].session_id
+            else:
+                line.pos_session_id = False
