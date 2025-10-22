@@ -5,14 +5,14 @@ from odoo.exceptions import UserError
 class CreditNoteDetail(models.Model):
     _name = 'credit.note.detail'
     _description = 'Detalle de Notas de Crédito'
-    _inherit = ['mail.thread', 'mail.activity.mixin']  # Agregado para el chatter
+    _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'date desc, id desc'
     _rec_name = 'reference'
 
     reference = fields.Char(
         string='Referencia',
         required=True,
-        tracking=True,  # Agregado para seguimiento
+        tracking=True,
         help='Referencia de la nota de crédito'
     )
     
@@ -40,8 +40,27 @@ class CreditNoteDetail(models.Model):
     
     move_id = fields.Many2one(
         'account.move',
-        string='Asiento Contable',
+        string='Asiento Contable NC',
         related='account_move_line_id.move_id',
+        store=True
+    )
+    
+    pos_order_id = fields.Many2one(
+        'pos.order',
+        string='Orden POS',
+        help='Orden de punto de venta que generó esta nota de crédito'
+    )
+    
+    origin_invoice_id = fields.Many2one(
+        'account.move',
+        string='Factura Origen',
+        tracking=True,
+        help='Factura que originó esta nota de crédito'
+    )
+    
+    origin_invoice_name = fields.Char(
+        string='Número Factura Origen',
+        related='origin_invoice_id.name',
         store=True
     )
     
@@ -91,6 +110,20 @@ class CreditNoteDetail(models.Model):
     ], string='Estado', related='move_id.state', store=True, tracking=True)
     
     notes = fields.Text(string='Notas', tracking=True)
+    
+    session_name = fields.Char(
+        string='Sesión POS',
+        compute='_compute_session_info',
+        store=True
+    )
+    
+    @api.depends('pos_order_id', 'pos_order_id.session_id')
+    def _compute_session_info(self):
+        for record in self:
+            if record.pos_order_id and record.pos_order_id.session_id:
+                record.session_name = record.pos_order_id.session_id.name
+            else:
+                record.session_name = False
     
     @api.depends('account_move_line_id', 'account_move_line_id.amount_residual')
     def _compute_balance(self):
@@ -152,26 +185,87 @@ class CreditNoteDetail(models.Model):
             'target': 'current',
         }
     
+    def action_view_origin_invoice(self):
+        """Abre la factura origen"""
+        self.ensure_one()
+        if not self.origin_invoice_id:
+            raise UserError(_('No hay factura origen asociada a esta nota de crédito.'))
+        
+        return {
+            'name': _('Factura Origen'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'account.move',
+            'view_mode': 'form',
+            'res_id': self.origin_invoice_id.id,
+            'target': 'current',
+        }
+    
     @api.model
     def action_sync_credit_notes(self):
-        """Sincroniza las notas de crédito desde los apuntes contables"""
-        # Buscar apuntes de notas de crédito que no estén en el modelo
+        """Sincroniza las notas de crédito desde los apuntes contables y órdenes POS"""
+        created_count = 0
+        
+        # 1. Sincronizar desde órdenes POS (notas de crédito individuales)
+        pos_orders = self.env['pos.order'].search([
+            ('amount_total', '<', 0),  # Solo órdenes negativas (NC)
+            ('state', 'in', ['paid', 'done', 'invoiced']),
+            ('account_move', '!=', False)
+        ])
+        
+        for order in pos_orders:
+            # Verificar si ya existe
+            existing = self.search([('pos_order_id', '=', order.id)], limit=1)
+            if existing:
+                continue
+            
+            # Buscar el apunte contable de NC
+            credit_line = order.account_move.line_ids.filtered(
+                lambda l: l.account_id.code == '211040020000' and l.credit > 0
+            )
+            
+            if not credit_line:
+                continue
+            
+            # Buscar factura origen
+            origin_invoice = False
+            if order.pos_reference and 'REFUND' in order.pos_reference:
+                original_ref = order.pos_reference.replace('REFUND', '').replace('-', '').strip()
+                origin_order = self.env['pos.order'].search([
+                    ('pos_reference', 'ilike', original_ref)
+                ], limit=1)
+                if origin_order and origin_order.account_move:
+                    origin_invoice = origin_order.account_move
+            
+            # Crear el detalle
+            self.create({
+                'reference': order.pos_reference or order.name,
+                'date': order.date_order.date() if order.date_order else fields.Date.today(),
+                'partner_id': order.partner_id.id if order.partner_id else self.env.company.partner_id.id,
+                'account_move_line_id': credit_line[0].id,
+                'pos_order_id': order.id,
+                'origin_invoice_id': origin_invoice.id if origin_invoice else False,
+                'notes': f'Sincronizado desde POS - Sesión: {order.session_id.name if order.session_id else "N/A"}'
+            })
+            created_count += 1
+        
+        # 2. Sincronizar desde otros apuntes contables (no POS)
         move_lines = self.env['account.move.line'].search([
             ('is_credit_note_line', '=', True),
             ('credit', '>', 0),
-            ('move_id.state', '=', 'posted')
+            ('move_id.state', '=', 'posted'),
+            ('move_id.pos_session_id', '=', False)  # Excluir los de POS
         ])
         
         existing_lines = self.search([]).mapped('account_move_line_id')
         new_lines = move_lines - existing_lines
         
-        created_count = 0
         for line in new_lines:
             self.create({
                 'reference': line.move_id.ref or line.move_id.name,
                 'date': line.date,
-                'partner_id': line.partner_id.id,
+                'partner_id': line.partner_id.id if line.partner_id else self.env.company.partner_id.id,
                 'account_move_line_id': line.id,
+                'origin_invoice_id': line.origin_invoice_id.id if line.origin_invoice_id else False,
             })
             created_count += 1
         

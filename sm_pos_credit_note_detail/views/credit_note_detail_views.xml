@@ -11,6 +11,8 @@
                 <field name="date"/>
                 <field name="reference"/>
                 <field name="partner_id"/>
+                <field name="origin_invoice_name" string="Factura Origen"/>
+                <field name="session_name"/>
                 <field name="amount" sum="Total"/>
                 <field name="balance" sum="Saldo Total"/>
                 <field name="reconciled" widget="boolean_toggle"/>
@@ -35,8 +37,12 @@
                             class="oe_highlight"
                             invisible="reconciled"/>
                     <button name="action_view_move" 
-                            string="Ver Asiento" 
+                            string="Ver Asiento NC" 
                             type="object"/>
+                    <button name="action_view_origin_invoice" 
+                            string="Ver Factura Origen" 
+                            type="object"
+                            invisible="not origin_invoice_id"/>
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
@@ -47,7 +53,17 @@
                                 icon="fa-book">
                             <div class="o_field_widget o_stat_info">
                                 <span class="o_stat_text">Ver</span>
-                                <span class="o_stat_text">Asiento</span>
+                                <span class="o_stat_text">Asiento NC</span>
+                            </div>
+                        </button>
+                        <button class="oe_stat_button" 
+                                name="action_view_origin_invoice" 
+                                type="object" 
+                                icon="fa-file-text-o"
+                                invisible="not origin_invoice_id">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">Ver Factura</span>
+                                <span class="o_stat_text">Origen</span>
                             </div>
                         </button>
                     </div>
@@ -56,17 +72,21 @@
                             <field name="reference"/>
                             <field name="date"/>
                             <field name="partner_id"/>
+                            <field name="origin_invoice_id"/>
+                            <field name="origin_invoice_name" readonly="1"/>
                         </group>
                         <group>
                             <field name="amount"/>
                             <field name="balance"/>
                             <field name="reconciled"/>
                             <field name="full_reconcile_id" readonly="1"/>
+                            <field name="session_name" readonly="1"/>
                         </group>
                     </group>
                     <group>
                         <field name="account_move_line_id"/>
                         <field name="move_id"/>
+                        <field name="pos_order_id" readonly="1"/>
                     </group>
                     <group>
                         <field name="notes" placeholder="Notas adicionales..."/>
@@ -89,6 +109,8 @@
                 <field name="reference" string="Referencia"/>
                 <field name="partner_id" string="Cliente"/>
                 <field name="date" string="Fecha"/>
+                <field name="origin_invoice_name" string="Factura Origen"/>
+                <field name="session_name" string="Sesión"/>
                 
                 <filter string="No Conciliadas" 
                         name="not_reconciled" 
@@ -96,6 +118,13 @@
                 <filter string="Conciliadas" 
                         name="reconciled" 
                         domain="[('reconciled', '=', True)]"/>
+                <separator/>
+                <filter string="Con Factura Origen" 
+                        name="with_origin" 
+                        domain="[('origin_invoice_id', '!=', False)]"/>
+                <filter string="Sin Factura Origen" 
+                        name="without_origin" 
+                        domain="[('origin_invoice_id', '=', False)]"/>
                 <separator/>
                 <filter string="Publicadas" 
                         name="posted" 
@@ -116,6 +145,9 @@
                     <filter string="Cliente" 
                             name="group_partner" 
                             context="{'group_by': 'partner_id'}"/>
+                    <filter string="Sesión POS" 
+                            name="group_session" 
+                            context="{'group_by': 'session_name'}"/>
                     <filter string="Mes" 
                             name="group_month" 
                             context="{'group_by': 'date:month'}"/>
@@ -141,8 +173,9 @@
                   edit="false">
                 <field name="date"/>
                 <field name="move_id"/>
-                <field name="credit_note_reference"/>
+                <field name="credit_note_reference" string="Referencia NC"/>
                 <field name="partner_id"/>
+                <field name="origin_invoice_name" string="Factura Origen"/>
                 <field name="name"/>
                 <field name="debit" sum="Total Débito"/>
                 <field name="credit" sum="Total Crédito"/>
@@ -169,6 +202,7 @@
             </p>
             <p>
                 Las notas de crédito se sincronizarán automáticamente desde los apuntes contables.
+                Haz clic en el botón "Sincronizar" para cargar las notas de crédito existentes.
             </p>
         </field>
     </record>

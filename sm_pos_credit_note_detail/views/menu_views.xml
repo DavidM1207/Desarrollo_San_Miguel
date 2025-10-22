@@ -19,5 +19,12 @@
               parent="menu_credit_notes_root"
               action="action_account_move_line_credit_notes"
               sequence="20"/>
+    
+    <!-- Botón de sincronización en el menú -->
+    <menuitem id="menu_sync_credit_notes"
+              name="Sincronizar Notas de Crédito"
+              parent="menu_credit_notes_root"
+              action="action_server_sync_credit_notes"
+              sequence="30"/>
 
 </odoo>
