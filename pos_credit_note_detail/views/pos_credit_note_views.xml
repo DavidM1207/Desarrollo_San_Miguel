@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <!-- Acción de ventana para mostrar apuntes contables filtrados -->
+    <record id="action_pos_credit_note_detail" model="ir.actions.act_window">
+        <field name="name">Detalle de Notas de Crédito</field>
+        <field name="res_model">account.move.line</field>
+        <field name="view_mode">tree,form,pivot,graph</field>
+        <field name="domain">[('account_id.code', '=', '211040020000'), ('parent_state', '=', 'posted')]</field>
+        <field name="context">{
+            'search_default_group_by_move': 1,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No se encontraron notas de crédito
+            </p>
+            <p>
+                Esta vista muestra los apuntes contables de la cuenta 211040020000
+                (Notas de Crédito por Aplicar) del Punto de Venta.
+            </p>
+            <p>
+                Se actualiza automáticamente cuando se crean nuevas notas de crédito.
+            </p>
+        </field>
+    </record>
+
+    <!-- Vista de árbol heredada para personalizar columnas -->
+    <record id="view_pos_credit_note_tree" model="ir.ui.view">
+        <field name="name">pos.credit.note.tree</field>
+        <field name="model">account.move.line</field>
+        <field name="inherit_id" ref="account.view_move_line_tree"/>
+        <field name="mode">primary</field>
+        <field name="arch" type="xml">
+            <xpath expr="//tree" position="attributes">
+                <attribute name="string">Detalle de Notas de Crédito</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Vista de búsqueda heredada con filtros específicos -->
+    <record id="view_pos_credit_note_search" model="ir.ui.view">
+        <field name="name">pos.credit.note.search</field>
+        <field name="model">account.move.line</field>
+        <field name="inherit_id" ref="account.view_account_move_line_filter"/>
+        <field name="mode">primary</field>
+        <field name="arch" type="xml">
+            <!-- Agregar filtro para agrupar por sesión POS -->
+            <xpath expr="//group[@string='Group By']" position="inside">
+                <filter string="Sesión POS" name="group_by_pos_session" 
+                        context="{'group_by': 'pos_session_id'}"
+                        help="Agrupar por sesión de POS"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Menú en Punto de Venta -->
+    <menuitem id="menu_pos_credit_note_detail"
+              name="Detalle de Notas de Crédito"
+              parent="point_of_sale.menu_point_of_sale"
+              action="action_pos_credit_note_detail"
+              sequence="10"
+              groups="point_of_sale.group_pos_user"/>
+
+</odoo>
