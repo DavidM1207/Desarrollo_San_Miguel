@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Vista de árbol/lista -->
+    <record id="view_pos_credit_note_detail_tree" model="ir.ui.view">
+        <field name="name">pos.credit.note.detail.tree</field>
+        <field name="model">pos.credit.note.detail</field>
+        <field name="arch" type="xml">
+            <tree string="Detalle de Notas de Crédito" 
+                  create="false" 
+                  edit="false" 
+                  delete="false"
+                  default_order="date desc">
+                
+                <field name="date" string="Fecha"/>
+                <field name="journal_id" string="Diario"/>
+                <field name="move_name" string="Nota de Crédito"/>
+                <field name="name" string="Etiqueta"/>
+                <field name="debit" string="Débito" sum="Total Débito"/>
+                <field name="credit" string="Crédito" sum="Total Crédito"/>
+                <field name="balance" string="Balance" sum="Balance Total"/>
+                <field name="matching_number" string="Emparejamiento"/>
+                <field name="analytic_distribution" string="Distribución Analítica" 
+                       widget="analytic_distribution"
+                       groups="analytic.group_analytic_accounting"
+                       optional="hide"/>
+                
+                <!-- Campos ocultos pero disponibles para búsqueda y filtros -->
+                <field name="partner_id" invisible="1"/>
+                <field name="account_id" invisible="1"/>
+                <field name="pos_order_id" invisible="1"/>
+                <field name="pos_session_id" invisible="1"/>
+                <field name="company_id" invisible="1"/>
+                <field name="company_currency_id" invisible="1"/>
+                <field name="move_id" invisible="1"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Vista de búsqueda con filtros -->
+    <record id="view_pos_credit_note_detail_search" model="ir.ui.view">
+        <field name="name">pos.credit.note.detail.search</field>
+        <field name="model">pos.credit.note.detail</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Detalle de Notas de Crédito">
+                <!-- Campos de búsqueda -->
+                <field name="date" string="Fecha"/>
+                <field name="move_name" string="Nota de Crédito"/>
+                <field name="journal_id" string="Diario"/>
+                <field name="partner_id" string="Empresa"/>
+                <field name="matching_number" string="Emparejamiento"/>
+                <field name="pos_session_id" string="Sesión POS"/>
+                <field name="name" string="Etiqueta"/>
+                
+                <!-- Filtros predefinidos -->
+                <filter string="Hoy" name="today" 
+                        domain="[('date', '=', context_today().strftime('%Y-%m-%d'))]"/>
+                <filter string="Este Mes" name="this_month" 
+                        domain="[('date', '&gt;=', (context_today() - relativedelta(day=1)).strftime('%Y-%m-%d')),
+                                 ('date', '&lt;=', (context_today() + relativedelta(day=31)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Mes Anterior" name="last_month" 
+                        domain="[('date', '&gt;=', (context_today() - relativedelta(months=1, day=1)).strftime('%Y-%m-%d')),
+                                 ('date', '&lt;=', (context_today() - relativedelta(day=1)).strftime('%Y-%m-%d'))]"/>
+                
+                <separator/>
+                <filter string="Con Débito" name="with_debit" 
+                        domain="[('debit', '&gt;', 0)]"/>
+                <filter string="Con Crédito" name="with_credit" 
+                        domain="[('credit', '&gt;', 0)]"/>
+                
+                <separator/>
+                <filter string="Conciliadas" name="reconciled" 
+                        domain="[('matching_number', '!=', False)]"/>
+                <filter string="No Conciliadas" name="not_reconciled" 
+                        domain="[('matching_number', '=', False)]"/>
+                
+                <separator/>
+                <filter string="Con Distribución Analítica" name="with_analytic" 
+                        domain="[('analytic_distribution', '!=', False)]"
+                        groups="analytic.group_analytic_accounting"/>
+                
+                <!-- Agrupaciones -->
+                <group expand="0" string="Agrupar Por">
+                    <filter string="Fecha" name="group_by_date" 
+                            context="{'group_by': 'date'}"/>
+                    <filter string="Diario" name="group_by_journal" 
+                            context="{'group_by': 'journal_id'}"/>
+                    <filter string="Empresa" name="group_by_partner" 
+                            context="{'group_by': 'partner_id'}"/>
+                    <filter string="Sesión POS" name="group_by_session" 
+                            context="{'group_by': 'pos_session_id'}"/>
+                    <filter string="Emparejamiento" name="group_by_matching" 
+                            context="{'group_by': 'matching_number'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Vista de formulario (solo lectura) -->
+    <record id="view_pos_credit_note_detail_form" model="ir.ui.view">
+        <field name="name">pos.credit.note.detail.form</field>
+        <field name="model">pos.credit.note.detail</field>
+        <field name="arch" type="xml">
+            <form string="Detalle de Nota de Crédito" create="false" edit="false" delete="false">
+                <header>
+                    <button name="action_view_journal_entry" 
+                            string="Ver Asiento Contable" 
+                            type="object" 
+                            class="oe_highlight"
+                            icon="fa-book"/>
+                    <button name="action_view_pos_order" 
+                            string="Ver Orden POS" 
+                            type="object" 
+                            class="oe_highlight"
+                            icon="fa-shopping-cart"
+                            invisible="pos_order_id == False"/>
+                    <button name="action_reconcile" 
+                            string="Conciliar" 
+                            type="object" 
+                            class="btn-primary"
+                            icon="fa-check-square-o"
+                            invisible="matching_number != False"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group string="Información General">
+                            <field name="date"/>
+                            <field name="journal_id"/>
+                            <field name="move_name"/>
+                            <field name="move_id" string="Asiento Contable"/>
+                            <field name="name"/>
+                            <field name="partner_id"/>
+                        </group>
+                        <group string="Información Contable">
+                            <field name="account_id"/>
+                            <field name="debit"/>
+                            <field name="credit"/>
+                            <field name="balance"/>
+                            <field name="matching_number"/>
+                            <field name="company_id"/>
+                            <field name="company_currency_id"/>
+                        </group>
+                    </group>
+                    <group string="Información POS" invisible="pos_order_id == False">
+                        <field name="pos_order_id"/>
+                        <field name="pos_session_id"/>
+                    </group>
+                    <group string="Distribución Analítica" 
+                           invisible="analytic_distribution == False"
+                           groups="analytic.group_analytic_accounting">
+                        <field name="analytic_distribution" widget="analytic_distribution"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Acción para abrir la vista -->
+    <record id="action_pos_credit_note_detail" model="ir.actions.act_window">
+        <field name="name">Detalle de Notas de Crédito POS</field>
+        <field name="res_model">pos.credit.note.detail</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_pos_credit_note_detail_search"/>
+        <field name="context">{
+            'search_default_this_month': 1,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No se encontraron registros de notas de crédito
+            </p>
+            <p>
+                Esta vista muestra el detalle de todas las notas de crédito
+                registradas en la cuenta 211040020000 (Notas de Crédito por Aplicar).
+            </p>
+            <p>
+                Cada línea representa una nota de crédito individual, incluso si
+                están agrupadas por sesión de POS en el libro mayor.
+            </p>
+        </field>
+    </record>
+
+</odoo>

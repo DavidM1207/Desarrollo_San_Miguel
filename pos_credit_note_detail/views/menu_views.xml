@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <!-- Menú principal en Contabilidad -->
+    <menuitem id="menu_pos_credit_note_detail_root"
+              name="Detalle de Notas de Crédito"
+              parent="account.menu_finance_receivables"
+              action="action_pos_credit_note_detail"
+              sequence="10"/>
+
+    <!-- También agregarlo en el menú de POS para fácil acceso -->
+    <menuitem id="menu_pos_credit_note_detail_pos"
+              name="Detalle de Notas de Crédito"
+              parent="point_of_sale.menu_point_of_sale"
+              action="action_pos_credit_note_detail"
+              sequence="99"
+              groups="point_of_sale.group_pos_user"/>
+
+</odoo>
