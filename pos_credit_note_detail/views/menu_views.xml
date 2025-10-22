@@ -3,7 +3,7 @@
     
     <!-- Menú principal en Contabilidad -->
     <menuitem id="menu_pos_credit_note_detail_root"
-              name="Detalle de Notas de Crédito"
+              name="Detalle NC POS"
               parent="account.menu_finance_receivables"
               action="action_pos_credit_note_detail"
               sequence="10"/>

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
-    'name': 'Detalle de Notas de Crédito en el POS',
-    'version': '17.0.1.0.1',
+    'name': 'Detalle de Notas de Crédito POS',
+    'version': '17.0.1.0.2',
     'category': 'Point of Sale',
     'summary': 'Visualiza el detalle individual de notas de crédito agrupadas por sesión de POS',
     'description': """
@@ -9,7 +9,8 @@
         que se agrupan por sesión en el libro mayor, mostrando cada nota de crédito
         individual con su información completa para facilitar la conciliación.
     """,
-    'author': 'San Miguel, S.A.',
+    'author': 'Tu Empresa',
+    'website': 'https://www.tuempresa.com',
     'depends': [
         'base',
         'account',
@@ -23,4 +24,5 @@
     'installable': True,
     'application': False,
     'auto_install': False,
+    'license': 'LGPL-3',
 }
