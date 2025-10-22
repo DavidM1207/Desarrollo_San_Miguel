@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Menú principal -->
+    <!-- Menú principal en Contabilidad -->
     <menuitem id="menu_credit_notes_root"
               name="Detalle Notas de Crédito"
-              parent="account.menu_finance_entries_accounting_entries"
+              parent="account.menu_finance_entries"
               sequence="15"/>
 
     <!-- Submenú: Detalle de Notas de Crédito -->
