@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Vista de árbol -->
+    <record id="view_credit_note_detail_tree" model="ir.ui.view">
+        <field name="name">credit.note.detail.tree</field>
+        <field name="model">credit.note.detail</field>
+        <field name="arch" type="xml">
+            <tree string="Detalle Notas de Crédito" 
+                  decoration-success="reconciled == True"
+                  decoration-muted="state == 'cancel'">
+                <field name="date"/>
+                <field name="reference"/>
+                <field name="partner_id"/>
+                <field name="amount" sum="Total"/>
+                <field name="balance" sum="Saldo Total"/>
+                <field name="reconciled" widget="boolean_toggle"/>
+                <field name="state" widget="badge" 
+                       decoration-success="state == 'posted'"
+                       decoration-danger="state == 'cancel'"/>
+                <field name="company_currency_id" column_invisible="1"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Vista de formulario -->
+    <record id="view_credit_note_detail_form" model="ir.ui.view">
+        <field name="name">credit.note.detail.form</field>
+        <field name="model">credit.note.detail</field>
+        <field name="arch" type="xml">
+            <form string="Detalle Nota de Crédito">
+                <header>
+                    <button name="action_reconcile" 
+                            string="Conciliar" 
+                            type="object" 
+                            class="oe_highlight"
+                            invisible="reconciled"/>
+                    <button name="action_view_move" 
+                            string="Ver Asiento" 
+                            type="object"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button class="oe_stat_button" 
+                                name="action_view_move" 
+                                type="object" 
+                                icon="fa-book">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">Ver</span>
+                                <span class="o_stat_text">Asiento</span>
+                            </div>
+                        </button>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="reference"/>
+                            <field name="date"/>
+                            <field name="partner_id"/>
+                        </group>
+                        <group>
+                            <field name="amount"/>
+                            <field name="balance"/>
+                            <field name="reconciled"/>
+                            <field name="full_reconcile_id" readonly="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="account_move_line_id"/>
+                        <field name="move_id"/>
+                    </group>
+                    <group>
+                        <field name="notes" placeholder="Notas adicionales..."/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Vista de búsqueda -->
+    <record id="view_credit_note_detail_search" model="ir.ui.view">
+        <field name="name">credit.note.detail.search</field>
+        <field name="model">credit.note.detail</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Notas de Crédito">
+                <field name="reference" string="Referencia"/>
+                <field name="partner_id" string="Cliente"/>
+                <field name="date" string="Fecha"/>
+                
+                <filter string="No Conciliadas" 
+                        name="not_reconciled" 
+                        domain="[('reconciled', '=', False)]"/>
+                <filter string="Conciliadas" 
+                        name="reconciled" 
+                        domain="[('reconciled', '=', True)]"/>
+                <separator/>
+                <filter string="Publicadas" 
+                        name="posted" 
+                        domain="[('state', '=', 'posted')]"/>
+                <filter string="Borrador" 
+                        name="draft" 
+                        domain="[('state', '=', 'draft')]"/>
+                <separator/>
+                <filter string="Este Mes" 
+                        name="this_month" 
+                        domain="[('date', '&gt;=', (context_today() - relativedelta(day=1)).strftime('%Y-%m-%d')),
+                                ('date', '&lt;=', (context_today() + relativedelta(day=31)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Este Año" 
+                        name="this_year" 
+                        domain="[('date', '&gt;=', (context_today() - relativedelta(month=1, day=1)).strftime('%Y-%m-%d'))]"/>
+                
+                <group expand="0" string="Agrupar por">
+                    <filter string="Cliente" 
+                            name="group_partner" 
+                            context="{'group_by': 'partner_id'}"/>
+                    <filter string="Mes" 
+                            name="group_month" 
+                            context="{'group_by': 'date:month'}"/>
+                    <filter string="Estado" 
+                            name="group_state" 
+                            context="{'group_by': 'state'}"/>
+                    <filter string="Conciliado" 
+                            name="group_reconciled" 
+                            context="{'group_by': 'reconciled'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Vista de libro mayor personalizada -->
+    <record id="view_account_move_line_credit_notes_tree" model="ir.ui.view">
+        <field name="name">account.move.line.credit.notes.tree</field>
+        <field name="model">account.move.line</field>
+        <field name="arch" type="xml">
+            <tree string="Libro Mayor - Notas de Crédito" 
+                  decoration-success="reconciled == True"
+                  create="false" 
+                  edit="false">
+                <field name="date"/>
+                <field name="move_id"/>
+                <field name="credit_note_reference"/>
+                <field name="partner_id"/>
+                <field name="name"/>
+                <field name="debit" sum="Total Débito"/>
+                <field name="credit" sum="Total Crédito"/>
+                <field name="amount_residual" sum="Saldo Total"/>
+                <field name="reconciled" widget="boolean_toggle"/>
+                <field name="full_reconcile_id"/>
+                <field name="company_currency_id" column_invisible="1"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Acción para detalle de notas de crédito -->
+    <record id="action_credit_note_detail" model="ir.actions.act_window">
+        <field name="name">Detalle Notas de Crédito</field>
+        <field name="res_model">credit.note.detail</field>
+        <field name="view_mode">tree,form</field>
+        <field name="context">{
+            'search_default_not_reconciled': 1,
+            'search_default_posted': 1
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No hay notas de crédito registradas
+            </p>
+            <p>
+                Las notas de crédito se sincronizarán automáticamente desde los apuntes contables.
+            </p>
+        </field>
+    </record>
+
+    <!-- Acción para libro mayor de notas de crédito -->
+    <record id="action_account_move_line_credit_notes" model="ir.actions.act_window">
+        <field name="name">Libro Mayor - Notas de Crédito</field>
+        <field name="res_model">account.move.line</field>
+        <field name="view_mode">tree,form</field>
+        <field name="view_id" ref="view_account_move_line_credit_notes_tree"/>
+        <field name="domain">[('is_credit_note_line', '=', True), ('credit', '>', 0)]</field>
+        <field name="context">{
+            'search_default_unreconciled': 1,
+            'search_default_posted': 1
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_empty_folder">
+                No hay apuntes de notas de crédito
+            </p>
+            <p>
+                Aquí se mostrarán todos los apuntes contables individuales de la cuenta 
+                211040020000 "Notas de Crédito por Aplicar".
+            </p>
+        </field>
+    </record>
+
+    <!-- Acción de servidor para sincronización -->
+    <record id="action_server_sync_credit_notes" model="ir.actions.server">
+        <field name="name">Sincronizar Notas de Crédito</field>
+        <field name="model_id" ref="model_credit_note_detail"/>
+        <field name="state">code</field>
+        <field name="code">
+action = model.action_sync_credit_notes()
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Menú principal -->
+    <menuitem id="menu_credit_notes_root"
+              name="Detalle Notas de Crédito"
+              parent="account.menu_finance_entries_accounting_entries"
+              sequence="15"/>
+
+    <!-- Submenú: Detalle de Notas de Crédito -->
+    <menuitem id="menu_credit_note_detail"
+              name="Detalle Notas de Crédito"
+              parent="menu_credit_notes_root"
+              action="action_credit_note_detail"
+              sequence="10"/>
+
+    <!-- Submenú: Libro Mayor NC -->
+    <menuitem id="menu_credit_note_ledger"
+              name="Libro Mayor Notas de Crédito"
+              parent="menu_credit_notes_root"
+              action="action_account_move_line_credit_notes"
+              sequence="20"/>
+
+</odoo>
