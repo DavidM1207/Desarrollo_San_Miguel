@@ -1,9 +1,9 @@
 -- Script SQL para limpiar la vista antes de instalar/actualizar el módulo
 -- Ejecutar este script directamente en la base de datos PostgreSQL si hay problemas de instalación
 
--- PASO 1: Eliminar la vista o tabla existente
-DROP TABLE IF EXISTS pos_credit_note_detail CASCADE;
+-- PASO 1: Eliminar la vista o tabla existente (ORDEN CORRECTO: primero VIEW, luego TABLE)
 DROP VIEW IF EXISTS pos_credit_note_detail CASCADE;
+DROP TABLE IF EXISTS pos_credit_note_detail CASCADE;
 
 -- PASO 2: Limpiar registros del modelo en Odoo (opcional pero recomendado)
 DELETE FROM ir_model_data WHERE model = 'pos.credit.note.detail';

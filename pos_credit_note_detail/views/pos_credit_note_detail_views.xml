@@ -19,7 +19,6 @@
                 <field name="credit" string="Crédito" sum="Total Crédito"/>
                 <field name="balance" string="Balance" sum="Balance Total"/>
                 <field name="matching_number" string="Emparejamiento"/>
-                <field name="analytic_distribution" string="Distribución Analítica" optional="hide"/>
                 
                 <!-- Campos ocultos pero disponibles para búsqueda y filtros -->
                 <field name="partner_id" invisible="1"/>
@@ -29,7 +28,6 @@
                 <field name="company_id" invisible="1"/>
                 <field name="company_currency_id" invisible="1"/>
                 <field name="move_id" invisible="1"/>
-                <field name="analytic_precision" invisible="1"/>
             </tree>
         </field>
     </record>
@@ -70,10 +68,6 @@
                         domain="[('matching_number', '!=', False)]"/>
                 <filter string="No Conciliadas" name="not_reconciled" 
                         domain="[('matching_number', '=', False)]"/>
-                
-                <separator/>
-                <filter string="Con Distribución Analítica" name="with_analytic" 
-                        domain="[('analytic_distribution', '!=', False)]"/>
                 
                 <!-- Agrupaciones -->
                 <group expand="0" string="Agrupar Por">
@@ -140,10 +134,6 @@
                     <group string="Información POS" invisible="pos_order_id == False">
                         <field name="pos_order_id"/>
                         <field name="pos_session_id"/>
-                    </group>
-                    <group string="Distribución Analítica" 
-                           invisible="analytic_distribution == False">
-                        <field name="analytic_distribution"/>
                     </group>
                 </sheet>
             </form>

@@ -17,8 +17,6 @@ class PosCreditNoteDetail(models.Model):
     credit = fields.Monetary(string='Crédito', readonly=True, currency_field='company_currency_id')
     balance = fields.Monetary(string='Balance', readonly=True, currency_field='company_currency_id')
     matching_number = fields.Char(string='Emparejamiento', readonly=True)
-    analytic_distribution = fields.Json(string='Distribución Analítica', readonly=True)
-    analytic_precision = fields.Integer(string='Precisión Analítica', readonly=True, default=2)
     account_id = fields.Many2one('account.account', string='Cuenta', readonly=True)
     partner_id = fields.Many2one('res.partner', string='Empresa', readonly=True)
     company_id = fields.Many2one('res.company', string='Compañía', readonly=True)
@@ -31,10 +29,10 @@ class PosCreditNoteDetail(models.Model):
         Crea una vista SQL que desglosa las líneas de apuntes contables
         de la cuenta de Notas de Crédito por Aplicar (211040020000)
         """
-        # Primero eliminar cualquier tabla o vista existente
+        # Primero eliminar cualquier vista existente, luego tabla
         self._cr.execute("""
-            DROP TABLE IF EXISTS pos_credit_note_detail CASCADE;
             DROP VIEW IF EXISTS pos_credit_note_detail CASCADE;
+            DROP TABLE IF EXISTS pos_credit_note_detail CASCADE;
         """)
         
         # Ahora crear la vista SQL
@@ -51,8 +49,6 @@ class PosCreditNoteDetail(models.Model):
                     aml.credit as credit,
                     aml.balance as balance,
                     aml.matching_number as matching_number,
-                    aml.analytic_distribution as analytic_distribution,
-                    2 as analytic_precision,
                     aml.account_id as account_id,
                     aml.partner_id as partner_id,
                     aml.company_id as company_id,

@@ -17,14 +17,12 @@ En Odoo 17, cuando se generan múltiples notas de crédito en una sesión de POS
 - **Crédito**: Monto en crédito
 - **Balance**: Balance del apunte
 - **Emparejamiento**: Estado de conciliación
-- **Distribución Analítica**: Distribución de cuentas analíticas
 
 ### Funcionalidades adicionales:
 1. **Filtros inteligentes**:
    - Por fecha (Hoy, Este Mes, Mes Anterior)
    - Con débito/crédito
    - Conciliadas/No conciliadas
-   - Con distribución analítica
 
 2. **Agrupaciones**:
    - Por fecha
