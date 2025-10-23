@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     
-    <!-- Vista de árbol para sesiones POS con NC -->
-    <record id="view_pos_session_credit_notes_tree" model="ir.ui.view">
-        <field name="name">pos.session.credit.notes.tree</field>
+    <!-- ========================================= -->
+    <!-- VISTAS PERSONALIZADAS SOLO PARA ESTE MÓDULO -->
+    <!-- NO SE MODIFICAN LAS VISTAS NATIVAS DE POS -->
+    <!-- ========================================= -->
+    
+    <!-- Vista de árbol NUEVA para sesiones POS con NC -->
+    <record id="view_pos_session_credit_notes_tree_custom" model="ir.ui.view">
+        <field name="name">pos.session.credit.notes.tree.custom</field>
         <field name="model">pos.session</field>
+        <field name="priority">1000</field>
         <field name="arch" type="xml">
             <tree string="Libro Mayor - Notas de Crédito por Sesión"
                   decoration-info="credit_note_count > 0"
@@ -26,10 +32,11 @@
         </field>
     </record>
 
-    <!-- Vista de formulario expandible para sesiones -->
-    <record id="view_pos_session_credit_notes_form" model="ir.ui.view">
-        <field name="name">pos.session.credit.notes.form</field>
+    <!-- Vista de formulario NUEVA expandible para sesiones -->
+    <record id="view_pos_session_credit_notes_form_custom" model="ir.ui.view">
+        <field name="name">pos.session.credit.notes.form.custom</field>
         <field name="model">pos.session</field>
+        <field name="priority">1000</field>
         <field name="arch" type="xml">
             <form string="Detalle Sesión - Notas de Crédito" create="false" edit="false">
                 <header>
@@ -84,7 +91,7 @@
                         </page>
                         
                         <page string="Facturas Origen" name="origin_invoices">
-                            <field name="credit_note_ids" nolabel="1" context="{'tree_view_ref': 'sm_pos_credit_note_detail.view_pos_order_origin_invoices_tree'}">
+                            <field name="credit_note_ids" nolabel="1">
                                 <tree string="Facturas que Generaron NC" 
                                       create="false" 
                                       edit="false">
@@ -115,31 +122,11 @@
         </field>
     </record>
 
-    <!-- Vista tree adicional para pestaña de facturas origen -->
-    <record id="view_pos_order_origin_invoices_tree" model="ir.ui.view">
-        <field name="name">pos.order.origin.invoices.tree</field>
-        <field name="model">pos.order</field>
-        <field name="arch" type="xml">
-            <tree string="Facturas Origen" create="false" edit="false">
-                <field name="date_order" string="Fecha NC"/>
-                <field name="pos_reference" string="Ref NC"/>
-                <field name="partner_id"/>
-                <field name="origin_invoice_id" string="Factura Certificada"/>
-                <field name="origin_invoice_name" string="Número Factura"/>
-                <field name="credit_note_amount" string="Monto NC"/>
-                <button name="action_view_origin_invoice" 
-                        string="Ver Factura" 
-                        type="object" 
-                        icon="fa-external-link"
-                        invisible="not origin_invoice_id"/>
-            </tree>
-        </field>
-    </record>
-
-    <!-- Vista de búsqueda -->
-    <record id="view_pos_session_credit_notes_search" model="ir.ui.view">
-        <field name="name">pos.session.credit.notes.search</field>
+    <!-- Vista de búsqueda NUEVA -->
+    <record id="view_pos_session_credit_notes_search_custom" model="ir.ui.view">
+        <field name="name">pos.session.credit.notes.search.custom</field>
         <field name="model">pos.session</field>
+        <field name="priority">1000</field>
         <field name="arch" type="xml">
             <search string="Buscar Sesiones con NC">
                 <field name="name" string="Sesión"/>
@@ -182,7 +169,7 @@
         </field>
     </record>
 
-    <!-- Acción principal -->
+    <!-- Acción ESPECÍFICA que usa SOLO nuestras vistas personalizadas -->
     <record id="action_pos_session_credit_notes" model="ir.actions.act_window">
         <field name="name">Libro Mayor - Notas de Crédito</field>
         <field name="res_model">pos.session</field>
@@ -192,9 +179,10 @@
             'search_default_with_credit_notes': 1,
             'search_default_closed': 1
         }</field>
+        <field name="search_view_id" ref="view_pos_session_credit_notes_search_custom"/>
         <field name="view_ids" eval="[(5, 0, 0),
-            (0, 0, {'view_mode': 'tree', 'view_id': ref('view_pos_session_credit_notes_tree')}),
-            (0, 0, {'view_mode': 'form', 'view_id': ref('view_pos_session_credit_notes_form')})]"/>
+            (0, 0, {'view_mode': 'tree', 'view_id': ref('view_pos_session_credit_notes_tree_custom')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('view_pos_session_credit_notes_form_custom')})]"/>
         <field name="help" type="html">
             <p class="o_view_nocontent_empty_folder">
                 No hay sesiones con notas de crédito
