@@ -189,13 +189,13 @@ class PosSession(models.Model):
         'pos.order',
         'session_id',
         string='Notas de Crédito',
-        domain=[('is_credit_note', '=', True), ('has_nc_account', '=', True)]
+        domain=[('is_credit_note', '=', True)]  # SIN filtro de cuenta aquí
     )
     
     @api.depends('order_ids', 'order_ids.is_credit_note', 'order_ids.credit_note_amount', 'order_ids.has_nc_account')
     def _compute_credit_note_info(self):
         for session in self:
-            # Solo contar NC que tengan la cuenta 211040020000
+            # Solo contar NC que tengan la cuenta 211040020000 PARA EL ENCABEZADO
             credit_notes = session.order_ids.filtered(lambda o: o.is_credit_note and o.has_nc_account)
             session.credit_note_count = len(credit_notes)
             session.credit_note_total = sum(credit_notes.mapped('credit_note_amount'))

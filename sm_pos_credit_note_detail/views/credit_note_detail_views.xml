@@ -75,6 +75,7 @@
                                 <tree string="Notas de Crédito" 
                                       decoration-success="reconciled == True"
                                       decoration-muted="state == 'cancel'"
+                                      decoration-danger="not has_nc_account"
                                       create="false" 
                                       edit="false">
                                     <field name="date_order" string="Fecha"/>
@@ -84,6 +85,7 @@
                                     <field name="credit_note_amount" string="Monto NC" sum="Total"/>
                                     <field name="balance" string="Saldo" sum="Saldo Total"/>
                                     <field name="reconciled" widget="boolean_toggle"/>
+                                    <field name="has_nc_account" column_invisible="1"/>
                                     <field name="state" column_invisible="1"/>
                                     <field name="currency_id" column_invisible="1"/>
                                 </tree>
@@ -93,6 +95,7 @@
                         <page string="Facturas Origen" name="origin_invoices">
                             <field name="credit_note_ids" nolabel="1">
                                 <tree string="Facturas que Generaron NC" 
+                                      decoration-danger="not has_nc_account"
                                       create="false" 
                                       edit="false">
                                     <field name="date_order" string="Fecha Orden"/>
@@ -106,6 +109,7 @@
                                             type="object" 
                                             icon="fa-external-link"
                                             invisible="not origin_invoice_id"/>
+                                    <field name="has_nc_account" column_invisible="1"/>
                                     <field name="currency_id" column_invisible="1"/>
                                 </tree>
                             </field>
@@ -180,6 +184,9 @@
                 <field name="partner_id" string="Cliente"/>
                 <field name="payment_method_name" string="Método de Pago"/>
                 
+                <filter string="Con Cuenta NC (211040020000)" 
+                        name="with_nc_account" 
+                        domain="[('has_nc_account', '=', True)]"/>
                 <filter string="Conciliadas" 
                         name="reconciled" 
                         domain="[('reconciled', '=', True)]"/>
@@ -197,19 +204,26 @@
                     <filter string="Estado Conciliación" 
                             name="group_reconciled" 
                             context="{'group_by': 'reconciled'}"/>
+                    <filter string="Tiene Cuenta NC" 
+                            name="group_has_nc_account" 
+                            context="{'group_by': 'has_nc_account'}"/>
                 </group>
             </search>
         </field>
     </record>
 
     <!-- Acción ESPECÍFICA que usa SOLO nuestras vistas personalizadas -->
+    <!-- El filtro por cuenta 211040020000 se aplica SOLO en la lista principal -->
     <record id="action_pos_session_credit_notes" model="ir.actions.act_window">
         <field name="name">Libro Mayor - Notas de Crédito</field>
         <field name="res_model">pos.session</field>
         <field name="view_mode">tree,form</field>
-        <field name="domain">[('credit_note_count', '>', 0)]</field>
+        <!-- FILTRO POR CUENTA SOLO EN LA VISTA DE LISTA -->
+        <field name="domain">[
+            ('order_ids.is_credit_note', '=', True),
+            ('order_ids.has_nc_account', '=', True)
+        ]</field>
         <field name="context">{
-            'search_default_with_credit_notes': 1,
             'search_default_closed': 1
         }</field>
         <field name="search_view_id" ref="view_pos_session_credit_notes_search_custom"/>
