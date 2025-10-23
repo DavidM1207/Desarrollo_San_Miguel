@@ -51,14 +51,11 @@ class PosOrder(models.Model):
         help='Apunte contable de la nota de crédito'
     )
     
-    
-    # Campo editable para conciliar/desconciliar
     reconciled = fields.Boolean(
         string='Conciliado',
         compute='_compute_reconciled',
-        inverse='_inverse_reconciled',
         store=True,
-        help='Marcar para conciliar, desmarcar para desconciliar'
+        help='Estado de conciliación del asiento contable'
     )
     
     reconciliation_state = fields.Selection([
@@ -125,31 +122,24 @@ class PosOrder(models.Model):
             
             order.origin_order_id = origin.id if origin else False
     
-    @api.depends('account_move', 'account_move.line_ids', 'is_credit_note')
+    @api.depends('account_move', 'account_move.line_ids', 'is_credit_note', 'account_move.state')
     def _compute_credit_note_move_line(self):
+        """Busca el apunte contable del asiento de la nota de crédito"""
         for order in self:
             move_line = False
-            if order.is_credit_note and order.account_move and order.account_move.line_ids:
-                # Buscar líneas con crédito (lado positivo en notas de crédito)
+            
+            if order.is_credit_note and order.account_move and order.account_move.state == 'posted':
+                # Buscar líneas con crédito (positivas) en cuentas reconciliables
                 credit_lines = order.account_move.line_ids.filtered(
-                    lambda l: l.credit > 0 and l.account_id.reconcile and not l.reconciled
+                    lambda l: l.credit > 0 and l.account_id.reconcile
                 )
                 
-                if not credit_lines:
-                    # Si no hay líneas sin conciliar, buscar todas las que tengan crédito
-                    credit_lines = order.account_move.line_ids.filtered(
-                        lambda l: l.credit > 0 and l.account_id.reconcile
+                if credit_lines:
+                    # Priorizar cuentas por cobrar
+                    receivable = credit_lines.filtered(
+                        lambda l: l.account_id.account_type == 'asset_receivable'
                     )
-                
-                # Priorizar cuentas por cobrar
-                receivable_lines = credit_lines.filtered(
-                    lambda l: l.account_id.account_type == 'asset_receivable'
-                )
-                
-                if receivable_lines:
-                    move_line = receivable_lines[0]
-                elif credit_lines:
-                    move_line = credit_lines[0]
+                    move_line = receivable[0] if receivable else credit_lines[0]
             
             order.credit_note_move_line_id = move_line.id if move_line else False
     
@@ -161,39 +151,23 @@ class PosOrder(models.Model):
             else:
                 order.has_nc_account = False
     
-    @api.depends('credit_note_move_line_id', 'credit_note_move_line_id.reconciled')
+    @api.depends('account_move', 'account_move.line_ids', 'account_move.line_ids.reconciled')
     def _compute_reconciled(self):
+        """Verifica si el asiento contable de la NC está conciliado"""
         for order in self:
-            if order.credit_note_move_line_id:
-                order.reconciled = order.credit_note_move_line_id.reconciled
-            else:
-                # Si no hay apunte, considerarlo como no conciliado
-                order.reconciled = False
-    
-    def _inverse_reconciled(self):
-        """Método que se ejecuta cuando se cambia el campo reconciled"""
-        for order in self:
-            if not self.credit_note_move_line_id:
-                # Si no hay apunte contable, no hacer nada
-                continue
+            is_reconciled = False
             
-            current_state = order.credit_note_move_line_id.reconciled
+            if order.account_move and order.account_move.state == 'posted':
+                # Verificar si alguna línea reconciliable del asiento está conciliada
+                reconcilable_lines = order.account_move.line_ids.filtered(
+                    lambda l: l.account_id.reconcile and (l.debit > 0 or l.credit > 0)
+                )
+                
+                if reconcilable_lines:
+                    # Si al menos una línea está conciliada, considerarlo conciliado
+                    is_reconciled = any(line.reconciled for line in reconcilable_lines)
             
-            # Si se marcó como conciliado pero no lo está
-            if order.reconciled and not current_state:
-                order.action_reconcile_credit_note()
-            
-            # Si se desmarcó pero está conciliado
-            elif not order.reconciled and current_state:
-                order.action_remove_reconciliation()
-    
-    @api.depends('credit_note_move_line_id', 'credit_note_move_line_id.reconciled')
-    def _compute_can_reconcile(self):
-        for order in self:
-            if order.credit_note_move_line_id:
-                order.can_reconcile = not order.credit_note_move_line_id.reconciled
-            else:
-                order.can_reconcile = False
+            order.reconciled = is_reconciled
     
     @api.depends('reconciled')
     def _compute_reconciliation_state(self):
@@ -202,7 +176,12 @@ class PosOrder(models.Model):
                 order.reconciliation_state = 'reconciled'
             else:
                 order.reconciliation_state = 'pending'
-
+    
+    @api.depends('credit_note_move_line_id', 'reconciled')
+    def _compute_can_reconcile(self):
+        for order in self:
+            order.can_reconcile = bool(order.credit_note_move_line_id) and not order.reconciled
+    
     @api.depends('credit_note_move_line_id', 'credit_note_move_line_id.amount_residual')
     def _compute_balance(self):
         for order in self:
@@ -239,46 +218,24 @@ class PosOrder(models.Model):
         }
     
     def action_reconcile_credit_note(self):
-        """Abre el widget de conciliación para esta nota de crédito"""
+        """Abre el asistente de conciliación manual de Odoo"""
         self.ensure_one()
         
         if not self.account_move:
             raise UserError(_('Esta nota de crédito no tiene un asiento contable asociado.'))
         
-        if not self.credit_note_move_line_id:
-            raise UserError(_('No se encontró un apunte contable válido para conciliar en esta nota de crédito.'))
-        
-        if self.credit_note_move_line_id.reconciled:
+        if self.reconciled:
             raise UserError(_('Esta nota de crédito ya está conciliada.'))
         
-        # Buscar apuntes del mismo cliente para conciliar
-        partner_id = self.partner_id.id if self.partner_id else False
-        
-        # Buscar facturas/apuntes pendientes del cliente
-        domain = [
-            ('partner_id', '=', partner_id),
-            ('account_id.reconcile', '=', True),
-            ('reconciled', '=', False),
-            ('parent_state', '=', 'posted'),
-            ('amount_residual', '!=', 0),
-        ]
-        
-        move_lines = self.env['account.move.line'].search(domain)
-        
-        # Incluir la línea de la NC
-        move_lines |= self.credit_note_move_line_id
-        
+        # Usar el widget nativo de conciliación de Odoo
+        # Esto permite buscar y seleccionar cualquier asiento con el que conciliar
         return {
-            'name': _('Conciliar Nota de Crédito'),
-            'type': 'ir.actions.act_window',
-            'res_model': 'account.move.line',
-            'view_mode': 'tree',
-            'domain': [('id', 'in', move_lines.ids)],
+            'type': 'ir.actions.client',
+            'tag': 'manual_reconciliation_view',
             'context': {
-                'default_partner_id': partner_id,
-                'search_default_unreconciled': 1,
+                'partner_ids': [self.partner_id.id] if self.partner_id else [],
+                'company_ids': [self.company_id.id],
             },
-            'target': 'current',
         }
     
     def action_view_reconciliation(self):

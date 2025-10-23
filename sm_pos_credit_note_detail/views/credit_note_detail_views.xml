@@ -90,7 +90,7 @@
                                             icon="fa-link"
                                             class="btn-primary"
                                             invisible="reconciled == True"
-                                            help="Conciliar esta nota de crédito"/>
+                                            help="Abrir asistente de conciliación"/>
                                     <button name="action_view_reconciliation" 
                                             string="Ver Conciliación" 
                                             type="object" 
@@ -124,39 +124,12 @@
                                     <field name="account_move" string="Factura Certificada"/>
                                     <field name="payment_method_name" string="Método de Pago"/>
                                     <field name="credit_note_amount" string="Monto NC"/>
-                                    <field name="reconciliation_state" string="Estado" widget="badge"
-                                           decoration-success="reconciliation_state == 'reconciled'"
-                                           decoration-danger="reconciliation_state == 'pending'"/>
-                                    <field name="reconciled" column_invisible="1"/>
-                                    <field name="credit_note_move_line_id" column_invisible="1"/>
                                     <button name="action_view_origin_invoice" 
                                             string="Ver Factura" 
                                             type="object" 
                                             icon="fa-external-link"
                                             invisible="origin_invoice_id == False"
                                             help="Abrir factura origen"/>
-                                    <button name="action_reconcile_credit_note" 
-                                            string="Conciliar" 
-                                            type="object" 
-                                            icon="fa-link"
-                                            class="btn-primary"
-                                            invisible="reconciled == True"
-                                            help="Conciliar esta nota de crédito"/>
-                                    <button name="action_view_reconciliation" 
-                                            string="Ver Conciliación" 
-                                            type="object" 
-                                            icon="fa-eye"
-                                            class="btn-info"
-                                            invisible="reconciled == False"
-                                            help="Ver detalles de la conciliación"/>
-                                    <button name="action_remove_reconciliation" 
-                                            string="Desconciliar" 
-                                            type="object" 
-                                            icon="fa-unlink"
-                                            class="btn-warning"
-                                            invisible="reconciled == False"
-                                            confirm="¿Está seguro de que desea desconciliar esta nota de crédito?"
-                                            help="Eliminar la conciliación"/>
                                     <field name="origin_invoice_id" column_invisible="1"/>
                                     <field name="currency_id" column_invisible="1"/>
                                 </tree>
