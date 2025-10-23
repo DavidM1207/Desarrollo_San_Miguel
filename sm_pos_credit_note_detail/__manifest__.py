@@ -15,10 +15,10 @@
         'base',
         'account',
         'point_of_sale',
-        'mail',
+        
     ],
     'data': [
-        'security/ir.model.access.csv',
+        
         'views/credit_note_detail_views.xml',
         'views/menu_views.xml',
     ],

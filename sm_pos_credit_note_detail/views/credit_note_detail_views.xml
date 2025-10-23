@@ -1,241 +1,209 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Vista de árbol -->
-    <record id="view_credit_note_detail_tree" model="ir.ui.view">
-        <field name="name">credit.note.detail.tree</field>
-        <field name="model">credit.note.detail</field>
+    
+    <!-- Vista de árbol para sesiones POS con NC -->
+    <record id="view_pos_session_credit_notes_tree" model="ir.ui.view">
+        <field name="name">pos.session.credit.notes.tree</field>
+        <field name="model">pos.session</field>
         <field name="arch" type="xml">
-            <tree string="Detalle Notas de Crédito" 
-                  decoration-success="reconciled == True"
-                  decoration-muted="state == 'cancel'">
-                <field name="date"/>
-                <field name="reference"/>
-                <field name="partner_id"/>
-                <field name="origin_invoice_name" string="Factura Origen"/>
-                <field name="session_name"/>
-                <field name="amount" sum="Total"/>
-                <field name="balance" sum="Saldo Total"/>
-                <field name="reconciled" widget="boolean_toggle"/>
+            <tree string="Libro Mayor - Notas de Crédito por Sesión"
+                  decoration-info="credit_note_count > 0"
+                  create="false" 
+                  edit="false">
+                <field name="name"/>
+                <field name="config_id"/>
+                <field name="start_at"/>
+                <field name="stop_at"/>
+                <field name="user_id"/>
+                <field name="credit_note_count" string="Cant. NC"/>
+                <field name="credit_note_total" string="Total NC" sum="Total NC"/>
                 <field name="state" widget="badge" 
-                       decoration-success="state == 'posted'"
-                       decoration-danger="state == 'cancel'"/>
-                <field name="company_currency_id" column_invisible="1"/>
+                       decoration-success="state == 'closed'"
+                       decoration-warning="state == 'opening_control'"
+                       decoration-info="state == 'opened'"/>
+                <field name="currency_id" column_invisible="1"/>
             </tree>
         </field>
     </record>
 
-    <!-- Vista de formulario -->
-    <record id="view_credit_note_detail_form" model="ir.ui.view">
-        <field name="name">credit.note.detail.form</field>
-        <field name="model">credit.note.detail</field>
+    <!-- Vista de formulario expandible para sesiones -->
+    <record id="view_pos_session_credit_notes_form" model="ir.ui.view">
+        <field name="name">pos.session.credit.notes.form</field>
+        <field name="model">pos.session</field>
         <field name="arch" type="xml">
-            <form string="Detalle Nota de Crédito">
+            <form string="Detalle Sesión - Notas de Crédito" create="false" edit="false">
                 <header>
-                    <button name="action_reconcile" 
-                            string="Conciliar" 
-                            type="object" 
-                            class="oe_highlight"
-                            invisible="reconciled"/>
-                    <button name="action_view_move" 
-                            string="Ver Asiento NC" 
-                            type="object"/>
-                    <button name="action_view_origin_invoice" 
-                            string="Ver Factura Origen" 
-                            type="object"
-                            invisible="not origin_invoice_id"/>
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
                         <button class="oe_stat_button" 
-                                name="action_view_move" 
                                 type="object" 
-                                icon="fa-book">
+                                name="action_view_order"
+                                icon="fa-shopping-cart">
                             <div class="o_field_widget o_stat_info">
-                                <span class="o_stat_text">Ver</span>
-                                <span class="o_stat_text">Asiento NC</span>
-                            </div>
-                        </button>
-                        <button class="oe_stat_button" 
-                                name="action_view_origin_invoice" 
-                                type="object" 
-                                icon="fa-file-text-o"
-                                invisible="not origin_invoice_id">
-                            <div class="o_field_widget o_stat_info">
-                                <span class="o_stat_text">Ver Factura</span>
-                                <span class="o_stat_text">Origen</span>
+                                <span class="o_stat_value">
+                                    <field name="credit_note_count"/>
+                                </span>
+                                <span class="o_stat_text">Notas de Crédito</span>
                             </div>
                         </button>
                     </div>
                     <group>
                         <group>
-                            <field name="reference"/>
-                            <field name="date"/>
-                            <field name="partner_id"/>
-                            <field name="origin_invoice_id"/>
-                            <field name="origin_invoice_name" readonly="1"/>
+                            <field name="name"/>
+                            <field name="config_id"/>
+                            <field name="user_id"/>
                         </group>
                         <group>
-                            <field name="amount"/>
-                            <field name="balance"/>
-                            <field name="reconciled"/>
-                            <field name="full_reconcile_id" readonly="1"/>
-                            <field name="session_name" readonly="1"/>
+                            <field name="start_at"/>
+                            <field name="stop_at"/>
+                            <field name="credit_note_total"/>
                         </group>
                     </group>
-                    <group>
-                        <field name="account_move_line_id"/>
-                        <field name="move_id"/>
-                        <field name="pos_order_id" readonly="1"/>
-                    </group>
-                    <group>
-                        <field name="notes" placeholder="Notas adicionales..."/>
-                    </group>
+                    
+                    <notebook>
+                        <page string="Notas de Crédito" name="credit_notes">
+                            <field name="credit_note_ids" nolabel="1">
+                                <tree string="Notas de Crédito" 
+                                      decoration-success="reconciled == True"
+                                      decoration-muted="state == 'cancel'"
+                                      create="false" 
+                                      edit="false">
+                                    <field name="date_order" string="Fecha"/>
+                                    <field name="pos_reference" string="Referencia NC"/>
+                                    <field name="partner_id" string="Cliente"/>
+                                    <field name="origin_invoice_name" string="Factura Origen"/>
+                                    <field name="credit_note_amount" string="Monto NC" sum="Total"/>
+                                    <field name="balance" string="Saldo" sum="Saldo Total"/>
+                                    <field name="reconciled" widget="boolean_toggle"/>
+                                    <field name="state" column_invisible="1"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </tree>
+                            </field>
+                        </page>
+                        
+                        <page string="Facturas Origen" name="origin_invoices">
+                            <field name="credit_note_ids" nolabel="1" context="{'tree_view_ref': 'sm_pos_credit_note_detail.view_pos_order_origin_invoices_tree'}">
+                                <tree string="Facturas que Generaron NC" 
+                                      create="false" 
+                                      edit="false">
+                                    <field name="date_order" string="Fecha Orden"/>
+                                    <field name="pos_reference" string="Ref NC"/>
+                                    <field name="partner_id" string="Cliente"/>
+                                    <field name="origin_invoice_id" string="Factura Certificada"/>
+                                    <field name="origin_invoice_name" string="Número Factura"/>
+                                    <field name="credit_note_amount" string="Monto NC"/>
+                                    <button name="action_view_origin_invoice" 
+                                            string="Ver Factura" 
+                                            type="object" 
+                                            icon="fa-external-link"
+                                            invisible="not origin_invoice_id"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </tree>
+                            </field>
+                        </page>
+                        
+                        <page string="Apuntes Contables" name="accounting">
+                            <group>
+                                <field name="move_id" readonly="1"/>
+                            </group>
+                        </page>
+                    </notebook>
                 </sheet>
-                <div class="oe_chatter">
-                    <field name="message_follower_ids"/>
-                    <field name="message_ids"/>
-                </div>
             </form>
         </field>
     </record>
 
-    <!-- Vista de búsqueda -->
-    <record id="view_credit_note_detail_search" model="ir.ui.view">
-        <field name="name">credit.note.detail.search</field>
-        <field name="model">credit.note.detail</field>
+    <!-- Vista tree adicional para pestaña de facturas origen -->
+    <record id="view_pos_order_origin_invoices_tree" model="ir.ui.view">
+        <field name="name">pos.order.origin.invoices.tree</field>
+        <field name="model">pos.order</field>
         <field name="arch" type="xml">
-            <search string="Buscar Notas de Crédito">
-                <field name="reference" string="Referencia"/>
-                <field name="partner_id" string="Cliente"/>
-                <field name="date" string="Fecha"/>
-                <field name="origin_invoice_name" string="Factura Origen"/>
-                <field name="session_name" string="Sesión"/>
+            <tree string="Facturas Origen" create="false" edit="false">
+                <field name="date_order" string="Fecha NC"/>
+                <field name="pos_reference" string="Ref NC"/>
+                <field name="partner_id"/>
+                <field name="origin_invoice_id" string="Factura Certificada"/>
+                <field name="origin_invoice_name" string="Número Factura"/>
+                <field name="credit_note_amount" string="Monto NC"/>
+                <button name="action_view_origin_invoice" 
+                        string="Ver Factura" 
+                        type="object" 
+                        icon="fa-external-link"
+                        invisible="not origin_invoice_id"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Vista de búsqueda -->
+    <record id="view_pos_session_credit_notes_search" model="ir.ui.view">
+        <field name="name">pos.session.credit.notes.search</field>
+        <field name="model">pos.session</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Sesiones con NC">
+                <field name="name" string="Sesión"/>
+                <field name="config_id" string="Punto de Venta"/>
+                <field name="user_id" string="Usuario"/>
                 
-                <filter string="No Conciliadas" 
-                        name="not_reconciled" 
-                        domain="[('reconciled', '=', False)]"/>
-                <filter string="Conciliadas" 
-                        name="reconciled" 
-                        domain="[('reconciled', '=', True)]"/>
-                <separator/>
-                <filter string="Con Factura Origen" 
-                        name="with_origin" 
-                        domain="[('origin_invoice_id', '!=', False)]"/>
-                <filter string="Sin Factura Origen" 
-                        name="without_origin" 
-                        domain="[('origin_invoice_id', '=', False)]"/>
-                <separator/>
-                <filter string="Publicadas" 
-                        name="posted" 
-                        domain="[('state', '=', 'posted')]"/>
-                <filter string="Borrador" 
-                        name="draft" 
-                        domain="[('state', '=', 'draft')]"/>
+                <filter string="Con Notas de Crédito" 
+                        name="with_credit_notes" 
+                        domain="[('credit_note_count', '>', 0)]"/>
+                <filter string="Cerradas" 
+                        name="closed" 
+                        domain="[('state', '=', 'closed')]"/>
+                <filter string="Abiertas" 
+                        name="opened" 
+                        domain="[('state', '=', 'opened')]"/>
                 <separator/>
                 <filter string="Este Mes" 
                         name="this_month" 
-                        domain="[('date', '&gt;=', (context_today() - relativedelta(day=1)).strftime('%Y-%m-%d')),
-                                ('date', '&lt;=', (context_today() + relativedelta(day=31)).strftime('%Y-%m-%d'))]"/>
+                        domain="[('start_at', '&gt;=', (context_today() - relativedelta(day=1)).strftime('%Y-%m-%d')),
+                                ('start_at', '&lt;=', (context_today() + relativedelta(day=31)).strftime('%Y-%m-%d'))]"/>
                 <filter string="Este Año" 
                         name="this_year" 
-                        domain="[('date', '&gt;=', (context_today() - relativedelta(month=1, day=1)).strftime('%Y-%m-%d'))]"/>
+                        domain="[('start_at', '&gt;=', (context_today() - relativedelta(month=1, day=1)).strftime('%Y-%m-%d'))]"/>
                 
                 <group expand="0" string="Agrupar por">
-                    <filter string="Cliente" 
-                            name="group_partner" 
-                            context="{'group_by': 'partner_id'}"/>
-                    <filter string="Sesión POS" 
-                            name="group_session" 
-                            context="{'group_by': 'session_name'}"/>
-                    <filter string="Mes" 
-                            name="group_month" 
-                            context="{'group_by': 'date:month'}"/>
+                    <filter string="Punto de Venta" 
+                            name="group_config" 
+                            context="{'group_by': 'config_id'}"/>
+                    <filter string="Usuario" 
+                            name="group_user" 
+                            context="{'group_by': 'user_id'}"/>
                     <filter string="Estado" 
                             name="group_state" 
                             context="{'group_by': 'state'}"/>
-                    <filter string="Conciliado" 
-                            name="group_reconciled" 
-                            context="{'group_by': 'reconciled'}"/>
+                    <filter string="Mes" 
+                            name="group_month" 
+                            context="{'group_by': 'start_at:month'}"/>
                 </group>
             </search>
         </field>
     </record>
 
-    <!-- Vista de libro mayor personalizada -->
-    <record id="view_account_move_line_credit_notes_tree" model="ir.ui.view">
-        <field name="name">account.move.line.credit.notes.tree</field>
-        <field name="model">account.move.line</field>
-        <field name="arch" type="xml">
-            <tree string="Libro Mayor - Notas de Crédito" 
-                  decoration-success="reconciled == True"
-                  create="false" 
-                  edit="false">
-                <field name="date"/>
-                <field name="move_id"/>
-                <field name="credit_note_reference" string="Referencia NC"/>
-                <field name="partner_id"/>
-                <field name="origin_invoice_name" string="Factura Origen"/>
-                <field name="name"/>
-                <field name="debit" sum="Total Débito"/>
-                <field name="credit" sum="Total Crédito"/>
-                <field name="amount_residual" sum="Saldo Total"/>
-                <field name="reconciled" widget="boolean_toggle"/>
-                <field name="full_reconcile_id"/>
-                <field name="company_currency_id" column_invisible="1"/>
-            </tree>
-        </field>
-    </record>
-
-    <!-- Acción para detalle de notas de crédito -->
-    <record id="action_credit_note_detail" model="ir.actions.act_window">
-        <field name="name">Detalle Notas de Crédito</field>
-        <field name="res_model">credit.note.detail</field>
-        <field name="view_mode">tree,form</field>
-        <field name="context">{
-            'search_default_not_reconciled': 1,
-            'search_default_posted': 1
-        }</field>
-        <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">
-                No hay notas de crédito registradas
-            </p>
-            <p>
-                Las notas de crédito se sincronizarán automáticamente desde los apuntes contables.
-                Haz clic en el botón "Sincronizar" para cargar las notas de crédito existentes.
-            </p>
-        </field>
-    </record>
-
-    <!-- Acción para libro mayor de notas de crédito -->
-    <record id="action_account_move_line_credit_notes" model="ir.actions.act_window">
+    <!-- Acción principal -->
+    <record id="action_pos_session_credit_notes" model="ir.actions.act_window">
         <field name="name">Libro Mayor - Notas de Crédito</field>
-        <field name="res_model">account.move.line</field>
+        <field name="res_model">pos.session</field>
         <field name="view_mode">tree,form</field>
-        <field name="view_id" ref="view_account_move_line_credit_notes_tree"/>
-        <field name="domain">[('is_credit_note_line', '=', True), ('credit', '>', 0)]</field>
+        <field name="domain">[('credit_note_count', '>', 0)]</field>
         <field name="context">{
-            'search_default_unreconciled': 1,
-            'search_default_posted': 1
+            'search_default_with_credit_notes': 1,
+            'search_default_closed': 1
         }</field>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'tree', 'view_id': ref('view_pos_session_credit_notes_tree')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('view_pos_session_credit_notes_form')})]"/>
         <field name="help" type="html">
             <p class="o_view_nocontent_empty_folder">
-                No hay apuntes de notas de crédito
+                No hay sesiones con notas de crédito
             </p>
             <p>
-                Aquí se mostrarán todos los apuntes contables individuales de la cuenta 
-                211040020000 "Notas de Crédito por Aplicar".
+                Aquí se mostrarán las sesiones de POS que contengan notas de crédito.
+                Al hacer clic en una sesión, podrás ver el detalle de cada nota de crédito
+                y las facturas que las generaron.
             </p>
-        </field>
-    </record>
-
-    <!-- Acción de servidor para sincronización -->
-    <record id="action_server_sync_credit_notes" model="ir.actions.server">
-        <field name="name">Sincronizar Notas de Crédito</field>
-        <field name="model_id" ref="model_credit_note_detail"/>
-        <field name="state">code</field>
-        <field name="code">
-action = model.action_sync_credit_notes()
         </field>
     </record>
 

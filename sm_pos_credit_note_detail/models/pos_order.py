@@ -4,83 +4,147 @@ from odoo import models, fields, api
 class PosOrder(models.Model):
     _inherit = 'pos.order'
 
-    credit_note_detail_ids = fields.One2many(
-        'credit.note.detail',
-        'pos_order_id',
-        string='Detalles de Nota de Crédito'
+    is_credit_note = fields.Boolean(
+        string='Es Nota de Crédito',
+        compute='_compute_is_credit_note',
+        store=True,
+        help='Indica si esta orden es una nota de crédito'
     )
     
-    def _create_credit_note_detail(self):
-        """Crea el detalle de nota de crédito después de crear el asiento contable"""
-        self.ensure_one()
-        CreditNoteDetail = self.env['credit.note.detail']
-        
-        # Solo procesar si es una nota de crédito (monto negativo)
-        if self.amount_total >= 0:
-            return
-        
-        # Buscar si ya existe un detalle para esta orden
-        existing_detail = CreditNoteDetail.search([
-            ('pos_order_id', '=', self.id)
-        ], limit=1)
-        
-        if existing_detail:
-            return
-        
-        # Buscar el apunte contable de nota de crédito relacionado
-        if self.account_move:
-            credit_line = self.account_move.line_ids.filtered(
-                lambda l: l.account_id.code == '211040020000' and l.credit > 0
-            )
+    credit_note_amount = fields.Monetary(
+        string='Monto NC',
+        compute='_compute_credit_note_amount',
+        store=True,
+        currency_field='currency_id',
+        help='Monto de la nota de crédito'
+    )
+    
+    origin_order_id = fields.Many2one(
+        'pos.order',
+        string='Orden Original',
+        compute='_compute_origin_order',
+        store=True,
+        help='Orden que originó esta nota de crédito'
+    )
+    
+    origin_invoice_id = fields.Many2one(
+        'account.move',
+        string='Factura Origen',
+        related='origin_order_id.account_move',
+        store=True,
+        help='Factura que originó esta nota de crédito'
+    )
+    
+    origin_invoice_name = fields.Char(
+        string='Número Factura Origen',
+        related='origin_invoice_id.name',
+        store=True
+    )
+    
+    credit_note_move_line_id = fields.Many2one(
+        'account.move.line',
+        string='Apunte Contable NC',
+        compute='_compute_credit_note_move_line',
+        store=True,
+        help='Apunte contable de la nota de crédito'
+    )
+    
+    reconciled = fields.Boolean(
+        string='Conciliado',
+        related='credit_note_move_line_id.reconciled',
+        store=True
+    )
+    
+    balance = fields.Monetary(
+        string='Saldo',
+        compute='_compute_balance',
+        store=True,
+        currency_field='currency_id'
+    )
+    
+    @api.depends('amount_total')
+    def _compute_is_credit_note(self):
+        for order in self:
+            order.is_credit_note = order.amount_total < 0
+    
+    @api.depends('amount_total', 'is_credit_note')
+    def _compute_credit_note_amount(self):
+        for order in self:
+            if order.is_credit_note:
+                order.credit_note_amount = abs(order.amount_total)
+            else:
+                order.credit_note_amount = 0.0
+    
+    @api.depends('pos_reference', 'name')
+    def _compute_origin_order(self):
+        for order in self:
+            origin = False
+            if order.is_credit_note and order.pos_reference:
+                # Extraer referencia original del refund
+                original_ref = order.pos_reference.upper()
+                if 'REFUND' in original_ref:
+                    # Remover REFUND y limpiar
+                    original_ref = original_ref.replace('REFUND', '').strip()
+                    original_ref = original_ref.replace('-', '').strip()
+                    
+                    # Buscar orden original
+                    origin = self.env['pos.order'].search([
+                        ('pos_reference', 'ilike', original_ref),
+                        ('amount_total', '>', 0),
+                        ('id', '!=', order.id)
+                    ], limit=1)
             
-            if credit_line:
-                # Obtener la factura origen si existe
-                origin_invoice = None
-                if self.name and 'REFUND' in self.name.upper():
-                    # Buscar la factura original en las referencias
-                    origin_ref = self.account_move.ref or self.pos_reference
-                    if origin_ref:
-                        origin_invoice = self.env['account.move'].search([
-                            '|',
-                            ('name', 'ilike', origin_ref),
-                            ('ref', 'ilike', origin_ref),
-                            ('move_type', '=', 'out_invoice')
-                        ], limit=1)
-                
-                # Crear el detalle
-                CreditNoteDetail.create({
-                    'reference': self.pos_reference or self.name,
-                    'date': self.date_order.date() if self.date_order else fields.Date.today(),
-                    'partner_id': self.partner_id.id if self.partner_id else self.env.company.partner_id.id,
-                    'account_move_line_id': credit_line[0].id,
-                    'pos_order_id': self.id,
-                    'origin_invoice_id': origin_invoice.id if origin_invoice else False,
-                    'notes': f'Nota de crédito generada desde POS - Sesión: {self.session_id.name if self.session_id else "N/A"}'
-                })
+            order.origin_order_id = origin.id if origin else False
+    
+    @api.depends('account_move', 'account_move.line_ids', 'is_credit_note')
+    def _compute_credit_note_move_line(self):
+        for order in self:
+            move_line = False
+            if order.is_credit_note and order.account_move:
+                # Buscar el apunte contable con la cuenta de NC
+                move_line = order.account_move.line_ids.filtered(
+                    lambda l: l.account_id.code == '211040020000' and l.credit > 0
+                )
+                if move_line:
+                    move_line = move_line[0]
+            
+            order.credit_note_move_line_id = move_line.id if move_line else False
+    
+    @api.depends('credit_note_move_line_id', 'credit_note_move_line_id.amount_residual')
+    def _compute_balance(self):
+        for order in self:
+            if order.credit_note_move_line_id:
+                order.balance = abs(order.credit_note_move_line_id.amount_residual)
+            else:
+                order.balance = 0.0
 
 
 class PosSession(models.Model):
     _inherit = 'pos.session'
-
-    def _create_account_move(self, balancing_account=False, amount_to_balance=0, bank_payment_method_diffs=None):
-        """Override para crear detalles de notas de crédito después de crear el asiento"""
-        move = super()._create_account_move(balancing_account, amount_to_balance, bank_payment_method_diffs)
-        
-        # Procesar todas las órdenes de esta sesión que sean notas de crédito
-        credit_note_orders = self.order_ids.filtered(lambda o: o.amount_total < 0)
-        for order in credit_note_orders:
-            order._create_credit_note_detail()
-        
-        return move
     
-    def action_pos_session_closing_control(self):
-        """Override para asegurar que se crean los detalles al cerrar sesión"""
-        res = super().action_pos_session_closing_control()
-        
-        # Crear detalles para notas de crédito de esta sesión
-        credit_note_orders = self.order_ids.filtered(lambda o: o.amount_total < 0)
-        for order in credit_note_orders:
-            if order.account_move:
-                order._create_credit_note_detail()
-        
-        return res
+    credit_note_count = fields.Integer(
+        string='Cantidad NC',
+        compute='_compute_credit_note_info',
+        store=True
+    )
+    
+    credit_note_total = fields.Monetary(
+        string='Total NC',
+        compute='_compute_credit_note_info',
+        store=True,
+        currency_field='currency_id'
+    )
+    
+    credit_note_ids = fields.One2many(
+        'pos.order',
+        'session_id',
+        string='Notas de Crédito',
+        domain=[('is_credit_note', '=', True)]
+    )
+    
+    @api.depends('order_ids', 'order_ids.is_credit_note', 'order_ids.credit_note_amount')
+    def _compute_credit_note_info(self):
+        for session in self:
+            credit_notes = session.order_ids.filtered(lambda o: o.is_credit_note)
+            session.credit_note_count = len(credit_notes)
+            session.credit_note_total = sum(credit_notes.mapped('credit_note_amount'))
