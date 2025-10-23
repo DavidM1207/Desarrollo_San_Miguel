@@ -79,9 +79,11 @@
                                     <field name="payment_method_name" string="Método de Pago"/>
                                     <field name="credit_note_amount" string="Monto NC" sum="Total"/>
                                     <field name="balance" string="Saldo" sum="Saldo Total"/>
-                                    <field name="reconciled" string="Estado" widget="badge" 
-                                           decoration-success="reconciled == True"
-                                           decoration-danger="reconciled == False and has_nc_account == True"/>
+                                    <field name="reconciliation_state" string="Estado" widget="badge" 
+                                           decoration-success="reconciliation_state == 'reconciled'"
+                                           decoration-danger="reconciliation_state == 'pending'"
+                                           decoration-muted="reconciliation_state == 'no_account'"/>
+                                    <field name="reconciled" column_invisible="1"/>
                                     <field name="has_nc_account" column_invisible="1"/>
                                     <button name="action_reconcile_credit_note" 
                                             string="Conciliar" 
@@ -123,9 +125,11 @@
                                     <field name="account_move" string="Factura Certificada"/>
                                     <field name="payment_method_name" string="Método de Pago"/>
                                     <field name="credit_note_amount" string="Monto NC"/>
-                                    <field name="reconciled" string="Estado" widget="badge"
-                                           decoration-success="reconciled == True"
-                                           decoration-danger="reconciled == False and has_nc_account == True"/>
+                                    <field name="reconciliation_state" string="Estado" widget="badge"
+                                           decoration-success="reconciliation_state == 'reconciled'"
+                                           decoration-danger="reconciliation_state == 'pending'"
+                                           decoration-muted="reconciliation_state == 'no_account'"/>
+                                    <field name="reconciled" column_invisible="1"/>
                                     <field name="has_nc_account" column_invisible="1"/>
                                     <button name="action_view_origin_invoice" 
                                             string="Ver Factura" 

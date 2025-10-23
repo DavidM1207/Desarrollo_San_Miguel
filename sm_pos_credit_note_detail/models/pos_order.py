@@ -51,6 +51,7 @@ class PosOrder(models.Model):
         help='Apunte contable de la nota de crédito'
     )
     
+    
     # Campo editable para conciliar/desconciliar
     reconciled = fields.Boolean(
         string='Conciliado',
@@ -59,6 +60,12 @@ class PosOrder(models.Model):
         store=True,
         help='Marcar para conciliar, desmarcar para desconciliar'
     )
+    
+    reconciliation_state = fields.Selection([
+        ('pending', 'Pendiente'),
+        ('reconciled', 'Conciliado'),
+        ('no_account', 'Sin Cuenta NC'),
+    ], string='Estado Conciliación', compute='_compute_reconciliation_state', store=True)
     
     balance = fields.Monetary(
         string='Saldo',
@@ -169,6 +176,16 @@ class PosOrder(models.Model):
             else:
                 order.can_reconcile = False
     
+    @api.depends('reconciled', 'has_nc_account')
+    def _compute_reconciliation_state(self):
+        for order in self:
+            if not order.has_nc_account:
+                order.reconciliation_state = 'no_account'
+            elif order.reconciled:
+                order.reconciliation_state = 'reconciled'
+            else:
+                order.reconciliation_state = 'pending'
+
     @api.depends('credit_note_move_line_id', 'credit_note_move_line_id.amount_residual')
     def _compute_balance(self):
         for order in self:
