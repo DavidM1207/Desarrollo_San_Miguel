@@ -218,44 +218,38 @@ class PosOrder(models.Model):
         }
     
     def action_reconcile_credit_note(self):
-        """Abre el asistente de conciliación de apuntes contables"""
+        """Abre la vista de apuntes contables para conciliar/desconciliar"""
         self.ensure_one()
         
         if not self.account_move:
             raise UserError(_('Esta nota de crédito no tiene un asiento contable asociado.'))
         
-        # Buscar todas las líneas reconciliables del asiento
+        # Buscar TODAS las líneas reconciliables del asiento (conciliadas o no)
         move_lines = self.account_move.line_ids.filtered(
-            lambda l: l.account_id.reconcile and (l.debit > 0 or l.credit > 0)
+            lambda l: l.account_id.reconcile
         )
         
         if not move_lines:
-            raise UserError(_('No hay líneas reconciliables en el asiento contable de esta nota de crédito.'))
+            raise UserError(_('No hay líneas con cuentas reconciliables en el asiento contable.'))
         
-        # Obtener la primera línea reconciliable con saldo
-        target_line = move_lines.filtered(lambda l: not l.reconciled)
-        if not target_line:
-            raise UserError(_('Todas las líneas ya están conciliadas.'))
-        
-        target_line = target_line[0]
+        # Tomar la primera línea reconciliable
+        target_line = move_lines[0]
         partner_id = target_line.partner_id.id if target_line.partner_id else False
         account_id = target_line.account_id.id
         
-        # Buscar apuntes pendientes de conciliar
+        # Buscar TODOS los apuntes de la misma cuenta y cliente (conciliados o no)
         domain = [
             ('account_id', '=', account_id),
-            ('reconciled', '=', False),
             ('parent_state', '=', 'posted'),
         ]
         
         if partner_id:
             domain.append(('partner_id', '=', partner_id))
         
-        # Incluir la línea de la NC
         all_lines = self.env['account.move.line'].search(domain)
         
         return {
-            'name': _('Conciliar Apuntes Contables'),
+            'name': _('Gestionar Conciliación - %s') % self.pos_reference,
             'type': 'ir.actions.act_window',
             'res_model': 'account.move.line',
             'view_mode': 'list',
@@ -263,18 +257,11 @@ class PosOrder(models.Model):
             'domain': [('id', 'in', all_lines.ids)],
             'context': {
                 'create': False,
+                'edit': False,
                 'default_partner_id': partner_id,
+                'group_by': [],
             },
             'target': 'current',
-            'help': '''
-                <p><b>Instrucciones para conciliar:</b></p>
-                <ol>
-                    <li>Seleccione los apuntes que desea conciliar (use los checkboxes)</li>
-                    <li>Vaya al menú "Acción" en la parte superior</li>
-                    <li>Seleccione "Reconciliar apuntes"</li>
-                </ol>
-                <p>Los apuntes se conciliarán automáticamente si los montos coinciden.</p>
-            ''',
         }
     
     def action_view_reconciliation(self):

@@ -85,27 +85,18 @@
                                     <field name="reconciled" column_invisible="1"/>
                                     <field name="credit_note_move_line_id" column_invisible="1"/>
                                     <button name="action_reconcile_credit_note" 
-                                            string="Conciliar" 
+                                            string="Gestionar Conciliación" 
                                             type="object" 
-                                            icon="fa-link"
+                                            icon="fa-exchange"
                                             class="btn-primary"
-                                            invisible="reconciled == True"
-                                            help="Abrir asistente de conciliación"/>
+                                            help="Abrir vista de apuntes para conciliar o desconciliar"/>
                                     <button name="action_view_reconciliation" 
-                                            string="Ver Conciliación" 
+                                            string="Ver Detalles" 
                                             type="object" 
                                             icon="fa-eye"
                                             class="btn-info"
                                             invisible="reconciled == False"
-                                            help="Ver detalles de la conciliación"/>
-                                    <button name="action_remove_reconciliation" 
-                                            string="Desconciliar" 
-                                            type="object" 
-                                            icon="fa-unlink"
-                                            class="btn-warning"
-                                            invisible="reconciled == False"
-                                            confirm="¿Está seguro de que desea desconciliar esta nota de crédito?"
-                                            help="Eliminar la conciliación"/>
+                                            help="Ver apuntes conciliados"/>
                                     <field name="state" column_invisible="1"/>
                                     <field name="currency_id" column_invisible="1"/>
                                 </tree>
