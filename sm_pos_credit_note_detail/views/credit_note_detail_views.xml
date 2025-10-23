@@ -213,16 +213,12 @@
     </record>
 
     <!-- Acción ESPECÍFICA que usa SOLO nuestras vistas personalizadas -->
-    <!-- El filtro por cuenta 211040020000 se aplica SOLO en la lista principal -->
     <record id="action_pos_session_credit_notes" model="ir.actions.act_window">
         <field name="name">Libro Mayor - Notas de Crédito</field>
         <field name="res_model">pos.session</field>
         <field name="view_mode">tree,form</field>
-        <!-- FILTRO POR CUENTA SOLO EN LA VISTA DE LISTA -->
-        <field name="domain">[
-            ('order_ids.is_credit_note', '=', True),
-            ('order_ids.has_nc_account', '=', True)
-        ]</field>
+        <!-- FILTRO SIMPLE: Solo sesiones con NC, sin importar la cuenta -->
+        <field name="domain">[('credit_note_count', '>', 0)]</field>
         <field name="context">{
             'search_default_closed': 1
         }</field>
@@ -235,10 +231,10 @@
                 No hay sesiones con notas de crédito
             </p>
             <p>
-                Aquí se mostrarán las sesiones de POS que contengan notas de crédito
-                con apuntes en la cuenta 211040020000 "Notas de Crédito por Aplicar".
+                Aquí se mostrarán las sesiones de POS que contengan notas de crédito.
                 Al hacer clic en una sesión, podrás ver el detalle de cada nota de crédito
                 y las facturas que las generaron.
+                Las NC con cuenta 211040020000 se contabilizan en los totales del encabezado.
             </p>
         </field>
     </record>
