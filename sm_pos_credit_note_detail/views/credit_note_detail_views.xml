@@ -101,14 +101,14 @@
                                     <field name="date_order" string="Fecha Orden"/>
                                     <field name="pos_reference" string="Ref NC"/>
                                     <field name="partner_id" string="Cliente"/>
-                                    <field name="origin_invoice_id" string="Factura Certificada"/>
+                                    <field name="account_move" string="Factura Certificada"/>
                                     <field name="payment_method_name" string="Método de Pago"/>
                                     <field name="credit_note_amount" string="Monto NC"/>
                                     <button name="action_view_origin_invoice" 
                                             string="Ver Factura" 
                                             type="object" 
                                             icon="fa-external-link"
-                                            invisible="not origin_invoice_id"/>
+                                            invisible="not account_move"/>
                                     <field name="has_nc_account" column_invisible="1"/>
                                     <field name="currency_id" column_invisible="1"/>
                                 </tree>
