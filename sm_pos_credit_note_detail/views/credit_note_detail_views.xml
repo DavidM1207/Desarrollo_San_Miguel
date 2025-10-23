@@ -65,36 +65,46 @@
                     </group>
                     
                     <notebook>
-                        <page string="Notas de Crédito" name="credit_notes">
+                         <page string="Notas de Crédito" name="credit_notes">
                             <field name="credit_note_ids" nolabel="1">
                                 <tree string="Notas de Crédito" 
                                       decoration-success="reconciled == True"
                                       decoration-muted="state == 'cancel'"
-                                      editable="bottom"
                                       create="false" 
+                                      edit="false"
                                       delete="false">
-                                    <field name="date_order" string="Fecha" readonly="1"/>
-                                    <field name="pos_reference" string="Referencia NC" readonly="1"/>
-                                    <field name="partner_id" string="Cliente" readonly="1"/>
-                                    <field name="payment_method_name" string="Método de Pago" readonly="1"/>
-                                    <field name="credit_note_amount" string="Monto NC" sum="Total" readonly="1"/>
-                                    <field name="balance" string="Saldo" sum="Saldo Total" readonly="1"/>
-                                    <field name="reconciled" string="Conciliar/Desconciliar" 
-                                           widget="boolean_toggle"
-                                           readonly="not has_nc_account"/>
+                                    <field name="date_order" string="Fecha"/>
+                                    <field name="pos_reference" string="Referencia NC"/>
+                                    <field name="partner_id" string="Cliente"/>
+                                    <field name="payment_method_name" string="Método de Pago"/>
+                                    <field name="credit_note_amount" string="Monto NC" sum="Total"/>
+                                    <field name="balance" string="Saldo" sum="Saldo Total"/>
+                                    <field name="reconciled" string="Estado" widget="badge" 
+                                           decoration-success="reconciled == True"
+                                           decoration-danger="reconciled == False and has_nc_account == True"/>
+                                    <field name="has_nc_account" column_invisible="1"/>
                                     <button name="action_reconcile_credit_note" 
-                                            string="Gestionar Conciliación" 
+                                            string="Conciliar" 
                                             type="object" 
                                             icon="fa-link"
-                                            invisible="not has_nc_account"
-                                            help="Abrir ventana de conciliación manual"/>
+                                            class="btn-primary"
+                                            invisible="reconciled == True or has_nc_account == False"
+                                            help="Conciliar esta nota de crédito"/>
                                     <button name="action_view_reconciliation" 
-                                            string="Ver Detalles" 
+                                            string="Ver Conciliación" 
                                             type="object" 
                                             icon="fa-eye"
-                                            invisible="not reconciled"
+                                            class="btn-info"
+                                            invisible="reconciled == False"
                                             help="Ver detalles de la conciliación"/>
-                                    <field name="has_nc_account" column_invisible="1"/>
+                                    <button name="action_remove_reconciliation" 
+                                            string="Desconciliar" 
+                                            type="object" 
+                                            icon="fa-unlink"
+                                            class="btn-warning"
+                                            invisible="reconciled == False"
+                                            confirm="¿Está seguro de que desea desconciliar esta nota de crédito?"
+                                            help="Eliminar la conciliación"/>
                                     <field name="state" column_invisible="1"/>
                                     <field name="currency_id" column_invisible="1"/>
                                 </tree>
@@ -104,18 +114,19 @@
                         <page string="Facturas Origen" name="origin_invoices">
                             <field name="credit_note_ids" nolabel="1">
                                 <tree string="Facturas que Generaron NC" 
-                                      editable="bottom"
                                       create="false" 
+                                      edit="false"
                                       delete="false">
-                                    <field name="date_order" string="Fecha Orden" readonly="1"/>
-                                    <field name="pos_reference" string="Ref NC" readonly="1"/>
-                                    <field name="partner_id" string="Cliente" readonly="1"/>
-                                    <field name="account_move" string="Factura Certificada" readonly="1"/>
-                                    <field name="payment_method_name" string="Método de Pago" readonly="1"/>
-                                    <field name="credit_note_amount" string="Monto NC" readonly="1"/>
-                                    <field name="reconciled" string="Conciliar/Desconciliar" 
-                                           widget="boolean_toggle"
-                                           readonly="not has_nc_account"/>
+                                    <field name="date_order" string="Fecha Orden"/>
+                                    <field name="pos_reference" string="Ref NC"/>
+                                    <field name="partner_id" string="Cliente"/>
+                                    <field name="account_move" string="Factura Certificada"/>
+                                    <field name="payment_method_name" string="Método de Pago"/>
+                                    <field name="credit_note_amount" string="Monto NC"/>
+                                    <field name="reconciled" string="Estado" widget="badge"
+                                           decoration-success="reconciled == True"
+                                           decoration-danger="reconciled == False and has_nc_account == True"/>
+                                    <field name="has_nc_account" column_invisible="1"/>
                                     <button name="action_view_origin_invoice" 
                                             string="Ver Factura" 
                                             type="object" 
@@ -123,18 +134,27 @@
                                             invisible="origin_invoice_id == False"
                                             help="Abrir factura origen"/>
                                     <button name="action_reconcile_credit_note" 
-                                            string="Gestionar" 
+                                            string="Conciliar" 
                                             type="object" 
                                             icon="fa-link"
-                                            invisible="not has_nc_account"
-                                            help="Abrir ventana de conciliación manual"/>
+                                            class="btn-primary"
+                                            invisible="reconciled == True or has_nc_account == False"
+                                            help="Conciliar esta nota de crédito"/>
                                     <button name="action_view_reconciliation" 
-                                            string="Ver Detalles" 
+                                            string="Ver Conciliación" 
                                             type="object" 
                                             icon="fa-eye"
-                                            invisible="not reconciled"
+                                            class="btn-info"
+                                            invisible="reconciled == False"
                                             help="Ver detalles de la conciliación"/>
-                                    <field name="has_nc_account" column_invisible="1"/>
+                                    <button name="action_remove_reconciliation" 
+                                            string="Desconciliar" 
+                                            type="object" 
+                                            icon="fa-unlink"
+                                            class="btn-warning"
+                                            invisible="reconciled == False"
+                                            confirm="¿Está seguro de que desea desconciliar esta nota de crédito?"
+                                            help="Eliminar la conciliación"/>
                                     <field name="origin_invoice_id" column_invisible="1"/>
                                     <field name="currency_id" column_invisible="1"/>
                                 </tree>
