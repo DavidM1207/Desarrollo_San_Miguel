@@ -131,18 +131,35 @@ class PosOrder(models.Model):
         for order in self:
             move_line = False
             if order.is_credit_note and order.account_move:
+                # Primero intentar buscar en la cuenta 211040020000
                 move_line = order.account_move.line_ids.filtered(
                     lambda l: l.account_id.code == '211040020000' and l.credit > 0
                 )
+                
+                # Si no encuentra en esa cuenta, buscar cualquier línea de crédito de cuentas por cobrar
+                if not move_line:
+                    move_line = order.account_move.line_ids.filtered(
+                        lambda l: l.account_id.account_type == 'asset_receivable' and l.credit > 0
+                    )
+                
+                # Si aún no encuentra, buscar cualquier línea con crédito
+                if not move_line:
+                    move_line = order.account_move.line_ids.filtered(
+                        lambda l: l.credit > 0 and l.account_id.reconcile
+                    )
+                
                 if move_line:
                     move_line = move_line[0]
             
             order.credit_note_move_line_id = move_line.id if move_line else False
     
-    @api.depends('credit_note_move_line_id')
+    @api.depends('credit_note_move_line_id', 'credit_note_move_line_id.account_id')
     def _compute_has_nc_account(self):
         for order in self:
-            order.has_nc_account = bool(order.credit_note_move_line_id)
+            if order.credit_note_move_line_id:
+                order.has_nc_account = order.credit_note_move_line_id.account_id.code == '211040020000'
+            else:
+                order.has_nc_account = False
     
     @api.depends('credit_note_move_line_id', 'credit_note_move_line_id.reconciled')
     def _compute_reconciled(self):
@@ -176,10 +193,10 @@ class PosOrder(models.Model):
             else:
                 order.can_reconcile = False
     
-    @api.depends('reconciled', 'has_nc_account')
+    @api.depends('reconciled', 'credit_note_move_line_id')
     def _compute_reconciliation_state(self):
         for order in self:
-            if not order.has_nc_account:
+            if not order.credit_note_move_line_id:
                 order.reconciliation_state = 'no_account'
             elif order.reconciled:
                 order.reconciliation_state = 'reconciled'
