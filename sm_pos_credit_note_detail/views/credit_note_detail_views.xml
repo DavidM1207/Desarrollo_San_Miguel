@@ -81,17 +81,15 @@
                                     <field name="balance" string="Saldo" sum="Saldo Total"/>
                                     <field name="reconciliation_state" string="Estado" widget="badge" 
                                            decoration-success="reconciliation_state == 'reconciled'"
-                                           decoration-danger="reconciliation_state == 'pending'"
-                                           decoration-muted="reconciliation_state == 'no_account'"/>
+                                           decoration-danger="reconciliation_state == 'pending'"/>
                                     <field name="reconciled" column_invisible="1"/>
-                                    <field name="has_nc_account" column_invisible="1"/>
                                     <field name="credit_note_move_line_id" column_invisible="1"/>
                                     <button name="action_reconcile_credit_note" 
                                             string="Conciliar" 
                                             type="object" 
                                             icon="fa-link"
                                             class="btn-primary"
-                                            invisible="reconciled == True or credit_note_move_line_id == False"
+                                            invisible="reconciled == True"
                                             help="Conciliar esta nota de crédito"/>
                                     <button name="action_view_reconciliation" 
                                             string="Ver Conciliación" 
@@ -128,10 +126,8 @@
                                     <field name="credit_note_amount" string="Monto NC"/>
                                     <field name="reconciliation_state" string="Estado" widget="badge"
                                            decoration-success="reconciliation_state == 'reconciled'"
-                                           decoration-danger="reconciliation_state == 'pending'"
-                                           decoration-muted="reconciliation_state == 'no_account'"/>
+                                           decoration-danger="reconciliation_state == 'pending'"/>
                                     <field name="reconciled" column_invisible="1"/>
-                                    <field name="has_nc_account" column_invisible="1"/>
                                     <field name="credit_note_move_line_id" column_invisible="1"/>
                                     <button name="action_view_origin_invoice" 
                                             string="Ver Factura" 
@@ -144,7 +140,7 @@
                                             type="object" 
                                             icon="fa-link"
                                             class="btn-primary"
-                                            invisible="reconciled == True or credit_note_move_line_id == False"
+                                            invisible="reconciled == True"
                                             help="Conciliar esta nota de crédito"/>
                                     <button name="action_view_reconciliation" 
                                             string="Ver Conciliación" 

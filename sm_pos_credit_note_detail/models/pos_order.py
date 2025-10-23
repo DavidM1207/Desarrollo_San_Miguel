@@ -62,10 +62,9 @@ class PosOrder(models.Model):
     )
     
     reconciliation_state = fields.Selection([
-        ('pending', 'Pendiente'),
+        ('pending', 'No Conciliado'),
         ('reconciled', 'Conciliado'),
-        ('no_account', 'Sin Cuenta NC'),
-    ], string='Estado Conciliación', compute='_compute_reconciliation_state', store=True)
+    ], string='Estado', compute='_compute_reconciliation_state', store=True)
     
     balance = fields.Monetary(
         string='Saldo',
@@ -130,26 +129,27 @@ class PosOrder(models.Model):
     def _compute_credit_note_move_line(self):
         for order in self:
             move_line = False
-            if order.is_credit_note and order.account_move:
-                # Primero intentar buscar en la cuenta 211040020000
-                move_line = order.account_move.line_ids.filtered(
-                    lambda l: l.account_id.code == '211040020000' and l.credit > 0
+            if order.is_credit_note and order.account_move and order.account_move.line_ids:
+                # Buscar líneas con crédito (lado positivo en notas de crédito)
+                credit_lines = order.account_move.line_ids.filtered(
+                    lambda l: l.credit > 0 and l.account_id.reconcile and not l.reconciled
                 )
                 
-                # Si no encuentra en esa cuenta, buscar cualquier línea de crédito de cuentas por cobrar
-                if not move_line:
-                    move_line = order.account_move.line_ids.filtered(
-                        lambda l: l.account_id.account_type == 'asset_receivable' and l.credit > 0
-                    )
-                
-                # Si aún no encuentra, buscar cualquier línea con crédito
-                if not move_line:
-                    move_line = order.account_move.line_ids.filtered(
+                if not credit_lines:
+                    # Si no hay líneas sin conciliar, buscar todas las que tengan crédito
+                    credit_lines = order.account_move.line_ids.filtered(
                         lambda l: l.credit > 0 and l.account_id.reconcile
                     )
                 
-                if move_line:
-                    move_line = move_line[0]
+                # Priorizar cuentas por cobrar
+                receivable_lines = credit_lines.filtered(
+                    lambda l: l.account_id.account_type == 'asset_receivable'
+                )
+                
+                if receivable_lines:
+                    move_line = receivable_lines[0]
+                elif credit_lines:
+                    move_line = credit_lines[0]
             
             order.credit_note_move_line_id = move_line.id if move_line else False
     
@@ -193,12 +193,10 @@ class PosOrder(models.Model):
             else:
                 order.can_reconcile = False
     
-    @api.depends('reconciled', 'credit_note_move_line_id')
+    @api.depends('reconciled')
     def _compute_reconciliation_state(self):
         for order in self:
-            if not order.credit_note_move_line_id:
-                order.reconciliation_state = 'no_account'
-            elif order.reconciled:
+            if order.reconciled:
                 order.reconciliation_state = 'reconciled'
             else:
                 order.reconciliation_state = 'pending'
