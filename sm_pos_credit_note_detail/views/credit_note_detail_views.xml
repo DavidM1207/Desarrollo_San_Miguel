@@ -1,11 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     
-    <!-- ========================================= -->
-    <!-- VISTAS PERSONALIZADAS SOLO PARA ESTE MÓDULO -->
-    <!-- NO SE MODIFICAN LAS VISTAS NATIVAS DE POS -->
-    <!-- ========================================= -->
-    
     <!-- Vista de árbol NUEVA para sesiones POS con NC -->
     <record id="view_pos_session_credit_notes_tree_custom" model="ir.ui.view">
         <field name="name">pos.session.credit.notes.tree.custom</field>
@@ -70,12 +65,11 @@
                     </group>
                     
                     <notebook>
-                       <page string="Notas de Crédito" name="credit_notes">
+                        <page string="Notas de Crédito" name="credit_notes">
                             <field name="credit_note_ids" nolabel="1">
                                 <tree string="Notas de Crédito" 
                                       decoration-success="reconciled == True"
                                       decoration-muted="state == 'cancel'"
-                                      decoration-danger="not has_nc_account"
                                       create="false" 
                                       edit="false">
                                     <field name="date_order" string="Fecha"/>
@@ -84,22 +78,25 @@
                                     <field name="payment_method_name" string="Método de Pago"/>
                                     <field name="credit_note_amount" string="Monto NC" sum="Total"/>
                                     <field name="balance" string="Saldo" sum="Saldo Total"/>
-                                    <field name="has_nc_account" string="Tiene Cta NC"/>
-                                    <field name="reconciled" string="Conciliado"/>
+                                    <field name="reconciled" string="Conciliado" widget="boolean_toggle"/>
+                                    <field name="can_reconcile" column_invisible="1"/>
                                     <button name="action_reconcile_credit_note" 
                                             string="Conciliar" 
                                             type="object" 
                                             icon="fa-link"
-                                            invisible="reconciled == True or has_nc_account == False"/>
+                                            class="btn-primary"
+                                            invisible="can_reconcile == False"/>
                                     <button name="action_view_reconciliation" 
                                             string="Ver Conciliación" 
                                             type="object" 
                                             icon="fa-eye"
+                                            class="btn-info"
                                             invisible="reconciled == False"/>
                                     <button name="action_remove_reconciliation" 
                                             string="Desconciliar" 
                                             type="object" 
                                             icon="fa-unlink"
+                                            class="btn-warning"
                                             invisible="reconciled == False"
                                             confirm="¿Está seguro de que desea desconciliar esta nota de crédito?"/>
                                     <field name="state" column_invisible="1"/>
@@ -111,7 +108,6 @@
                         <page string="Facturas Origen" name="origin_invoices">
                             <field name="credit_note_ids" nolabel="1">
                                 <tree string="Facturas que Generaron NC" 
-                                      decoration-danger="not has_nc_account"
                                       create="false" 
                                       edit="false">
                                     <field name="date_order" string="Fecha Orden"/>
@@ -120,8 +116,8 @@
                                     <field name="account_move" string="Factura Certificada"/>
                                     <field name="payment_method_name" string="Método de Pago"/>
                                     <field name="credit_note_amount" string="Monto NC"/>
-                                    <field name="has_nc_account" string="Tiene Cta NC"/>
-                                    <field name="reconciled" string="Conciliado"/>
+                                    <field name="reconciled" string="Conciliado" widget="boolean_toggle"/>
+                                    <field name="can_reconcile" column_invisible="1"/>
                                     <button name="action_view_origin_invoice" 
                                             string="Ver Factura" 
                                             type="object" 
@@ -131,11 +127,13 @@
                                             string="Conciliar" 
                                             type="object" 
                                             icon="fa-link"
-                                            invisible="reconciled == True or has_nc_account == False"/>
+                                            class="btn-primary"
+                                            invisible="can_reconcile == False"/>
                                     <button name="action_view_reconciliation" 
                                             string="Ver Conciliación" 
                                             type="object" 
                                             icon="fa-eye"
+                                            class="btn-info"
                                             invisible="reconciled == False"/>
                                     <field name="origin_invoice_id" column_invisible="1"/>
                                     <field name="currency_id" column_invisible="1"/>
@@ -212,9 +210,9 @@
                 <field name="partner_id" string="Cliente"/>
                 <field name="payment_method_name" string="Método de Pago"/>
                 
-                <filter string="Con Cuenta NC (211040020000)" 
-                        name="with_nc_account" 
-                        domain="[('has_nc_account', '=', True)]"/>
+                <filter string="Pendientes de Conciliar" 
+                        name="can_reconcile" 
+                        domain="[('can_reconcile', '=', True)]"/>
                 <filter string="Conciliadas" 
                         name="reconciled" 
                         domain="[('reconciled', '=', True)]"/>
@@ -232,20 +230,16 @@
                     <filter string="Estado Conciliación" 
                             name="group_reconciled" 
                             context="{'group_by': 'reconciled'}"/>
-                    <filter string="Tiene Cuenta NC" 
-                            name="group_has_nc_account" 
-                            context="{'group_by': 'has_nc_account'}"/>
                 </group>
             </search>
         </field>
     </record>
 
-    <!-- Acción ESPECÍFICA que usa SOLO nuestras vistas personalizadas -->
+    <!-- Acción ESPECÍFICA -->
     <record id="action_pos_session_credit_notes" model="ir.actions.act_window">
         <field name="name">Libro Mayor - Notas de Crédito</field>
         <field name="res_model">pos.session</field>
         <field name="view_mode">tree,form</field>
-        <!-- FILTRO SIMPLE: Solo sesiones con NC, sin importar la cuenta -->
         <field name="domain">[('credit_note_count', '>', 0)]</field>
         <field name="context">{
             'search_default_closed': 1

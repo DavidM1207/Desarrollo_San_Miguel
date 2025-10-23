@@ -64,7 +64,6 @@ class PosOrder(models.Model):
         currency_field='currency_id'
     )
     
-    # Nuevo campo para el método de pago
     payment_method_name = fields.Char(
         string='Método de Pago',
         compute='_compute_payment_method',
@@ -77,6 +76,12 @@ class PosOrder(models.Model):
         compute='_compute_has_nc_account',
         store=True,
         help='Indica si tiene apunte en cuenta 211040020000'
+    )
+    
+    can_reconcile = fields.Boolean(
+        string='Puede Conciliar',
+        compute='_compute_can_reconcile',
+        help='Indica si se puede conciliar esta NC'
     )
     
     @api.depends('amount_total')
@@ -97,14 +102,11 @@ class PosOrder(models.Model):
         for order in self:
             origin = False
             if order.is_credit_note and order.pos_reference:
-                # Extraer referencia original del refund
                 original_ref = order.pos_reference.upper()
                 if 'REFUND' in original_ref:
-                    # Remover REFUND y limpiar
                     original_ref = original_ref.replace('REFUND', '').strip()
                     original_ref = original_ref.replace('-', '').strip()
                     
-                    # Buscar orden original
                     origin = self.env['pos.order'].search([
                         ('pos_reference', 'ilike', original_ref),
                         ('amount_total', '>', 0),
@@ -118,7 +120,6 @@ class PosOrder(models.Model):
         for order in self:
             move_line = False
             if order.is_credit_note and order.account_move:
-                # Buscar el apunte contable con la cuenta de NC 211040020000
                 move_line = order.account_move.line_ids.filtered(
                     lambda l: l.account_id.code == '211040020000' and l.credit > 0
                 )
@@ -131,6 +132,11 @@ class PosOrder(models.Model):
     def _compute_has_nc_account(self):
         for order in self:
             order.has_nc_account = bool(order.credit_note_move_line_id)
+    
+    @api.depends('credit_note_move_line_id', 'reconciled')
+    def _compute_can_reconcile(self):
+        for order in self:
+            order.can_reconcile = bool(order.credit_note_move_line_id) and not order.reconciled
     
     @api.depends('credit_note_move_line_id', 'credit_note_move_line_id.amount_residual')
     def _compute_balance(self):
@@ -145,7 +151,6 @@ class PosOrder(models.Model):
         for order in self:
             payment_method = ''
             if order.payment_ids:
-                # Obtener todos los métodos de pago únicos
                 methods = order.payment_ids.mapped('payment_method_id.name')
                 payment_method = ', '.join(methods) if methods else 'Sin método'
             else:
@@ -169,7 +174,7 @@ class PosOrder(models.Model):
         }
     
     def action_reconcile_credit_note(self):
-        """Abre el asistente de conciliación para esta nota de crédito"""
+        """Abre el widget de conciliación para esta nota de crédito"""
         self.ensure_one()
         
         if not self.credit_note_move_line_id:
@@ -178,28 +183,15 @@ class PosOrder(models.Model):
         if self.reconciled:
             raise UserError(_('Esta nota de crédito ya está conciliada.'))
         
-        # Abrir vista de conciliación manual
+        # Usar el widget nativo de conciliación de Odoo
         return {
-            'name': _('Conciliar Nota de Crédito'),
-            'type': 'ir.actions.act_window',
-            'res_model': 'account.move.line',
-            'view_mode': 'tree',
-            'views': [(False, 'list')],
-            'domain': [
-                ('account_id', '=', self.credit_note_move_line_id.account_id.id),
-                ('reconciled', '=', False),
-                ('parent_state', '=', 'posted'),
-                '|',
-                ('id', '=', self.credit_note_move_line_id.id),
-                '&',
-                ('partner_id', '=', self.partner_id.id if self.partner_id else False),
-                ('amount_residual', '!=', 0)
-            ],
+            'type': 'ir.actions.client',
+            'tag': 'manual_reconciliation_view',
             'context': {
-                'search_default_unreconciled': 1,
-                'default_partner_id': self.partner_id.id if self.partner_id else False,
+                'mode': 'customers',
+                'partner_ids': [self.partner_id.id] if self.partner_id else [],
+                'company_ids': [self.company_id.id],
             },
-            'target': 'current',
         }
     
     def action_view_reconciliation(self):
@@ -212,7 +204,6 @@ class PosOrder(models.Model):
         if not self.reconciled:
             raise UserError(_('Esta nota de crédito aún no está conciliada.'))
         
-        # Mostrar todos los apuntes de la conciliación
         reconcile_lines = self.credit_note_move_line_id.matched_debit_ids.mapped('debit_move_id') | \
                          self.credit_note_move_line_id.matched_credit_ids.mapped('credit_move_id') | \
                          self.credit_note_move_line_id
@@ -237,7 +228,6 @@ class PosOrder(models.Model):
         if not self.reconciled:
             raise UserError(_('Esta nota de crédito no está conciliada.'))
         
-        # Desconciliar
         self.credit_note_move_line_id.remove_move_reconcile()
         
         return {
@@ -272,13 +262,12 @@ class PosSession(models.Model):
         'pos.order',
         'session_id',
         string='Notas de Crédito',
-        domain=[('is_credit_note', '=', True)]  # SIN filtro de cuenta aquí
+        domain=[('is_credit_note', '=', True)]
     )
     
     @api.depends('order_ids', 'order_ids.is_credit_note', 'order_ids.credit_note_amount', 'order_ids.has_nc_account')
     def _compute_credit_note_info(self):
         for session in self:
-            # Solo contar NC que tengan la cuenta 211040020000 PARA EL ENCABEZADO
             credit_notes = session.order_ids.filtered(lambda o: o.is_credit_note and o.has_nc_account)
             session.credit_note_count = len(credit_notes)
             session.credit_note_total = sum(credit_notes.mapped('credit_note_amount'))
