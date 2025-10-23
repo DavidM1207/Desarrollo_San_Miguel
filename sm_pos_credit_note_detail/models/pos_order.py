@@ -81,6 +81,7 @@ class PosOrder(models.Model):
     can_reconcile = fields.Boolean(
         string='Puede Conciliar',
         compute='_compute_can_reconcile',
+        store=True,   
         help='Indica si se puede conciliar esta NC'
     )
     
