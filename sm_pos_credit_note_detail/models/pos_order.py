@@ -64,6 +64,21 @@ class PosOrder(models.Model):
         currency_field='currency_id'
     )
     
+    # Nuevo campo para el método de pago
+    payment_method_name = fields.Char(
+        string='Método de Pago',
+        compute='_compute_payment_method',
+        store=True,
+        help='Método de pago utilizado en la nota de crédito'
+    )
+    
+    has_nc_account = fields.Boolean(
+        string='Tiene Cuenta NC',
+        compute='_compute_has_nc_account',
+        store=True,
+        help='Indica si tiene apunte en cuenta 211040020000'
+    )
+    
     @api.depends('amount_total')
     def _compute_is_credit_note(self):
         for order in self:
@@ -103,7 +118,7 @@ class PosOrder(models.Model):
         for order in self:
             move_line = False
             if order.is_credit_note and order.account_move:
-                # Buscar el apunte contable con la cuenta de NC
+                # Buscar el apunte contable con la cuenta de NC 211040020000
                 move_line = order.account_move.line_ids.filtered(
                     lambda l: l.account_id.code == '211040020000' and l.credit > 0
                 )
@@ -112,6 +127,11 @@ class PosOrder(models.Model):
             
             order.credit_note_move_line_id = move_line.id if move_line else False
     
+    @api.depends('credit_note_move_line_id')
+    def _compute_has_nc_account(self):
+        for order in self:
+            order.has_nc_account = bool(order.credit_note_move_line_id)
+    
     @api.depends('credit_note_move_line_id', 'credit_note_move_line_id.amount_residual')
     def _compute_balance(self):
         for order in self:
@@ -119,6 +139,19 @@ class PosOrder(models.Model):
                 order.balance = abs(order.credit_note_move_line_id.amount_residual)
             else:
                 order.balance = 0.0
+    
+    @api.depends('payment_ids', 'payment_ids.payment_method_id')
+    def _compute_payment_method(self):
+        for order in self:
+            payment_method = ''
+            if order.payment_ids:
+                # Obtener todos los métodos de pago únicos
+                methods = order.payment_ids.mapped('payment_method_id.name')
+                payment_method = ', '.join(methods) if methods else 'Sin método'
+            else:
+                payment_method = 'Sin método'
+            
+            order.payment_method_name = payment_method
     
     def action_view_origin_invoice(self):
         """Abre la factura origen que generó esta nota de crédito"""
@@ -156,12 +189,13 @@ class PosSession(models.Model):
         'pos.order',
         'session_id',
         string='Notas de Crédito',
-        domain=[('is_credit_note', '=', True)]
+        domain=[('is_credit_note', '=', True), ('has_nc_account', '=', True)]
     )
     
-    @api.depends('order_ids', 'order_ids.is_credit_note', 'order_ids.credit_note_amount')
+    @api.depends('order_ids', 'order_ids.is_credit_note', 'order_ids.credit_note_amount', 'order_ids.has_nc_account')
     def _compute_credit_note_info(self):
         for session in self:
-            credit_notes = session.order_ids.filtered(lambda o: o.is_credit_note)
+            # Solo contar NC que tengan la cuenta 211040020000
+            credit_notes = session.order_ids.filtered(lambda o: o.is_credit_note and o.has_nc_account)
             session.credit_note_count = len(credit_notes)
             session.credit_note_total = sum(credit_notes.mapped('credit_note_amount'))

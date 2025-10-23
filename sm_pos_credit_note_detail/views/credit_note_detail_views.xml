@@ -80,7 +80,7 @@
                                     <field name="date_order" string="Fecha"/>
                                     <field name="pos_reference" string="Referencia NC"/>
                                     <field name="partner_id" string="Cliente"/>
-                                    <field name="origin_invoice_name" string="Factura Origen"/>
+                                    <field name="payment_method_name" string="Método de Pago"/>
                                     <field name="credit_note_amount" string="Monto NC" sum="Total"/>
                                     <field name="balance" string="Saldo" sum="Saldo Total"/>
                                     <field name="reconciled" widget="boolean_toggle"/>
@@ -99,7 +99,7 @@
                                     <field name="pos_reference" string="Ref NC"/>
                                     <field name="partner_id" string="Cliente"/>
                                     <field name="origin_invoice_id" string="Factura Certificada"/>
-                                    <field name="origin_invoice_name" string="Número Factura"/>
+                                    <field name="payment_method_name" string="Método de Pago"/>
                                     <field name="credit_note_amount" string="Monto NC"/>
                                     <button name="action_view_origin_invoice" 
                                             string="Ver Factura" 
@@ -169,6 +169,39 @@
         </field>
     </record>
 
+    <!-- Vista de búsqueda para las NC dentro de la sesión -->
+    <record id="view_pos_order_credit_notes_search" model="ir.ui.view">
+        <field name="name">pos.order.credit.notes.search</field>
+        <field name="model">pos.order</field>
+        <field name="priority">1000</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Notas de Crédito">
+                <field name="pos_reference" string="Referencia"/>
+                <field name="partner_id" string="Cliente"/>
+                <field name="payment_method_name" string="Método de Pago"/>
+                
+                <filter string="Conciliadas" 
+                        name="reconciled" 
+                        domain="[('reconciled', '=', True)]"/>
+                <filter string="No Conciliadas" 
+                        name="not_reconciled" 
+                        domain="[('reconciled', '=', False)]"/>
+                
+                <group expand="1" string="Agrupar por">
+                    <filter string="Método de Pago" 
+                            name="group_payment_method" 
+                            context="{'group_by': 'payment_method_name'}"/>
+                    <filter string="Cliente" 
+                            name="group_partner" 
+                            context="{'group_by': 'partner_id'}"/>
+                    <filter string="Estado Conciliación" 
+                            name="group_reconciled" 
+                            context="{'group_by': 'reconciled'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
     <!-- Acción ESPECÍFICA que usa SOLO nuestras vistas personalizadas -->
     <record id="action_pos_session_credit_notes" model="ir.actions.act_window">
         <field name="name">Libro Mayor - Notas de Crédito</field>
@@ -188,7 +221,8 @@
                 No hay sesiones con notas de crédito
             </p>
             <p>
-                Aquí se mostrarán las sesiones de POS que contengan notas de crédito.
+                Aquí se mostrarán las sesiones de POS que contengan notas de crédito
+                con apuntes en la cuenta 211040020000 "Notas de Crédito por Aplicar".
                 Al hacer clic en una sesión, podrás ver el detalle de cada nota de crédito
                 y las facturas que las generaron.
             </p>
