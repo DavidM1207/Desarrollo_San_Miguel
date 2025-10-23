@@ -167,13 +167,15 @@ class PosOrder(models.Model):
             if order.credit_note_move_line_id:
                 order.reconciled = order.credit_note_move_line_id.reconciled
             else:
+                # Si no hay apunte, considerarlo como no conciliado
                 order.reconciled = False
     
     def _inverse_reconciled(self):
         """Método que se ejecuta cuando se cambia el campo reconciled"""
         for order in self:
-            if not order.credit_note_move_line_id:
-                raise UserError(_('Esta nota de crédito no tiene un apunte contable en la cuenta 211040020000.'))
+            if not self.credit_note_move_line_id:
+                # Si no hay apunte contable, no hacer nada
+                continue
             
             current_state = order.credit_note_move_line_id.reconciled
             
@@ -240,8 +242,11 @@ class PosOrder(models.Model):
         """Abre el widget de conciliación para esta nota de crédito"""
         self.ensure_one()
         
+        if not self.account_move:
+            raise UserError(_('Esta nota de crédito no tiene un asiento contable asociado.'))
+        
         if not self.credit_note_move_line_id:
-            raise UserError(_('Esta nota de crédito no tiene un apunte contable en la cuenta 211040020000.'))
+            raise UserError(_('No se encontró un apunte contable válido para conciliar en esta nota de crédito.'))
         
         if self.credit_note_move_line_id.reconciled:
             raise UserError(_('Esta nota de crédito ya está conciliada.'))
@@ -252,7 +257,7 @@ class PosOrder(models.Model):
         # Buscar facturas/apuntes pendientes del cliente
         domain = [
             ('partner_id', '=', partner_id),
-            ('account_id.account_type', 'in', ['asset_receivable', 'liability_payable']),
+            ('account_id.reconcile', '=', True),
             ('reconciled', '=', False),
             ('parent_state', '=', 'posted'),
             ('amount_residual', '!=', 0),
@@ -281,7 +286,7 @@ class PosOrder(models.Model):
         self.ensure_one()
         
         if not self.credit_note_move_line_id:
-            raise UserError(_('Esta nota de crédito no tiene un apunte contable en la cuenta 211040020000.'))
+            raise UserError(_('No se encontró un apunte contable válido para esta nota de crédito.'))
         
         if not self.credit_note_move_line_id.reconciled:
             raise UserError(_('Esta nota de crédito aún no está conciliada.'))
