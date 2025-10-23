@@ -70,7 +70,7 @@
                     </group>
                     
                     <notebook>
-                        <page string="Notas de Crédito" name="credit_notes">
+                       <page string="Notas de Crédito" name="credit_notes">
                             <field name="credit_note_ids" nolabel="1">
                                 <tree string="Notas de Crédito" 
                                       decoration-success="reconciled == True"
@@ -85,6 +85,28 @@
                                     <field name="credit_note_amount" string="Monto NC" sum="Total"/>
                                     <field name="balance" string="Saldo" sum="Saldo Total"/>
                                     <field name="reconciled" widget="boolean_toggle"/>
+                                    <button name="action_reconcile_credit_note" 
+                                            string="Conciliar" 
+                                            type="object" 
+                                            icon="fa-link"
+                                            class="btn-primary"
+                                            invisible="reconciled or not has_nc_account"
+                                            help="Conciliar esta nota de crédito"/>
+                                    <button name="action_view_reconciliation" 
+                                            string="Ver Conciliación" 
+                                            type="object" 
+                                            icon="fa-eye"
+                                            class="btn-info"
+                                            invisible="not reconciled"
+                                            help="Ver detalles de la conciliación"/>
+                                    <button name="action_remove_reconciliation" 
+                                            string="Desconciliar" 
+                                            type="object" 
+                                            icon="fa-unlink"
+                                            class="btn-warning"
+                                            invisible="not reconciled"
+                                            confirm="¿Está seguro de que desea desconciliar esta nota de crédito?"
+                                            help="Eliminar la conciliación"/>
                                     <field name="has_nc_account" column_invisible="1"/>
                                     <field name="state" column_invisible="1"/>
                                     <field name="currency_id" column_invisible="1"/>
@@ -104,12 +126,29 @@
                                     <field name="account_move" string="Factura Certificada"/>
                                     <field name="payment_method_name" string="Método de Pago"/>
                                     <field name="credit_note_amount" string="Monto NC"/>
+                                    <field name="reconciled" widget="boolean_toggle"/>
                                     <button name="action_view_origin_invoice" 
                                             string="Ver Factura" 
                                             type="object" 
                                             icon="fa-external-link"
-                                            invisible="not account_move"/>
+                                            invisible="not origin_invoice_id"
+                                            help="Abrir factura origen"/>
+                                    <button name="action_reconcile_credit_note" 
+                                            string="Conciliar" 
+                                            type="object" 
+                                            icon="fa-link"
+                                            class="btn-primary"
+                                            invisible="reconciled or not has_nc_account"
+                                            help="Conciliar esta nota de crédito"/>
+                                    <button name="action_view_reconciliation" 
+                                            string="Ver Conciliación" 
+                                            type="object" 
+                                            icon="fa-eye"
+                                            class="btn-info"
+                                            invisible="not reconciled"
+                                            help="Ver detalles de la conciliación"/>
                                     <field name="has_nc_account" column_invisible="1"/>
+                                    <field name="origin_invoice_id" column_invisible="1"/>
                                     <field name="currency_id" column_invisible="1"/>
                                 </tree>
                             </field>

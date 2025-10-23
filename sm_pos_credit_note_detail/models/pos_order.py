@@ -167,6 +167,89 @@ class PosOrder(models.Model):
             'res_id': self.origin_invoice_id.id,
             'target': 'current',
         }
+    
+    def action_reconcile_credit_note(self):
+        """Abre el asistente de conciliación para esta nota de crédito"""
+        self.ensure_one()
+        
+        if not self.credit_note_move_line_id:
+            raise UserError(_('Esta nota de crédito no tiene un apunte contable en la cuenta 211040020000.'))
+        
+        if self.reconciled:
+            raise UserError(_('Esta nota de crédito ya está conciliada.'))
+        
+        # Abrir vista de conciliación manual
+        return {
+            'name': _('Conciliar Nota de Crédito'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'account.move.line',
+            'view_mode': 'tree',
+            'views': [(False, 'list')],
+            'domain': [
+                ('account_id', '=', self.credit_note_move_line_id.account_id.id),
+                ('reconciled', '=', False),
+                ('parent_state', '=', 'posted'),
+                '|',
+                ('id', '=', self.credit_note_move_line_id.id),
+                '&',
+                ('partner_id', '=', self.partner_id.id if self.partner_id else False),
+                ('amount_residual', '!=', 0)
+            ],
+            'context': {
+                'search_default_unreconciled': 1,
+                'default_partner_id': self.partner_id.id if self.partner_id else False,
+            },
+            'target': 'current',
+        }
+    
+    def action_view_reconciliation(self):
+        """Ver la conciliación completa de esta NC"""
+        self.ensure_one()
+        
+        if not self.credit_note_move_line_id:
+            raise UserError(_('Esta nota de crédito no tiene un apunte contable en la cuenta 211040020000.'))
+        
+        if not self.reconciled:
+            raise UserError(_('Esta nota de crédito aún no está conciliada.'))
+        
+        # Mostrar todos los apuntes de la conciliación
+        reconcile_lines = self.credit_note_move_line_id.matched_debit_ids.mapped('debit_move_id') | \
+                         self.credit_note_move_line_id.matched_credit_ids.mapped('credit_move_id') | \
+                         self.credit_note_move_line_id
+        
+        return {
+            'name': _('Detalles de Conciliación'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'account.move.line',
+            'view_mode': 'tree,form',
+            'domain': [('id', 'in', reconcile_lines.ids)],
+            'context': {'create': False},
+            'target': 'current',
+        }
+    
+    def action_remove_reconciliation(self):
+        """Desconciliar esta nota de crédito"""
+        self.ensure_one()
+        
+        if not self.credit_note_move_line_id:
+            raise UserError(_('Esta nota de crédito no tiene un apunte contable en la cuenta 211040020000.'))
+        
+        if not self.reconciled:
+            raise UserError(_('Esta nota de crédito no está conciliada.'))
+        
+        # Desconciliar
+        self.credit_note_move_line_id.remove_move_reconcile()
+        
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Conciliación eliminada'),
+                'message': _('La nota de crédito ha sido desconciliada exitosamente.'),
+                'type': 'success',
+                'sticky': False,
+            }
+        }
 
 
 class PosSession(models.Model):
