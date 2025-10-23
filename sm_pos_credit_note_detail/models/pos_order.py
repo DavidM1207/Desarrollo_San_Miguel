@@ -218,7 +218,7 @@ class PosOrder(models.Model):
         }
     
     def action_reconcile_credit_note(self):
-        """Abre el asistente de conciliación manual de Odoo"""
+        """Abre la vista de conciliación de apuntes contables"""
         self.ensure_one()
         
         if not self.account_move:
@@ -227,15 +227,46 @@ class PosOrder(models.Model):
         if self.reconciled:
             raise UserError(_('Esta nota de crédito ya está conciliada.'))
         
-        # Usar el widget nativo de conciliación de Odoo
-        # Esto permite buscar y seleccionar cualquier asiento con el que conciliar
+        if not self.credit_note_move_line_id:
+            raise UserError(_('No se encontró un apunte contable válido para conciliar.'))
+        
+        # Abrir la vista de apuntes contables con filtro del cliente
+        partner_id = self.partner_id.id if self.partner_id else False
+        
+        # Buscar apuntes pendientes de conciliar del mismo cliente
+        domain = [
+            ('reconciled', '=', False),
+            ('account_id.reconcile', '=', True),
+            ('parent_state', '=', 'posted'),
+        ]
+        
+        if partner_id:
+            domain.append(('partner_id', '=', partner_id))
+        
         return {
-            'type': 'ir.actions.client',
-            'tag': 'manual_reconciliation_view',
+            'name': _('Conciliar - Seleccione los apuntes'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'account.move.line',
+            'view_mode': 'list',
+            'views': [(False, 'list')],
+            'domain': domain,
             'context': {
-                'partner_ids': [self.partner_id.id] if self.partner_id else [],
-                'company_ids': [self.company_id.id],
+                'search_default_partner_id': partner_id,
+                'default_partner_id': partner_id,
+                'search_default_unreconciled': 1,
+                'create': False,
             },
+            'target': 'current',
+            'help': _('''
+                <p class="o_view_nocontent_smiling_face">
+                    Seleccione los apuntes contables para conciliar
+                </p>
+                <p>
+                    1. Seleccione el apunte de la nota de crédito<br/>
+                    2. Seleccione el/los apunte(s) con los que desea conciliar<br/>
+                    3. Haga clic en "Acción" → "Conciliar"
+                </p>
+            '''),
         }
     
     def action_view_reconciliation(self):
