@@ -1,4 +1,6 @@
 from odoo import models, fields, api
+from odoo.exceptions import UserError
+from odoo import _
 
 
 class PosOrder(models.Model):
@@ -117,6 +119,21 @@ class PosOrder(models.Model):
                 order.balance = abs(order.credit_note_move_line_id.amount_residual)
             else:
                 order.balance = 0.0
+    
+    def action_view_origin_invoice(self):
+        """Abre la factura origen que generó esta nota de crédito"""
+        self.ensure_one()
+        if not self.origin_invoice_id:
+            raise UserError(_('No hay factura origen asociada a esta nota de crédito.'))
+        
+        return {
+            'name': _('Factura Origen'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'account.move',
+            'view_mode': 'form',
+            'res_id': self.origin_invoice_id.id,
+            'target': 'current',
+        }
 
 
 class PosSession(models.Model):
