@@ -18,7 +18,6 @@
     'data': [
         'security/ir.model.access.csv',
         'views/credit_note_line_view.xml',
-        'views/credit_note_detail_views.xml',
         'views/menu_views.xml',
     ],
     'installable': True,

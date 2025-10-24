@@ -31,28 +31,62 @@ class CreditNoteLineView(models.TransientModel):
     reconciled = fields.Boolean(string='Conciliado', related='move_line_id.reconciled', store=False)
     
     def action_reconcile_lines(self):
-        """Acción que se ejecuta desde el menú Acción para reconciliar líneas seleccionadas"""
+        """Abre wizard de confirmación antes de reconciliar"""
         # Obtener las líneas reales de account.move.line
-        move_lines = self.mapped('move_line_id').filtered(lambda l: l and not l.reconciled)
+        move_lines = self.mapped('move_line_id').filtered(lambda l: l)
         
         if not move_lines:
-            raise UserError(_('No hay líneas válidas para conciliar. Asegúrese de seleccionar líneas no conciliadas.'))
+            raise UserError(_('No hay líneas válidas seleccionadas.'))
         
         if len(move_lines) < 2:
             raise UserError(_('Debe seleccionar al menos 2 líneas para conciliar.'))
         
-        # Intentar conciliar usando el método nativo de Odoo
-        try:
-            move_lines.reconcile()
-            return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': _('Éxito'),
-                    'message': _('Se conciliaron %s apuntes correctamente.') % len(move_lines),
-                    'type': 'success',
-                    'sticky': False,
-                }
-            }
-        except Exception as e:
-            raise UserError(_('Error al conciliar: %s') % str(e))
+        # Calcular totales
+        total_debit = sum(move_lines.mapped('debit'))
+        total_credit = sum(move_lines.mapped('credit'))
+        
+        # Construir detalle HTML
+        html_details = '<table style="width:100%; border-collapse: collapse;">'
+        html_details += '<tr style="background-color: #f0f0f0; font-weight: bold;">'
+        html_details += '<th style="padding: 8px; border: 1px solid #ddd;">Fecha</th>'
+        html_details += '<th style="padding: 8px; border: 1px solid #ddd;">Sesión</th>'
+        html_details += '<th style="padding: 8px; border: 1px solid #ddd;">Orden</th>'
+        html_details += '<th style="padding: 8px; border: 1px solid #ddd;">Debe</th>'
+        html_details += '<th style="padding: 8px; border: 1px solid #ddd;">Haber</th>'
+        html_details += '</tr>'
+        
+        for line in self:
+            if line.move_line_id in move_lines:
+                html_details += '<tr>'
+                html_details += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % line.date
+                html_details += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % (line.session_name or '')
+                html_details += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % line.name
+                html_details += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">%s%.2f</td>' % (line.currency_id.symbol, line.debit)
+                html_details += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">%s%.2f</td>' % (line.currency_id.symbol, line.credit)
+                html_details += '</tr>'
+        
+        html_details += '<tr style="background-color: #e8f5e9; font-weight: bold;">'
+        html_details += '<td colspan="3" style="padding: 8px; border: 1px solid #ddd; text-align: right;">TOTALES:</td>'
+        html_details += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">%s%.2f</td>' % (self[0].currency_id.symbol, total_debit)
+        html_details += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">%s%.2f</td>' % (self[0].currency_id.symbol, total_credit)
+        html_details += '</tr>'
+        html_details += '</table>'
+        
+        # Crear wizard
+        wizard = self.env['reconcile.confirmation.wizard'].create({
+            'line_count': len(move_lines),
+            'total_debit': total_debit,
+            'total_credit': total_credit,
+            'currency_id': self[0].currency_id.id,
+            'line_details': html_details,
+            'move_line_ids': [(6, 0, move_lines.ids)],
+        })
+        
+        return {
+            'name': _('¿Confirmar Conciliación?'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'reconcile.confirmation.wizard',
+            'view_mode': 'form',
+            'res_id': wizard.id,
+            'target': 'new',
+        }

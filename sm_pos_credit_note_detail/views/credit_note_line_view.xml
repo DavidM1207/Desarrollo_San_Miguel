@@ -6,7 +6,7 @@
         <field name="name">credit.note.line.view.tree</field>
         <field name="model">credit.note.line.view</field>
         <field name="arch" type="xml">
-            <tree string="Notas de Crédito Pendientes" 
+            <tree string="Libro Mayor - Notas de Crédito" 
                   decoration-info="nc_type == 'nota_credito'"
                   decoration-warning="nc_type == 'refacturacion'"
                   create="false"
@@ -31,7 +31,7 @@
         </field>
     </record>
     
-    <!-- Vista de búsqueda -->
+    <!-- Vista de búsqueda con filtro predefinido -->
     <record id="view_credit_note_line_expanded_search" model="ir.ui.view">
         <field name="name">credit.note.line.view.search</field>
         <field name="model">credit.note.line.view</field>
@@ -44,6 +44,15 @@
                 
                 <filter string="Notas de Crédito" name="nc_original" domain="[('nc_type', '=', 'nota_credito')]"/>
                 <filter string="Refacturaciones" name="nc_refund" domain="[('nc_type', '=', 'refacturacion')]"/>
+                <separator/>
+                <filter string="Este Mes" name="this_month" 
+                        domain="[('date', '&gt;=', (context_today() - relativedelta(day=1)).strftime('%Y-%m-%d')),
+                                ('date', '&lt;=', (context_today() + relativedelta(day=31)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Mes Anterior" name="last_month" 
+                        domain="[('date', '&gt;=', (context_today() - relativedelta(months=1, day=1)).strftime('%Y-%m-%d')),
+                                ('date', '&lt;=', (context_today() - relativedelta(months=1, day=31)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Últimos 3 Meses" name="last_3_months" 
+                        domain="[('date', '&gt;=', (context_today() - relativedelta(months=3)).strftime('%Y-%m-%d'))]"/>
                 
                 <group expand="0" string="Agrupar por">
                     <filter string="Tipo" name="group_type" context="{'group_by': 'nc_type'}"/>
@@ -55,7 +64,40 @@
         </field>
     </record>
     
-    <!-- Acción de servidor para reconciliar -->
+    <!-- Wizard de confirmación de conciliación -->
+    <record id="view_reconcile_confirmation_wizard" model="ir.ui.view">
+        <field name="name">reconcile.confirmation.wizard.form</field>
+        <field name="model">reconcile.confirmation.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Confirmar Conciliación">
+                <group>
+                    <group>
+                        <field name="line_count" readonly="1"/>
+                        <field name="total_debit" readonly="1"/>
+                        <field name="total_credit" readonly="1"/>
+                    </group>
+                </group>
+                
+                <notebook>
+                    <page string="Detalle de Líneas a Conciliar" name="lines">
+                        <field name="line_details" readonly="1" nolabel="1"/>
+                    </page>
+                </notebook>
+                
+                <footer>
+                    <button string="Confirmar y Conciliar" 
+                            name="action_confirm_reconcile" 
+                            type="object" 
+                            class="btn-primary"/>
+                    <button string="Cancelar" 
+                            special="cancel" 
+                            class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Acción de servidor para reconciliar con confirmación -->
     <record id="action_reconcile_credit_note_lines" model="ir.actions.server">
         <field name="name">Reconciliar apuntes</field>
         <field name="model_id" ref="model_credit_note_line_view"/>
