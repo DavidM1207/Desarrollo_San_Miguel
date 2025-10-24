@@ -1,3 +1,3 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_credit_note_reconcile_wizard,access.credit.note.reconcile.wizard,model_credit_note_reconcile_wizard,account.group_account_user,1,1,1,1
-access_credit_note_reconcile_line,access.credit.note.reconcile.line,model_credit_note_reconcile_line,account.group_account_user,1,1,1,1
+access_credit_note_line_view,access.credit.note.line.view,model_credit_note_line_view,account.group_account_user,1,1,1,1
+access_pos_order_credit_note_expanded,access.pos.order.credit.note.expanded,model_pos_order_credit_note_expanded,account.group_account_user,1,1,1,1
