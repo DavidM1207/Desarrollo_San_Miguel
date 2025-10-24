@@ -218,25 +218,28 @@ class PosOrder(models.Model):
         }
     
     def action_reconcile_credit_note(self):
-        """Abre el wizard con las NC individuales de la sesión para seleccionar y conciliar"""
+        """Abre la vista de apuntes contables mostrando:
+        1. Detalle de NC de esta sesión
+        2. TODAS las NC disponibles en la cuenta 211040020000
+        3. Permite conciliar NC originales con sus refacturaciones"""
         self.ensure_one()
         
         if not self.account_move:
             raise UserError(_('Esta nota de crédito no tiene un asiento contable asociado.'))
         
-        # Buscar TODAS las NC que comparten la misma sesión
+        # Buscar TODAS las NC de esta sesión
         all_nc_in_session = self.env['pos.order'].search([
             ('session_id', '=', self.session_id.id),
             ('is_credit_note', '=', True)
         ]) if self.session_id else self.browse(self.id)
         
-        # Buscar la cuenta 211040020000 Notas de Crédito por Aplicar
+        # Buscar la cuenta 211040020000
         nc_account = self.env['account.account'].search([
             ('code', '=', '211040020000')
         ], limit=1)
         
-        # Si no existe la cuenta específica, buscar cualquier cuenta reconciliable del asiento
         if not nc_account:
+            # Si no existe, buscar cualquier cuenta reconciliable
             move_lines = self.account_move.line_ids.filtered(
                 lambda l: l.account_id.reconcile
             )
@@ -244,50 +247,107 @@ class PosOrder(models.Model):
                 raise UserError(_('No hay líneas con cuentas reconciliables en el asiento contable.'))
             nc_account = move_lines[0].account_id
         
-        # Buscar todos los apuntes disponibles de la cuenta para conciliar
+        # Buscar TODOS los apuntes de la cuenta 211040020000
         domain = [
             ('account_id', '=', nc_account.id),
             ('parent_state', '=', 'posted'),
         ]
         
-        available_lines = self.env['account.move.line'].search(domain, order='date desc, id desc')
+        all_lines = self.env['account.move.line'].search(domain, order='date desc, id desc')
         
-        # Crear el wizard
-        wizard = self.env['credit.note.reconcile.wizard'].create({
-            'session_id': self.session_id.id if self.session_id else False,
-            'account_id': nc_account.id,
-            'available_line_ids': [(6, 0, available_lines.ids)],
-        })
+        # Construir título
+        if len(all_nc_in_session) > 1:
+            window_name = _('Conciliación NC - Sesión %s (%s NC)') % (
+                self.session_id.name if self.session_id else 'N/A',
+                len(all_nc_in_session)
+            )
+        else:
+            window_name = _('Conciliar NC - %s') % self.pos_reference
         
-        # Crear las líneas del wizard (una por cada NC individual)
-        for nc in all_nc_in_session:
-            # Buscar el apunte contable de esta NC
-            move_line = False
-            if nc.account_move:
-                move_line = nc.account_move.line_ids.filtered(
-                    lambda l: l.account_id.id == nc_account.id and l.credit > 0
-                )
-                move_line = move_line[0] if move_line else False
+        # Construir mensaje detallado
+        help_text = '<div style="padding: 15px; font-family: Arial, sans-serif;">'
+        help_text += '<h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">📋 Conciliación de Notas de Crédito</h3>'
+        
+        # Sección 1: Detalle de NC en esta sesión
+        if len(all_nc_in_session) > 1:
+            help_text += '<div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 15px; margin: 15px 0; border-radius: 8px; border-left: 4px solid #4caf50;">'
+            help_text += '<h4 style="margin-top: 0; color: #2e7d32;">🔍 Notas de Crédito en Sesión: %s</h4>' % (self.session_id.name if self.session_id else 'N/A')
+            help_text += '<table style="width: 100%; border-collapse: collapse; background: white; border-radius: 4px; overflow: hidden;">'
+            help_text += '<thead><tr style="background-color: #4caf50; color: white;">'
+            help_text += '<th style="padding: 10px; text-align: left;">Referencia NC</th>'
+            help_text += '<th style="padding: 10px; text-align: left;">Cliente</th>'
+            help_text += '<th style="padding: 10px; text-align: right;">Monto</th>'
+            help_text += '<th style="padding: 10px; text-align: center;">Estado</th>'
+            help_text += '</tr></thead><tbody>'
             
-            self.env['credit.note.reconcile.line'].create({
-                'wizard_id': wizard.id,
-                'pos_order_id': nc.id,
-                'move_line_id': move_line.id if move_line else False,
-                'reference': nc.pos_reference or nc.name,
-                'date': nc.date_order.date() if nc.date_order else fields.Date.today(),
-                'partner_id': nc.partner_id.id if nc.partner_id else False,
-                'amount': nc.credit_note_amount,
-                'reconciled': nc.reconciled,
-                'selected': not nc.reconciled,  # Pre-seleccionar las no conciliadas
-            })
+            total_session = 0
+            for idx, nc in enumerate(all_nc_in_session):
+                estado = '✅ Conciliada' if nc.reconciled else '⏳ Pendiente'
+                bg_color = '#f1f8e9' if idx % 2 == 0 else '#ffffff'
+                help_text += '<tr style="background-color: %s;">' % bg_color
+                help_text += '<td style="padding: 8px;"><strong>%s</strong></td>' % (nc.pos_reference or nc.name)
+                help_text += '<td style="padding: 8px;">%s</td>' % (nc.partner_id.name if nc.partner_id else 'Sin cliente')
+                help_text += '<td style="padding: 8px; text-align: right;"><strong>%s%s</strong></td>' % (
+                    nc.currency_id.symbol,
+                    '{:,.2f}'.format(nc.credit_note_amount)
+                )
+                help_text += '<td style="padding: 8px; text-align: center;">%s</td>' % estado
+                help_text += '</tr>'
+                total_session += nc.credit_note_amount
+            
+            help_text += '<tr style="background-color: #c8e6c9; font-weight: bold;">'
+            help_text += '<td colspan="2" style="padding: 10px;">TOTAL SESIÓN</td>'
+            help_text += '<td style="padding: 10px; text-align: right;">%s%s</td>' % (
+                all_nc_in_session[0].currency_id.symbol if all_nc_in_session else '',
+                '{:,.2f}'.format(total_session)
+            )
+            help_text += '<td></td></tr>'
+            help_text += '</tbody></table>'
+            help_text += '</div>'
+        
+        # Sección 2: Resumen general
+        total_apuntes = len(all_lines)
+        apuntes_conciliados = len(all_lines.filtered(lambda l: l.reconciled))
+        apuntes_pendientes = total_apuntes - apuntes_conciliados
+        
+        help_text += '<div style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); padding: 15px; margin: 15px 0; border-radius: 8px; border-left: 4px solid #ff9800;">'
+        help_text += '<h4 style="margin-top: 0; color: #e65100;">📊 Todos los Apuntes en Cuenta %s</h4>' % nc_account.code
+        help_text += '<div style="display: flex; justify-content: space-around; text-align: center;">'
+        help_text += '<div style="flex: 1;"><div style="font-size: 24px; font-weight: bold; color: #424242;">%s</div><div style="color: #757575;">Total</div></div>' % total_apuntes
+        help_text += '<div style="flex: 1;"><div style="font-size: 24px; font-weight: bold; color: #4caf50;">%s</div><div style="color: #757575;">Conciliados ✅</div></div>' % apuntes_conciliados
+        help_text += '<div style="flex: 1;"><div style="font-size: 24px; font-weight: bold; color: #f44336;">%s</div><div style="color: #757575;">Pendientes ⏳</div></div>' % apuntes_pendientes
+        help_text += '</div></div>'
+        
+        # Sección 3: Instrucciones
+        help_text += '<div style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); padding: 15px; margin: 15px 0; border-radius: 8px; border-left: 4px solid #2196f3;">'
+        help_text += '<h4 style="margin-top: 0; color: #0d47a1;">📝 Cómo Conciliar (Refacturaciones)</h4>'
+        help_text += '<ol style="margin: 10px 0; padding-left: 20px; line-height: 1.8;">'
+        help_text += '<li><strong>Encuentra las NC originales</strong> (las de esta sesión aparecen arriba)</li>'
+        help_text += '<li><strong>Encuentra donde se usaron como método de pago</strong> (refacturaciones en otras sesiones)</li>'
+        help_text += '<li><strong>Selecciona ambos apuntes</strong> usando los checkboxes</li>'
+        help_text += '<li>Ve al menú <strong>"Acción"</strong> → <strong>"Reconciliar apuntes"</strong></li>'
+        help_text += '<li>Odoo los conciliará automáticamente si los montos coinciden</li>'
+        help_text += '</ol>'
+        help_text += '<p style="background: white; padding: 10px; border-radius: 4px; margin-top: 10px;"><strong>💡 Tip:</strong> Usa los filtros de búsqueda para encontrar apuntes por fecha, cliente o monto</p>'
+        help_text += '</div>'
+        
+        help_text += '</div>'
         
         return {
-            'name': _('Conciliar Notas de Crédito - Sesión %s') % (self.session_id.name if self.session_id else 'N/A'),
+            'name': window_name,
             'type': 'ir.actions.act_window',
-            'res_model': 'credit.note.reconcile.wizard',
-            'view_mode': 'form',
-            'res_id': wizard.id,
-            'target': 'new',
+            'res_model': 'account.move.line',
+            'view_mode': 'list',
+            'views': [(False, 'list')],
+            'domain': [('id', 'in', all_lines.ids)],
+            'context': {
+                'create': False,
+                'edit': False,
+                'group_by': [],
+                'search_default_unreconciled': 1,
+            },
+            'target': 'current',
+            'help': help_text,
         }
     
     def action_view_reconciliation(self):
@@ -313,21 +373,6 @@ class PosOrder(models.Model):
             'context': {'create': False},
             'target': 'current',
         }
-    
-    def action_remove_reconciliation(self):
-        """Desconciliar esta nota de crédito"""
-        self.ensure_one()
-        
-        if not self.credit_note_move_line_id:
-            return True
-        
-        if not self.credit_note_move_line_id.reconciled:
-            return True
-        
-        # Desconciliar
-        self.credit_note_move_line_id.remove_move_reconcile()
-        
-        return True
 
 
 class PosSession(models.Model):

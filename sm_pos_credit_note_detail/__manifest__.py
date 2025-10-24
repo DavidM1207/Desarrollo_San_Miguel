@@ -18,8 +18,6 @@
         
     ],
     'data': [
-        'security/ir.model.access.csv',
-        'views/credit_note_reconcile_wizard_views.xml',
         'views/credit_note_detail_views.xml',
         'views/menu_views.xml',
     ],
