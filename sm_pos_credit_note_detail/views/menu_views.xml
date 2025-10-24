@@ -1,19 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Acción directa a la vista de NC detallada -->
-    <record id="action_credit_note_lines_direct" model="ir.actions.server">
+    
+    <!-- Acción window que abre la vista -->
+    <record id="action_credit_note_lines_main" model="ir.actions.act_window">
         <field name="name">Libro Mayor - Notas de Crédito</field>
-        <field name="model_id" ref="model_credit_note_line_view"/>
+        <field name="res_model">credit.note.line.view</field>
+        <field name="view_mode">tree</field>
+        <field name="view_id" ref="view_credit_note_line_expanded_tree"/>
+        <field name="context">{
+            'search_default_this_month': 1,
+        }</field>
+        <field name="domain">[]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_empty_folder">
+                No hay notas de crédito pendientes
+            </p>
+            <p>
+                Esta vista muestra todas las notas de crédito pendientes de conciliar.
+                Use los filtros para buscar por fecha.
+            </p>
+        </field>
+    </record>
+    
+    <!-- Menú principal que ejecuta el método primero -->
+    <record id="action_load_credit_notes" model="ir.actions.server">
+        <field name="name">Cargar Notas de Crédito</field>
+        <field name="model_id" ref="point_of_sale.model_pos_order"/>
         <field name="state">code</field>
         <field name="code">
-action = env['pos.order'].load_all_credit_notes()
+action = model.load_all_credit_notes()
         </field>
     </record>
 
-    <!-- Menú principal -->
+    <!-- Menú -->
     <menuitem id="menu_credit_notes_ledger"
               name="Libro Mayor Notas de Crédito"
               parent="account.menu_finance_entries"
-              action="action_credit_note_lines_direct"
+              action="action_load_credit_notes"
               sequence="15"/>
+    
 </odoo>

@@ -203,21 +203,7 @@ class PosOrder(models.Model):
             
             order.payment_method_name = payment_method
     
-    def action_view_origin_invoice(self):
-        """Abre la factura origen que generó esta nota de crédito"""
-        self.ensure_one()
-        if not self.origin_invoice_id:
-            raise UserError(_('No hay factura origen asociada a esta nota de crédito.'))
-        
-        return {
-            'name': _('Factura Origen'),
-            'type': 'ir.actions.act_window',
-            'res_model': 'account.move',
-            'view_mode': 'form',
-            'res_id': self.origin_invoice_id.id,
-            'target': 'current',
-        }
-    
+    @api.model
     def load_all_credit_notes(self):
         """Carga todas las NC directamente sin pasar por sesiones"""
         # Generar token único
@@ -232,7 +218,7 @@ class PosOrder(models.Model):
         if not nc_account:
             raise UserError(_('No se encontró la cuenta 211040020000 - Notas de Crédito por Aplicar'))
         
-        # Limpiar líneas anteriores
+        # Limpiar TODAS las líneas anteriores (de cualquier búsqueda anterior)
         self.env['credit.note.line.view'].search([]).unlink()
         
         # Obtener fecha del mes actual
@@ -244,6 +230,8 @@ class PosOrder(models.Model):
             ('state', '=', 'closed'),
             ('stop_at', '>=', first_day),
         ], order='stop_at desc')
+        
+        lines_created = 0
         
         # Procesar cada sesión
         for session in all_sessions:
@@ -329,6 +317,7 @@ class PosOrder(models.Model):
                         'move_line_id': move_line.id if move_line else False,
                         'pos_order_id': nc.id,
                     })
+                    lines_created += 1
             
             # Procesar refacturaciones
             if has_refacturacion:
@@ -368,23 +357,40 @@ class PosOrder(models.Model):
                                 'move_line_id': move_line_debit.id if move_line_debit else False,
                                 'pos_order_id': order.id,
                             })
+                            lines_created += 1
         
-        # Abrir la vista
+        # Abrir la vista con los datos cargados
         return {
-            'name': _('Libro Mayor - Notas de Crédito'),
+            'name': _('Libro Mayor - Notas de Crédito (%s registros)') % lines_created,
             'type': 'ir.actions.act_window',
             'res_model': 'credit.note.line.view',
             'view_mode': 'tree',
-            'views': [(self.env.ref('sm_pos_credit_note_detail.view_credit_note_line_expanded_tree').id, 'tree')],
+            'view_id': self.env.ref('sm_pos_credit_note_detail.view_credit_note_line_expanded_tree').id,
             'domain': [('search_token', '=', search_token)],
             'context': {
                 'create': False,
                 'edit': False,
                 'delete': False,
-                'search_default_this_month': 1,  # Activar filtro del mes
+                'search_default_this_month': 1,
             },
             'target': 'current',
         }
+
+    def action_view_origin_invoice(self):
+        """Abre la factura origen que generó esta nota de crédito"""
+        self.ensure_one()
+        if not self.origin_invoice_id:
+            raise UserError(_('No hay factura origen asociada a esta nota de crédito.'))
+        
+        return {
+            'name': _('Factura Origen'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'account.move',
+            'view_mode': 'form',
+            'res_id': self.origin_invoice_id.id,
+            'target': 'current',
+        }
+    
 
     def action_reconcile_credit_note(self):
         """Abre una vista expandida mostrando cada NC como línea individual"""
