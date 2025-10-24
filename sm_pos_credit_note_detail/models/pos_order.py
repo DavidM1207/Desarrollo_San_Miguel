@@ -205,7 +205,7 @@ class PosOrder(models.Model):
     
     @api.model
     def load_all_credit_notes(self):
-        """Carga todas las NC directamente sin pasar por sesiones"""
+        """Carga todas las NC - Misma lógica que action_reconcile_credit_note"""
         # Generar token único
         import uuid
         search_token = str(uuid.uuid4())
@@ -218,22 +218,20 @@ class PosOrder(models.Model):
         if not nc_account:
             raise UserError(_('No se encontró la cuenta 211040020000 - Notas de Crédito por Aplicar'))
         
-        # Limpiar TODAS las líneas anteriores (de cualquier búsqueda anterior)
+        # Limpiar líneas anteriores
         self.env['credit.note.line.view'].search([]).unlink()
         
-        # Obtener fecha del mes actual
+        # ===== MISMA LÓGICA QUE action_reconcile_credit_note =====
+        
+        # Buscar TODAS las sesiones cerradas (del mes actual para optimizar)
         today = fields.Date.today()
         first_day = today.replace(day=1)
         
-        # Buscar todas las sesiones cerradas del mes actual
         all_sessions = self.env['pos.session'].search([
             ('state', '=', 'closed'),
             ('stop_at', '>=', first_day),
         ], order='stop_at desc')
         
-        lines_created = 0
-        
-        # Procesar cada sesión
         for session in all_sessions:
             # Buscar NC de esta sesión
             nc_orders = self.env['pos.order'].search([
@@ -317,7 +315,6 @@ class PosOrder(models.Model):
                         'move_line_id': move_line.id if move_line else False,
                         'pos_order_id': nc.id,
                     })
-                    lines_created += 1
             
             # Procesar refacturaciones
             if has_refacturacion:
@@ -357,11 +354,13 @@ class PosOrder(models.Model):
                                 'move_line_id': move_line_debit.id if move_line_debit else False,
                                 'pos_order_id': order.id,
                             })
-                            lines_created += 1
         
-        # Abrir la vista con los datos cargados
+        # Contar líneas creadas
+        created_lines = self.env['credit.note.line.view'].search_count([('search_token', '=', search_token)])
+        
+        # Abrir la vista
         return {
-            'name': _('Libro Mayor - Notas de Crédito (%s registros)') % lines_created,
+            'name': _('Libro Mayor - Notas de Crédito (%s registros)') % created_lines,
             'type': 'ir.actions.act_window',
             'res_model': 'credit.note.line.view',
             'view_mode': 'tree',
@@ -371,7 +370,6 @@ class PosOrder(models.Model):
                 'create': False,
                 'edit': False,
                 'delete': False,
-                'search_default_this_month': 1,
             },
             'target': 'current',
         }
