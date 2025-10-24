@@ -222,9 +222,6 @@ class PosOrder(models.Model):
         """Abre una vista expandida mostrando cada NC como línea individual"""
         self.ensure_one()
         
-        if not self.account_move:
-            raise UserError(_('Esta nota de crédito no tiene un asiento contable asociado.'))
-        
         # Generar token único para esta búsqueda
         import uuid
         search_token = str(uuid.uuid4())
@@ -235,137 +232,115 @@ class PosOrder(models.Model):
         ], limit=1)
         
         if not nc_account:
-            move_lines = self.account_move.line_ids.filtered(lambda l: l.account_id.reconcile)
-            if not move_lines:
-                raise UserError(_('No hay líneas con cuentas reconciliables.'))
-            nc_account = move_lines[0].account_id
+            raise UserError(_('No se encontró la cuenta 211040020000 - Notas de Crédito por Aplicar'))
         
-        # Limpiar líneas anteriores de este token
+        # Limpiar líneas anteriores
         self.env['credit.note.line.view'].search([('search_token', '=', search_token)]).unlink()
         
-        # PASO 1: Buscar los apuntes de la cuenta 211040020000
-        all_move_lines = self.env['account.move.line'].search([
-            ('account_id', '=', nc_account.id),
-            ('parent_state', '=', 'posted'),
-        ], order='date desc, id desc', limit=500)
+        # ===== PARTE 1: BUSCAR NC ORIGINALES =====
+        # Buscar todas las sesiones cerradas que tengan NC
+        all_sessions = self.env['pos.session'].search([
+            ('state', '=', 'closed'),
+        ], order='stop_at desc', limit=200)
         
-        # PASO 2: Para cada apunte, buscar la sesión y las NC de esa sesión
-        processed_sessions = []
+        for session in all_sessions:
+            # Buscar NC de esta sesión
+            nc_orders = self.env['pos.order'].search([
+                ('session_id', '=', session.id),
+                ('is_credit_note', '=', True),
+            ])
+            
+            if nc_orders:
+                # Buscar el apunte contable de esta sesión en la cuenta NC
+                move_line = False
+                if session.move_id:
+                    move_line = session.move_id.line_ids.filtered(
+                        lambda l: l.account_id.id == nc_account.id and l.credit > 0
+                    )
+                    move_line = move_line[0] if move_line else False
+                
+                # Crear UNA línea por cada NC individual
+                for nc in nc_orders:
+                    factura_origen = ''
+                    # Buscar factura de la orden original que generó esta NC
+                    if nc.origin_order_id and nc.origin_order_id.account_move:
+                        factura_origen = nc.origin_order_id.account_move.name
+                    
+                    self.env['credit.note.line.view'].create({
+                        'search_token': search_token,
+                        'date': nc.date_order.date() if nc.date_order else fields.Date.today(),
+                        'name': nc.pos_reference or nc.name,
+                        'account_id': nc_account.id,
+                        'session_name': session.name,
+                        'nc_type': 'original',
+                        'description': 'NC del %s factura nota %s' % (session.name, factura_origen),
+                        'debit': 0.0,
+                        'credit': nc.credit_note_amount,
+                        'currency_id': nc.currency_id.id,
+                        'analytic_distribution': session.config_id.name if session.config_id else '',
+                        'move_line_id': move_line.id if move_line else False,
+                        'pos_order_id': nc.id,
+                    })
         
-        for move_line in all_move_lines:
-            move = move_line.move_id
+        # ===== PARTE 2: BUSCAR REFACTURACIONES =====
+        # Buscar sesiones que tienen órdenes con pagos de NC
+        for session in all_sessions:
+            # Buscar órdenes normales de esta sesión
+            orders = self.env['pos.order'].search([
+                ('session_id', '=', session.id),
+                ('amount_total', '>', 0),
+            ])
             
-            # Buscar la sesión que tiene este movimiento contable
-            session = self.env['pos.session'].search([
-                ('move_id', '=', move.id)
-            ], limit=1)
-            
-            if session and session.id not in processed_sessions:
-                processed_sessions.append(session.id)
+            for order in orders:
+                # Buscar pagos con método de pago NC
+                nc_payments = order.payment_ids.filtered(
+                    lambda p: 'crédit' in (p.payment_method_id.name or '').lower() or 
+                             'credit' in (p.payment_method_id.name or '').lower() or
+                             'nota' in (p.payment_method_id.name or '').lower()
+                )
                 
-                # Buscar TODAS las NC de esta sesión
-                nc_orders = self.env['pos.order'].search([
-                    ('session_id', '=', session.id),
-                    ('is_credit_note', '=', True),
-                ])
-                
-                if nc_orders and move_line.credit > 0:
-                    # Es NC Original - Crear UNA línea por cada NC individual
-                    for nc in nc_orders:
-                        # Buscar la factura origen de esta NC
-                        factura_origen = ''
-                        if nc.account_move and nc.account_move.id != move.id:
-                            # La NC tiene su propia factura (fue facturada)
-                            factura_origen = nc.account_move.name
-                        elif nc.origin_order_id and nc.origin_order_id.account_move:
-                            # Buscar la factura de la orden original
-                            factura_origen = nc.origin_order_id.account_move.name
-                        
+                if nc_payments:
+                    # Buscar el apunte contable con débito
+                    move_line_debit = False
+                    if session.move_id:
+                        move_line_debit = session.move_id.line_ids.filtered(
+                            lambda l: l.account_id.id == nc_account.id and l.debit > 0
+                        )
+                        move_line_debit = move_line_debit[0] if move_line_debit else False
+                    
+                    # Crear línea por cada pago con NC
+                    for payment in nc_payments:
                         self.env['credit.note.line.view'].create({
                             'search_token': search_token,
-                            'date': nc.date_order.date() if nc.date_order else move_line.date,
-                            'name': nc.pos_reference or nc.name,
+                            'date': order.date_order.date() if order.date_order else fields.Date.today(),
+                            'name': session.name,
                             'account_id': nc_account.id,
                             'session_name': session.name,
-                            'nc_type': 'original',
-                            'description': 'NC del %s factura nota %s' % (session.name, factura_origen),
-                            'debit': 0.0,
-                            'credit': nc.credit_note_amount,
-                            'currency_id': nc.currency_id.id,
+                            'nc_type': 'refund',
+                            'description': 'Orden %s Uso NC' % (order.pos_reference or order.name),
+                            'debit': abs(payment.amount),
+                            'credit': 0.0,
+                            'currency_id': order.currency_id.id,
                             'analytic_distribution': session.config_id.name if session.config_id else '',
-                            'move_line_id': move_line.id,
-                            'pos_order_id': nc.id,
+                            'move_line_id': move_line_debit.id if move_line_debit else False,
+                            'pos_order_id': order.id,
                         })
-                
-                elif move_line.debit > 0:
-                    # Es Refacturación - Buscar órdenes que usaron NC como pago
-                    orders_in_session = self.env['pos.order'].search([
-                        ('session_id', '=', session.id),
-                        ('amount_total', '>', 0),
-                    ])
-                    
-                    for order in orders_in_session:
-                        # Buscar pagos con método NC
-                        nc_payments = order.payment_ids.filtered(
-                            lambda p: 'crédit' in (p.payment_method_id.name or '').lower() or 
-                                     'credit' in (p.payment_method_id.name or '').lower() or
-                                     'nota' in (p.payment_method_id.name or '').lower()
-                        )
-                        
-                        if nc_payments:
-                            for payment in nc_payments:
-                                self.env['credit.note.line.view'].create({
-                                    'search_token': search_token,
-                                    'date': order.date_order.date() if order.date_order else move_line.date,
-                                    'name': session.name,
-                                    'account_id': nc_account.id,
-                                    'session_name': session.name,
-                                    'nc_type': 'refund',
-                                    'description': 'Orden %s Uso NC' % (order.pos_reference or order.name),
-                                    'debit': abs(payment.amount),
-                                    'credit': 0.0,
-                                    'currency_id': order.currency_id.id,
-                                    'analytic_distribution': session.config_id.name if session.config_id else '',
-                                    'move_line_id': move_line.id,
-                                    'pos_order_id': order.id,
-                                })
-            
-            elif not session:
-                # Apunte sin sesión - crear línea genérica
-                self.env['credit.note.line.view'].create({
-                    'search_token': search_token,
-                    'date': move_line.date,
-                    'name': move.name,
-                    'account_id': nc_account.id,
-                    'session_name': move.ref or '',
-                    'nc_type': 'original' if move_line.credit > 0 else 'refund',
-                    'description': move_line.name or move.ref or 'Apunte contable',
-                    'debit': move_line.debit,
-                    'credit': move_line.credit,
-                    'currency_id': move_line.currency_id.id,
-                    'analytic_distribution': '',
-                    'move_line_id': move_line.id,
-                })
         
-        # Contar cuántas líneas se crearon
+        # Contar líneas creadas
         created_lines = self.env['credit.note.line.view'].search_count([('search_token', '=', search_token)])
         
         if created_lines == 0:
-            raise UserError(_('No se encontraron notas de crédito para mostrar.'))
+            raise UserError(_('No se encontraron notas de crédito.'))
         
-        # Abrir la vista expandida
+        # Abrir la vista
         return {
-            'name': _('Notas de Crédito - Cuenta %s (%s líneas)') % (nc_account.code, created_lines),
+            'name': _('Notas de Crédito (%s encontradas)') % created_lines,
             'type': 'ir.actions.act_window',
             'res_model': 'credit.note.line.view',
             'view_mode': 'tree',
             'views': [(self.env.ref('sm_pos_credit_note_detail.view_credit_note_line_expanded_tree').id, 'tree')],
             'domain': [('search_token', '=', search_token)],
-            'context': {
-                'create': False,
-                'edit': False,
-                'delete': False,
-            },
+            'context': {'create': False, 'edit': False, 'delete': False},
             'target': 'current',
         }
     
