@@ -1,39 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     
-    <!-- Vista de árbol expandida para líneas de NC -->
+    <!-- Vista de árbol expandida -->
     <record id="view_credit_note_line_expanded_tree" model="ir.ui.view">
         <field name="name">credit.note.line.view.tree</field>
         <field name="model">credit.note.line.view</field>
         <field name="arch" type="xml">
-            <tree string="Notas de Crédito - Vista Detallada" 
-                  editable="bottom"
+            <tree string="Notas de Crédito" 
                   decoration-success="nc_type == 'original'"
                   decoration-warning="nc_type == 'refund'"
-                  decoration-muted="reconciled == True">
-                <field name="selected" widget="boolean_toggle"/>
+                  decoration-muted="reconciled == True"
+                  create="false"
+                  delete="false">
                 <field name="date"/>
-                <field name="name"/>
-                <field name="account_name" optional="hide"/>
-                <field name="session_name"/>
-                <field name="nc_type" widget="badge" 
-                       decoration-success="nc_type == 'original'"
-                       decoration-warning="nc_type == 'refund'"/>
-                <field name="description"/>
-                <field name="debit" sum="Total Debe"/>
-                <field name="credit" sum="Total Haber"/>
-                <field name="analytic_distribution" optional="show"/>
+                <field name="name" string="Asiento"/>
+                <field name="session_name" string="Sesión POS"/>
+                <field name="nc_type" string="Tipo"/>
+                <field name="description" string="Detalle NC"/>
+                <field name="debit" string="Debe" sum="Total Debe"/>
+                <field name="credit" string="Haber" sum="Total Haber"/>
+                <field name="analytic_distribution" string="Distribución Analítica" optional="show"/>
                 <field name="reconciled" column_invisible="1"/>
                 <field name="account_id" column_invisible="1"/>
                 <field name="currency_id" column_invisible="1"/>
                 <field name="move_line_id" column_invisible="1"/>
                 <field name="pos_order_id" column_invisible="1"/>
                 <field name="search_token" column_invisible="1"/>
-                <button name="action_reconcile_selected" 
-                        string="Conciliar Seleccionadas" 
-                        type="object" 
-                        class="btn-primary"
-                        icon="fa-link"/>
             </tree>
         </field>
     </record>
@@ -51,9 +43,8 @@
                 <filter string="NC Originales" name="nc_original" domain="[('nc_type', '=', 'original')]"/>
                 <filter string="Refacturaciones" name="nc_refund" domain="[('nc_type', '=', 'refund')]"/>
                 <separator/>
-                <filter string="Seleccionadas" name="selected" domain="[('selected', '=', True)]"/>
                 <filter string="No Conciliadas" name="not_reconciled" domain="[('reconciled', '=', False)]"/>
-                <filter string="Conciliadas" name="reconciled" domain="[('reconciled', '=', True)]"/>
+                <filter string="Conciliadas" name="reconciled_filter" domain="[('reconciled', '=', True)]"/>
                 
                 <group expand="0" string="Agrupar por">
                     <filter string="Tipo" name="group_type" context="{'group_by': 'nc_type'}"/>
@@ -61,6 +52,19 @@
                     <filter string="Fecha" name="group_date" context="{'group_by': 'date'}"/>
                 </group>
             </search>
+        </field>
+    </record>
+    
+    <!-- Acción de servidor para reconciliar -->
+    <record id="action_reconcile_credit_note_lines" model="ir.actions.server">
+        <field name="name">Reconciliar apuntes</field>
+        <field name="model_id" ref="model_credit_note_line_view"/>
+        <field name="binding_model_id" ref="model_credit_note_line_view"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">
+if records:
+    action = records.action_reconcile_lines()
         </field>
     </record>
     
