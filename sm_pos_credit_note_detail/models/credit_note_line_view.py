@@ -12,18 +12,18 @@ class CreditNoteLineView(models.TransientModel):
     
     # Campos visibles en la tabla
     date = fields.Date(string='Fecha', required=True)
-    name = fields.Char(string='Asiento', required=True)
+    name = fields.Char(string='Orden', required=True)  # Cambiado de "Asiento" a "Orden"
     account_id = fields.Many2one('account.account', string='Cuenta', required=True)
     session_name = fields.Char(string='Sesión POS')
     nc_type = fields.Selection([
-        ('original', 'O NC Original'),
-        ('refund', 'Refacturación'),
+        ('nota_credito', 'Nota de Crédito'),
+        ('refacturacion', 'Refacturación'),
     ], string='Tipo', required=True)
     description = fields.Text(string='Detalle NC')
     debit = fields.Monetary(string='Debe', currency_field='currency_id')
     credit = fields.Monetary(string='Haber', currency_field='currency_id')
     currency_id = fields.Many2one('res.currency', string='Moneda')
-    analytic_distribution = fields.Char(string='Distribución Analítica')
+    vendedor = fields.Char(string='Vendedor')  # Cambiado de "analytic_distribution"
     
     # Campos ocultos de control
     move_line_id = fields.Many2one('account.move.line', string='Apunte Contable Real')

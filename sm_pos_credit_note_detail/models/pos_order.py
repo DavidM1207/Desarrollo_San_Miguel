@@ -237,11 +237,10 @@ class PosOrder(models.Model):
         # Limpiar líneas anteriores
         self.env['credit.note.line.view'].search([('search_token', '=', search_token)]).unlink()
         
-        # ===== PARTE 1: BUSCAR NC ORIGINALES =====
-        # Buscar todas las sesiones cerradas que tengan NC
+        # ===== BUSCAR TODAS LAS SESIONES CERRADAS (SIN LÍMITE) =====
         all_sessions = self.env['pos.session'].search([
             ('state', '=', 'closed'),
-        ], order='stop_at desc', limit=200)
+        ], order='stop_at desc')
         
         for session in all_sessions:
             # Buscar NC de esta sesión
@@ -250,14 +249,60 @@ class PosOrder(models.Model):
                 ('is_credit_note', '=', True),
             ])
             
+            # Buscar órdenes normales de esta sesión que usaron NC como pago
+            orders_with_nc = self.env['pos.order'].search([
+                ('session_id', '=', session.id),
+                ('amount_total', '>', 0),
+            ])
+            
+            has_refacturacion = False
+            for order in orders_with_nc:
+                nc_payments = order.payment_ids.filtered(
+                    lambda p: 'crédit' in (p.payment_method_id.name or '').lower() or 
+                             'credit' in (p.payment_method_id.name or '').lower() or
+                             'nota' in (p.payment_method_id.name or '').lower()
+                )
+                if nc_payments:
+                    has_refacturacion = True
+                    break
+            
             if nc_orders:
                 # Buscar el apunte contable de esta sesión en la cuenta NC
                 move_line = False
                 if session.move_id:
-                    move_line = session.move_id.line_ids.filtered(
+                    # Buscar línea con crédito (NC) o débito (Refacturación)
+                    move_lines_credit = session.move_id.line_ids.filtered(
                         lambda l: l.account_id.id == nc_account.id and l.credit > 0
                     )
-                    move_line = move_line[0] if move_line else False
+                    move_lines_debit = session.move_id.line_ids.filtered(
+                        lambda l: l.account_id.id == nc_account.id and l.debit > 0
+                    )
+                    
+                    # Si hay crédito, usar esa línea para NC
+                    if move_lines_credit:
+                        move_line = move_lines_credit[0]
+                    # Si solo hay débito, es refacturación
+                    elif move_lines_debit:
+                        move_line = move_lines_debit[0]
+                
+                # Saltar si está conciliado
+                if move_line and move_line.reconciled:
+                    continue
+                
+                # Determinar el tipo basado en el pago de la sesión
+                # Si el pago es negativo = Nota de Crédito
+                # Si el pago es positivo = Refacturación
+                nc_type = 'nota_credito'
+                if move_line:
+                    # Si tiene débito > 0 = Refacturación (se usó la NC)
+                    # Si tiene crédito > 0 = Nota de Crédito (se generó la NC)
+                    if move_line.debit > 0:
+                        nc_type = 'refacturacion'
+                    elif move_line.credit > 0:
+                        nc_type = 'nota_credito'
+                
+                # Determinar vendedor (usuario de la sesión)
+                vendedor = session.user_id.name if session.user_id else ''
                 
                 # Crear UNA línea por cada NC individual
                 for nc in nc_orders:
@@ -266,75 +311,81 @@ class PosOrder(models.Model):
                     if nc.origin_order_id and nc.origin_order_id.account_move:
                         factura_origen = nc.origin_order_id.account_move.name
                     
+                    # Determinar debe/haber según el tipo
+                    debit_amount = 0.0
+                    credit_amount = 0.0
+                    
+                    if nc_type == 'nota_credito':
+                        credit_amount = nc.credit_note_amount
+                    else:
+                        debit_amount = nc.credit_note_amount
+                    
                     self.env['credit.note.line.view'].create({
                         'search_token': search_token,
                         'date': nc.date_order.date() if nc.date_order else fields.Date.today(),
                         'name': nc.pos_reference or nc.name,
                         'account_id': nc_account.id,
                         'session_name': session.name,
-                        'nc_type': 'original',
+                        'nc_type': nc_type,
                         'description': 'NC del %s factura nota %s' % (session.name, factura_origen),
-                        'debit': 0.0,
-                        'credit': nc.credit_note_amount,
+                        'debit': debit_amount,
+                        'credit': credit_amount,
                         'currency_id': nc.currency_id.id,
-                        'analytic_distribution': session.config_id.name if session.config_id else '',
+                        'vendedor': vendedor,
                         'move_line_id': move_line.id if move_line else False,
                         'pos_order_id': nc.id,
                     })
-        
-        # ===== PARTE 2: BUSCAR REFACTURACIONES =====
-        # Buscar sesiones que tienen órdenes con pagos de NC
-        for session in all_sessions:
-            # Buscar órdenes normales de esta sesión
-            orders = self.env['pos.order'].search([
-                ('session_id', '=', session.id),
-                ('amount_total', '>', 0),
-            ])
             
-            for order in orders:
-                # Buscar pagos con método de pago NC
-                nc_payments = order.payment_ids.filtered(
-                    lambda p: 'crédit' in (p.payment_method_id.name or '').lower() or 
-                             'credit' in (p.payment_method_id.name or '').lower() or
-                             'nota' in (p.payment_method_id.name or '').lower()
-                )
+            # Procesar refacturaciones por separado si las hay
+            if has_refacturacion:
+                # Buscar el apunte con débito
+                move_line_debit = False
+                if session.move_id:
+                    move_line_debit = session.move_id.line_ids.filtered(
+                        lambda l: l.account_id.id == nc_account.id and l.debit > 0
+                    )
+                    move_line_debit = move_line_debit[0] if move_line_debit else False
                 
-                if nc_payments:
-                    # Buscar el apunte contable con débito
-                    move_line_debit = False
-                    if session.move_id:
-                        move_line_debit = session.move_id.line_ids.filtered(
-                            lambda l: l.account_id.id == nc_account.id and l.debit > 0
-                        )
-                        move_line_debit = move_line_debit[0] if move_line_debit else False
+                # Saltar si está conciliado
+                if move_line_debit and move_line_debit.reconciled:
+                    continue
+                
+                vendedor = session.user_id.name if session.user_id else ''
+                
+                for order in orders_with_nc:
+                    nc_payments = order.payment_ids.filtered(
+                        lambda p: 'crédit' in (p.payment_method_id.name or '').lower() or 
+                                 'credit' in (p.payment_method_id.name or '').lower() or
+                                 'nota' in (p.payment_method_id.name or '').lower()
+                    )
                     
-                    # Crear línea por cada pago con NC
-                    for payment in nc_payments:
-                        self.env['credit.note.line.view'].create({
-                            'search_token': search_token,
-                            'date': order.date_order.date() if order.date_order else fields.Date.today(),
-                            'name': session.name,
-                            'account_id': nc_account.id,
-                            'session_name': session.name,
-                            'nc_type': 'refund',
-                            'description': 'Orden %s Uso NC' % (order.pos_reference or order.name),
-                            'debit': abs(payment.amount),
-                            'credit': 0.0,
-                            'currency_id': order.currency_id.id,
-                            'analytic_distribution': session.config_id.name if session.config_id else '',
-                            'move_line_id': move_line_debit.id if move_line_debit else False,
-                            'pos_order_id': order.id,
-                        })
+                    if nc_payments:
+                        for payment in nc_payments:
+                            self.env['credit.note.line.view'].create({
+                                'search_token': search_token,
+                                'date': order.date_order.date() if order.date_order else fields.Date.today(),
+                                'name': order.pos_reference or order.name,
+                                'account_id': nc_account.id,
+                                'session_name': session.name,
+                                'nc_type': 'refacturacion',
+                                'description': 'Orden %s Uso NC' % (order.pos_reference or order.name),
+                                'debit': abs(payment.amount),
+                                'credit': 0.0,
+                                'currency_id': order.currency_id.id,
+                                'vendedor': vendedor,
+                                'move_line_id': move_line_debit.id if move_line_debit else False,
+                                'pos_order_id': order.id,
+                            })
         
         # Contar líneas creadas
         created_lines = self.env['credit.note.line.view'].search_count([('search_token', '=', search_token)])
         
         if created_lines == 0:
-            raise UserError(_('No se encontraron notas de crédito.'))
+            raise UserError(_('No se encontraron notas de crédito pendientes de conciliar.'))
         
         # Abrir la vista
         return {
-            'name': _('Notas de Crédito (%s encontradas)') % created_lines,
+            'name': _('Notas de Crédito Pendientes (%s)') % created_lines,
             'type': 'ir.actions.act_window',
             'res_model': 'credit.note.line.view',
             'view_mode': 'tree',
