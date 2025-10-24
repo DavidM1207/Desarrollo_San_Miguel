@@ -250,7 +250,37 @@ class PosOrder(models.Model):
         
         # Procesar cada apunte contable y expandirlo
         for move_line in all_move_lines:
-            session = move_line.move_id.pos_session_id
+            move = move_line.move_id
+            
+            # Buscar sesión POS de diferentes formas
+            session = False
+            
+            # Método 1: Verificar si el campo pos_session_id existe
+            if hasattr(move, 'pos_session_id') and move.pos_session_id:
+                session = move.pos_session_id
+            
+            # Método 2: Buscar sesión a través de la referencia del movimiento
+            if not session and move.ref:
+                session = self.env['pos.session'].search([
+                    ('name', '=', move.ref)
+                ], limit=1)
+            
+            # Método 3: Buscar a través de órdenes POS que tengan este movimiento
+            if not session:
+                pos_order = self.env['pos.order'].search([
+                    ('account_move', '=', move.id)
+                ], limit=1)
+                if pos_order and pos_order.session_id:
+                    session = pos_order.session_id
+            
+            # Método 4: Buscar sesión por fecha y nombre del asiento
+            if not session and move.name:
+                # Intentar extraer referencia de sesión del nombre del asiento
+                session = self.env['pos.session'].search([
+                    '|',
+                    ('name', 'in', [move.name, move.ref or '']),
+                    ('move_id', '=', move.id)
+                ], limit=1)
             
             if session:
                 # Buscar NC de esta sesión
@@ -296,6 +326,7 @@ class PosOrder(models.Model):
                             ('amount_total', '>', 0)
                         ])
                         
+                        nc_found = False
                         for order in session_orders:
                             # Buscar pagos con método NC
                             nc_payments = order.payment_ids.filtered(
@@ -305,6 +336,7 @@ class PosOrder(models.Model):
                             )
                             
                             if nc_payments:
+                                nc_found = True
                                 for payment in nc_payments:
                                     self.env['credit.note.line.view'].create({
                                         'search_token': search_token,
@@ -321,16 +353,49 @@ class PosOrder(models.Model):
                                         'move_line_id': move_line.id,
                                         'pos_order_id': order.id,
                                     })
+                        
+                        # Si no se encontraron pagos con NC, crear línea genérica
+                        if not nc_found:
+                            self.env['credit.note.line.view'].create({
+                                'search_token': search_token,
+                                'date': move_line.date,
+                                'name': session.name,
+                                'account_id': nc_account.id,
+                                'session_name': session.name,
+                                'nc_type': 'refund',
+                                'description': 'Refacturación sesión %s' % session.name,
+                                'debit': move_line.debit,
+                                'credit': 0.0,
+                                'currency_id': move_line.currency_id.id,
+                                'analytic_distribution': session.config_id.name if session.config_id else '',
+                                'move_line_id': move_line.id,
+                            })
+                else:
+                    # Sesión sin NC, crear línea genérica
+                    self.env['credit.note.line.view'].create({
+                        'search_token': search_token,
+                        'date': move_line.date,
+                        'name': move.name,
+                        'account_id': nc_account.id,
+                        'session_name': session.name if session else '',
+                        'nc_type': 'original' if move_line.credit > 0 else 'refund',
+                        'description': move_line.name or move.ref or 'Apunte sesión %s' % (session.name if session else ''),
+                        'debit': move_line.debit,
+                        'credit': move_line.credit,
+                        'currency_id': move_line.currency_id.id,
+                        'analytic_distribution': session.config_id.name if session and session.config_id else '',
+                        'move_line_id': move_line.id,
+                    })
             else:
                 # Si no hay sesión, crear línea genérica
                 self.env['credit.note.line.view'].create({
                     'search_token': search_token,
                     'date': move_line.date,
-                    'name': move_line.move_id.name,
+                    'name': move.name,
                     'account_id': nc_account.id,
                     'session_name': '',
                     'nc_type': 'original' if move_line.credit > 0 else 'refund',
-                    'description': move_line.name or move_line.move_id.ref or '',
+                    'description': move_line.name or move.ref or 'Apunte contable',
                     'debit': move_line.debit,
                     'credit': move_line.credit,
                     'currency_id': move_line.currency_id.id,
