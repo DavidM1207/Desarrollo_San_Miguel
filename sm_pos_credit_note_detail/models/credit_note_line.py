@@ -82,9 +82,9 @@ class CreditNoteLine(models.Model):
             warnings.append('⚠️ ADVERTENCIA: Los totales no cuadran. Diferencia: Q %.2f' % abs(diferencia))
         
         if not move_lines:
-            warnings.append('⚠️ ADVERTENCIA: Ninguna de las líneas seleccionadas tiene apunte contable asociado.')
+            warnings.append('⚠️ ADVERTENCIA: Ninguna de las líneas seleccionadas tiene asiento contable asociado.')
         elif len(move_lines) < len(self):
-            warnings.append('⚠️ ADVERTENCIA: Solo %s de %s líneas tienen apunte contable y podrán ser conciliadas.' % (len(move_lines), len(self)))
+            warnings.append('⚠️ ADVERTENCIA: Solo %s de %s líneas tienen asiento contable y podrán ser conciliadas.' % (len(move_lines), len(self)))
         
         if warnings:
             html_details = '<div style="padding: 10px; background-color: #fff3cd; border: 1px solid #ffc107; margin-bottom: 10px;">' + '<br/>'.join(warnings) + '</div>' + html_details
