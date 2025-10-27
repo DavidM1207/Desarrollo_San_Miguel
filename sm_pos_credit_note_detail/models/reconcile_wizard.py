@@ -76,9 +76,9 @@ class ReconcileConfirmationWizard(models.TransientModel):
                         ('journal_id', '=', payment_method.journal_id.id),
                         ('state', '=', 'posted'),
                         '|', '|',
-                        ('ref', 'ilike', session.name),
+                        
                         ('name', 'ilike', session.name),
-                        ('narration', 'ilike', session.name),
+                        
                     ])
                     
                     # De esos asientos, buscar las líneas en la cuenta 211040020000
