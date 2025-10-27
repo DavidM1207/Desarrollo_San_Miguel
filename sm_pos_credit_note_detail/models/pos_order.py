@@ -122,8 +122,8 @@ class PosOrder(models.Model):
         
         for order in orders:
             nc_payments = order.payment_ids.filtered(
-                lambda p: 'crédit' in (p.payment_method_id.name or '').lower() or 
-                         'credit' in (p.payment_method_id.name or '').lower() or
+                lambda p: 'devolución' in (p.payment_method_id.name or '').lower() or 
+                         'devolucion' in (p.payment_method_id.name or '').lower() or
                          'nota' in (p.payment_method_id.name or '').lower()
             )
             
