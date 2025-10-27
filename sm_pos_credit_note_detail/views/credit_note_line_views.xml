@@ -32,18 +32,34 @@
         <field name="arch" type="xml">
             <form string="Confirmar Conciliación">
                 <group>
-                    <field name="line_count" readonly="1"/>
-                    <field name="total_debit" readonly="1"/>
-                    <field name="total_credit" readonly="1"/>
+                    <group>
+                        <field name="line_count" readonly="1" string="Líneas Seleccionadas"/>
+                        <field name="lines_with_move" readonly="1" string="Con Apunte Contable"/>
+                        <field name="currency_id" invisible="1"/>
+                    </group>
+                    <group>
+                        <field name="total_debit" readonly="1" widget="monetary"/>
+                        <field name="total_credit" readonly="1" widget="monetary"/>
+                        <field name="difference" readonly="1" widget="monetary" 
+                               decoration-danger="difference != 0"
+                               decoration-success="difference == 0"/>
+                    </group>
                 </group>
+                
                 <notebook>
-                    <page string="Detalle">
+                    <page string="Detalle de Líneas a Conciliar" name="lines">
                         <field name="line_details" readonly="1" nolabel="1"/>
                     </page>
                 </notebook>
+                
                 <footer>
-                    <button string="Confirmar y Conciliar" name="action_confirm_reconcile" type="object" class="btn-primary"/>
-                    <button string="Cancelar" special="cancel" class="btn-secondary"/>
+                    <button string="Confirmar y Conciliar" 
+                            name="action_confirm_reconcile" 
+                            type="object" 
+                            class="btn-primary"/>
+                    <button string="Cancelar" 
+                            special="cancel" 
+                            class="btn-secondary"/>
                 </footer>
             </form>
         </field>
