@@ -5,9 +5,10 @@ from odoo.exceptions import UserError
 class PosOrder(models.Model):
     _inherit = 'pos.order'
     
-    @api.model
+    @api.model  # Agregar este decorador
     def action_reconcile_credit_note(self):
         """Abre una vista expandida mostrando cada NC como línea individual"""
+        # QUITAR: self.ensure_one()
         
         # Generar token único para esta búsqueda
         import uuid
@@ -169,7 +170,7 @@ class PosOrder(models.Model):
         
         # Abrir la vista
         return {
-            'name': _('Libro Mayor - Notas de Crédito (%s)') % created_lines,
+            'name': _('Libro Mayor - Notas de Crédito (%s líneas)') % created_lines,
             'type': 'ir.actions.act_window',
             'res_model': 'credit.note.line.view',
             'view_mode': 'tree',
