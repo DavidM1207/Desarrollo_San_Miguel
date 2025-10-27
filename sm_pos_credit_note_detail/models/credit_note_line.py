@@ -7,8 +7,6 @@ class CreditNoteLine(models.Model):
     _description = 'Línea de Nota de Crédito'
     _order = 'date desc, id desc'
     
-    search_token = fields.Char(string='Token de Búsqueda', index=True)  # AGREGAR ESTA LÍNEA
-    
     date = fields.Date(string='Fecha', required=True, index=True)
     name = fields.Char(string='Orden', required=True)
     account_id = fields.Many2one('account.account', string='Cuenta', required=True)
@@ -36,11 +34,9 @@ class CreditNoteLine(models.Model):
         if len(move_lines) < 2:
             raise UserError(_('Debe seleccionar al menos 2 líneas para conciliar.'))
         
-        # Calcular totales
         total_debit = sum(move_lines.mapped('debit'))
         total_credit = sum(move_lines.mapped('credit'))
         
-        # Construir detalle HTML
         html_details = '<table style="width:100%; border-collapse: collapse;">'
         html_details += '<tr style="background-color: #f0f0f0; font-weight: bold;">'
         html_details += '<th style="padding: 8px; border: 1px solid #ddd;">Fecha</th>'
@@ -67,7 +63,6 @@ class CreditNoteLine(models.Model):
         html_details += '</tr>'
         html_details += '</table>'
         
-        # Crear wizard
         wizard = self.env['reconcile.confirmation.wizard'].create({
             'line_count': len(move_lines),
             'total_debit': total_debit,
