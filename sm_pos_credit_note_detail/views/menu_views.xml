@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <!-- Acción de servidor -->
+    <record id="action_load_credit_notes" model="ir.actions.server">
+        <field name="name">Libro Mayor - Notas de Crédito</field>
+        <field name="model_id" ref="point_of_sale.model_pos_order"/>
+        <field name="state">code</field>
+        <field name="code">
+action = model.load_credit_notes_view()
+        </field>
+    </record>
+
+    <!-- Menú -->
+    <menuitem id="menu_credit_notes_ledger"
+              name="Libro Mayor Notas de Crédito"
+              parent="account.menu_finance_entries"
+              action="action_load_credit_notes"
+              sequence="15"/>
+    
+</odoo>

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <record id="view_credit_note_line_tree" model="ir.ui.view">
+        <field name="name">credit.note.line.tree</field>
+        <field name="model">credit.note.line</field>
+        <field name="arch" type="xml">
+            <tree string="Libro Mayor - Notas de Crédito" 
+                  decoration-info="nc_type == 'nota_credito'"
+                  decoration-warning="nc_type == 'refacturacion'"
+                  create="false" delete="false" edit="false">
+                <field name="date"/>
+                <field name="name" string="Orden"/>
+                <field name="session_name" string="Sesión POS"/>
+                <field name="nc_type" string="Tipo"/>
+                <field name="description" string="Detalle NC"/>
+                <field name="debit" string="Debe" sum="Total Debe"/>
+                <field name="credit" string="Haber" sum="Total Haber"/>
+                <field name="vendedor" string="Vendedor"/>
+                <field name="reconciled" column_invisible="1"/>
+                <field name="account_id" column_invisible="1"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="move_line_id" column_invisible="1"/>
+                <field name="pos_order_id" column_invisible="1"/>
+            </tree>
+        </field>
+    </record>
+    
+    <record id="view_reconcile_wizard_form" model="ir.ui.view">
+        <field name="name">reconcile.confirmation.wizard.form</field>
+        <field name="model">reconcile.confirmation.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Confirmar Conciliación">
+                <group>
+                    <group>
+                        <field name="line_count" readonly="1" string="Líneas Seleccionadas"/>
+                        <field name="lines_with_move" readonly="1" string="Con Apunte Contable"/>
+                        <field name="currency_id" invisible="1"/>
+                    </group>
+                    <group>
+                        <field name="total_debit" readonly="1" widget="monetary"/>
+                        <field name="total_credit" readonly="1" widget="monetary"/>
+                        <field name="difference" readonly="1" widget="monetary" 
+                               decoration-danger="difference != 0"
+                               decoration-success="difference == 0"/>
+                    </group>
+                </group>
+                
+                <notebook>
+                    <page string="Detalle de Líneas a Conciliar" name="lines">
+                        <field name="line_details" readonly="1" nolabel="1"/>
+                    </page>
+                </notebook>
+                
+                <footer>
+                    <button string="Confirmar y Conciliar" 
+                            name="action_confirm_reconcile" 
+                            type="object" 
+                            class="btn-primary"/>
+                    <button string="Cancelar" 
+                            special="cancel" 
+                            class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    
+    <record id="action_reconcile_credit_note_lines" model="ir.actions.server">
+        <field name="name">Reconciliar apuntes</field>
+        <field name="model_id" ref="model_credit_note_line"/>
+        <field name="binding_model_id" ref="model_credit_note_line"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">
+if records:
+    action = records.action_reconcile_lines()
+        </field>
+    </record>
+    
+</odoo>
