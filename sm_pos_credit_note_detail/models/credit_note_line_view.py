@@ -2,15 +2,12 @@ from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 
 
-class CreditNoteLineView(models.Model):  # Model, no TransientModel
+class CreditNoteLineView(models.Model):
     _name = 'credit.note.line.view'
     _description = 'Vista Expandida de Líneas de NC'
     _order = 'date desc, id desc'
     
-    # Campo para agrupar todas las líneas de una misma búsqueda
     search_token = fields.Char(string='Token de Búsqueda', index=True)
-    
-    # Campos visibles en la tabla
     date = fields.Date(string='Fecha', required=True, index=True)
     name = fields.Char(string='Orden', required=True)
     account_id = fields.Many2one('account.account', string='Cuenta', required=True)
@@ -24,15 +21,12 @@ class CreditNoteLineView(models.Model):  # Model, no TransientModel
     credit = fields.Monetary(string='Haber', currency_field='currency_id')
     currency_id = fields.Many2one('res.currency', string='Moneda')
     vendedor = fields.Char(string='Vendedor')
-    
-    # Campos ocultos de control
-    move_line_id = fields.Many2one('account.move.line', string='Apunte Contable Real')
+    move_line_id = fields.Many2one('account.move.line', string='Apunte Contable')
     pos_order_id = fields.Many2one('pos.order', string='Orden POS')
     reconciled = fields.Boolean(string='Conciliado', related='move_line_id.reconciled', store=True)
     
     def action_reconcile_lines(self):
-        """Abre wizard de confirmación antes de reconciliar"""
-        # Obtener las líneas reales de account.move.line
+        """Abre wizard de confirmación para conciliar"""
         move_lines = self.mapped('move_line_id').filtered(lambda l: l)
         
         if not move_lines:
@@ -61,14 +55,14 @@ class CreditNoteLineView(models.Model):  # Model, no TransientModel
                 html_details += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % line.date
                 html_details += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % (line.session_name or '')
                 html_details += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % line.name
-                html_details += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">%s%.2f</td>' % (line.currency_id.symbol, line.debit)
-                html_details += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">%s%.2f</td>' % (line.currency_id.symbol, line.credit)
+                html_details += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">%.2f</td>' % line.debit
+                html_details += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">%.2f</td>' % line.credit
                 html_details += '</tr>'
         
         html_details += '<tr style="background-color: #e8f5e9; font-weight: bold;">'
         html_details += '<td colspan="3" style="padding: 8px; border: 1px solid #ddd; text-align: right;">TOTALES:</td>'
-        html_details += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">%s%.2f</td>' % (self[0].currency_id.symbol, total_debit)
-        html_details += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">%s%.2f</td>' % (self[0].currency_id.symbol, total_credit)
+        html_details += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">%.2f</td>' % total_debit
+        html_details += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">%.2f</td>' % total_credit
         html_details += '</tr>'
         html_details += '</table>'
         

@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     
-    <!-- Acción de servidor que carga los datos -->
+    <!-- Acción de servidor -->
     <record id="action_load_credit_notes" model="ir.actions.server">
         <field name="name">Libro Mayor - Notas de Crédito</field>
         <field name="model_id" ref="point_of_sale.model_pos_order"/>
         <field name="state">code</field>
         <field name="code">
-action = model.load_credit_notes_view()
+action = model.action_reconcile_credit_note()
         </field>
     </record>
 

@@ -1,38 +1,38 @@
 from odoo import models, api, fields, _
 from odoo.exceptions import UserError
-from datetime import timedelta
 
 
 class PosOrder(models.Model):
     _inherit = 'pos.order'
     
     @api.model
-    def load_credit_notes_view(self):
-        """Carga la vista de notas de crédito"""
+    def action_reconcile_credit_note(self):
+        """Abre una vista expandida mostrando cada NC como línea individual"""
         
-        # Generar token único
+        # Generar token único para esta búsqueda
         import uuid
         search_token = str(uuid.uuid4())
         
         # Buscar la cuenta 211040020000
-        nc_account = self.env['account.account'].search([('code', '=', '211040020000')], limit=1)
+        nc_account = self.env['account.account'].search([
+            ('code', '=', '211040020000')
+        ], limit=1)
+        
         if not nc_account:
-            raise UserError(_('No se encontró la cuenta 211040020000'))
+            raise UserError(_('No se encontró la cuenta 211040020000 - Notas de Crédito por Aplicar'))
         
         # Limpiar líneas anteriores
-        self.env['credit.note.line'].search([]).unlink()
+        self.env['credit.note.line.view'].search([]).unlink()
         
-        # Fecha inicio del mes actual
+        # ===== BUSCAR TODAS LAS SESIONES CERRADAS =====
         today = fields.Date.today()
         first_day = today.replace(day=1)
         
-        # Buscar todas las sesiones cerradas del mes actual
         all_sessions = self.env['pos.session'].search([
             ('state', '=', 'closed'),
             ('stop_at', '>=', first_day),
         ], order='stop_at desc')
         
-        # Procesar cada sesión
         for session in all_sessions:
             # Buscar NC de esta sesión
             nc_orders = self.env['pos.order'].search([
@@ -40,7 +40,7 @@ class PosOrder(models.Model):
                 ('is_credit_note', '=', True),
             ])
             
-            # Buscar órdenes normales que usaron NC como pago
+            # Buscar órdenes normales de esta sesión que usaron NC como pago
             orders_with_nc = self.env['pos.order'].search([
                 ('session_id', '=', session.id),
                 ('amount_total', '>', 0),
@@ -58,9 +58,10 @@ class PosOrder(models.Model):
                     break
             
             if nc_orders:
-                # Buscar el apunte contable
+                # Buscar el apunte contable de esta sesión en la cuenta NC
                 move_line = False
                 if session.move_id:
+                    # Buscar línea con crédito (NC) o débito (Refacturación)
                     move_lines_credit = session.move_id.line_ids.filtered(
                         lambda l: l.account_id.id == nc_account.id and l.credit > 0
                     )
@@ -68,8 +69,10 @@ class PosOrder(models.Model):
                         lambda l: l.account_id.id == nc_account.id and l.debit > 0
                     )
                     
+                    # Si hay crédito, usar esa línea para NC
                     if move_lines_credit:
                         move_line = move_lines_credit[0]
+                    # Si solo hay débito, es refacturación
                     elif move_lines_debit:
                         move_line = move_lines_debit[0]
                 
@@ -77,7 +80,7 @@ class PosOrder(models.Model):
                 if move_line and move_line.reconciled:
                     continue
                 
-                # Determinar tipo basado en el apunte contable
+                # Determinar el tipo basado en el pago de la sesión
                 nc_type = 'nota_credito'
                 if move_line:
                     if move_line.debit > 0:
@@ -85,14 +88,17 @@ class PosOrder(models.Model):
                     elif move_line.credit > 0:
                         nc_type = 'nota_credito'
                 
+                # Determinar vendedor (usuario de la sesión)
                 vendedor = session.user_id.name if session.user_id else ''
                 
                 # Crear UNA línea por cada NC individual
                 for nc in nc_orders:
                     factura_origen = ''
+                    # Buscar factura de la orden original que generó esta NC
                     if nc.origin_order_id and nc.origin_order_id.account_move:
                         factura_origen = nc.origin_order_id.account_move.name
                     
+                    # Determinar debe/haber según el tipo
                     debit_amount = 0.0
                     credit_amount = 0.0
                     
@@ -101,7 +107,7 @@ class PosOrder(models.Model):
                     else:
                         debit_amount = nc.credit_note_amount
                     
-                    self.env['credit.note.line'].create({
+                    self.env['credit.note.line.view'].create({
                         'search_token': search_token,
                         'date': nc.date_order.date() if nc.date_order else fields.Date.today(),
                         'name': nc.pos_reference or nc.name,
@@ -117,8 +123,9 @@ class PosOrder(models.Model):
                         'pos_order_id': nc.id,
                     })
             
-            # Procesar refacturaciones por separado
+            # Procesar refacturaciones por separado si las hay
             if has_refacturacion:
+                # Buscar el apunte con débito
                 move_line_debit = False
                 if session.move_id:
                     move_line_debit = session.move_id.line_ids.filtered(
@@ -126,6 +133,7 @@ class PosOrder(models.Model):
                     )
                     move_line_debit = move_line_debit[0] if move_line_debit else False
                 
+                # Saltar si está conciliado
                 if move_line_debit and move_line_debit.reconciled:
                     continue
                 
@@ -140,7 +148,7 @@ class PosOrder(models.Model):
                     
                     if nc_payments:
                         for payment in nc_payments:
-                            self.env['credit.note.line'].create({
+                            self.env['credit.note.line.view'].create({
                                 'search_token': search_token,
                                 'date': order.date_order.date() if order.date_order else fields.Date.today(),
                                 'name': order.pos_reference or order.name,
@@ -157,15 +165,16 @@ class PosOrder(models.Model):
                             })
         
         # Contar líneas creadas
-        created_lines = self.env['credit.note.line'].search_count([('search_token', '=', search_token)])
+        created_lines = self.env['credit.note.line.view'].search_count([('search_token', '=', search_token)])
         
-        # Abrir la vista con el filtro del token
+        # Abrir la vista
         return {
-            'name': _('Libro Mayor - Notas de Crédito') + (' (%s)' % created_lines if created_lines > 0 else ' (Sin registros)'),
+            'name': _('Libro Mayor - Notas de Crédito (%s)') % created_lines,
             'type': 'ir.actions.act_window',
-            'res_model': 'credit.note.line',
+            'res_model': 'credit.note.line.view',
             'view_mode': 'tree',
+            'views': [(self.env.ref('sm_pos_credit_note_detail.view_credit_note_line_expanded_tree').id, 'tree')],
             'domain': [('search_token', '=', search_token)],
-            'target': 'current',
             'context': {'create': False, 'edit': False, 'delete': False},
+            'target': 'current',
         }
