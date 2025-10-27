@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     
-    <!-- Acción de servidor que ejecuta el método de carga -->
+    <!-- Acción de servidor que ejecuta action_reconcile_credit_note -->
     <record id="action_load_credit_notes_server" model="ir.actions.server">
-        <field name="name">Cargar Libro Mayor NC</field>
+        <field name="name">Libro Mayor - Notas de Crédito</field>
         <field name="model_id" ref="point_of_sale.model_pos_order"/>
         <field name="state">code</field>
         <field name="code">
-action = model.load_all_credit_notes()
+# Llamar al método que ya funciona
+action = env['pos.order'].action_reconcile_credit_note()
         </field>
     </record>
 
-    <!-- Menú que ejecuta la acción de servidor -->
+    <!-- Menú principal -->
     <menuitem id="menu_credit_notes_ledger"
               name="Libro Mayor Notas de Crédito"
               parent="account.menu_finance_entries"
