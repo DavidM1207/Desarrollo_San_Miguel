@@ -2,33 +2,31 @@ from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 
 
-class CreditNoteLineView(models.TransientModel):
+class CreditNoteLineView(models.Model):  # Cambiar de TransientModel a Model
     _name = 'credit.note.line.view'
     _description = 'Vista Expandida de Líneas de NC'
-    _order = 'date, id'
-    
-    # Campo para agrupar todas las líneas de una misma búsqueda
-    search_token = fields.Char(string='Token de Búsqueda', index=True)
+    _order = 'date desc, id desc'
     
     # Campos visibles en la tabla
-    date = fields.Date(string='Fecha', required=True)
-    name = fields.Char(string='Orden', required=True)  # Cambiado de "Asiento" a "Orden"
+    date = fields.Date(string='Fecha', required=True, index=True)
+    name = fields.Char(string='Orden', required=True, index=True)
     account_id = fields.Many2one('account.account', string='Cuenta', required=True)
-    session_name = fields.Char(string='Sesión POS')
+    session_name = fields.Char(string='Sesión POS', index=True)
     nc_type = fields.Selection([
         ('nota_credito', 'Nota de Crédito'),
         ('refacturacion', 'Refacturación'),
-    ], string='Tipo', required=True)
+    ], string='Tipo', required=True, index=True)
     description = fields.Text(string='Detalle NC')
     debit = fields.Monetary(string='Debe', currency_field='currency_id')
     credit = fields.Monetary(string='Haber', currency_field='currency_id')
     currency_id = fields.Many2one('res.currency', string='Moneda')
-    vendedor = fields.Char(string='Vendedor')  # Cambiado de "analytic_distribution"
+    vendedor = fields.Char(string='Vendedor', index=True)
     
-    # Campos ocultos de control
-    move_line_id = fields.Many2one('account.move.line', string='Apunte Contable Real')
-    pos_order_id = fields.Many2one('pos.order', string='Orden POS')
-    reconciled = fields.Boolean(string='Conciliado', related='move_line_id.reconciled', store=False)
+    # Campos de control
+    move_line_id = fields.Many2one('account.move.line', string='Apunte Contable Real', index=True)
+    pos_order_id = fields.Many2one('pos.order', string='Orden POS', index=True)
+    reconciled = fields.Boolean(string='Conciliado', related='move_line_id.reconciled', store=True)
+    create_date = fields.Datetime(string='Fecha Creación', default=fields.Datetime.now, readonly=True)
     
     def action_reconcile_lines(self):
         """Abre wizard de confirmación antes de reconciliar"""
@@ -90,3 +88,7 @@ class CreditNoteLineView(models.TransientModel):
             'res_id': wizard.id,
             'target': 'new',
         }
+    
+    def action_reload_data(self):
+        """Recargar datos - llamar al método de carga"""
+        return self.env['pos.order'].load_all_credit_notes()

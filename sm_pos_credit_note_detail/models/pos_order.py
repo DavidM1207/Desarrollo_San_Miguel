@@ -205,10 +205,7 @@ class PosOrder(models.Model):
     
     @api.model
     def load_all_credit_notes(self):
-        """Carga todas las NC - Misma lógica que action_reconcile_credit_note"""
-        # Generar token único
-        import uuid
-        search_token = str(uuid.uuid4())
+        """Carga todas las NC del mes actual"""
         
         # Buscar la cuenta 211040020000
         nc_account = self.env['account.account'].search([
@@ -218,20 +215,30 @@ class PosOrder(models.Model):
         if not nc_account:
             raise UserError(_('No se encontró la cuenta 211040020000 - Notas de Crédito por Aplicar'))
         
-        # Limpiar líneas anteriores
-        self.env['credit.note.line.view'].search([]).unlink()
+        # Limpiar registros viejos (más de 1 día)
+        old_date = fields.Datetime.now() - timedelta(days=1)
+        old_records = self.env['credit.note.line.view'].search([
+            ('create_date', '<', old_date)
+        ])
+        if old_records:
+            old_records.unlink()
         
-        # ===== MISMA LÓGICA QUE action_reconcile_credit_note =====
+        # Limpiar registros de hoy para regenerar
+        today_records = self.env['credit.note.line.view'].search([])
+        if today_records:
+            today_records.unlink()
         
-        # Buscar TODAS las sesiones cerradas (del mes actual para optimizar)
+        # Obtener fecha del mes actual
         today = fields.Date.today()
         first_day = today.replace(day=1)
         
+        # Buscar todas las sesiones cerradas del mes actual
         all_sessions = self.env['pos.session'].search([
             ('state', '=', 'closed'),
             ('stop_at', '>=', first_day),
         ], order='stop_at desc')
         
+        # Procesar cada sesión
         for session in all_sessions:
             # Buscar NC de esta sesión
             nc_orders = self.env['pos.order'].search([
@@ -301,7 +308,6 @@ class PosOrder(models.Model):
                         debit_amount = nc.credit_note_amount
                     
                     self.env['credit.note.line.view'].create({
-                        'search_token': search_token,
                         'date': nc.date_order.date() if nc.date_order else fields.Date.today(),
                         'name': nc.pos_reference or nc.name,
                         'account_id': nc_account.id,
@@ -340,7 +346,6 @@ class PosOrder(models.Model):
                     if nc_payments:
                         for payment in nc_payments:
                             self.env['credit.note.line.view'].create({
-                                'search_token': search_token,
                                 'date': order.date_order.date() if order.date_order else fields.Date.today(),
                                 'name': order.pos_reference or order.name,
                                 'account_id': nc_account.id,
@@ -356,16 +361,16 @@ class PosOrder(models.Model):
                             })
         
         # Contar líneas creadas
-        created_lines = self.env['credit.note.line.view'].search_count([('search_token', '=', search_token)])
+        created_lines = self.env['credit.note.line.view'].search_count([])
         
         # Abrir la vista
         return {
-            'name': _('Libro Mayor - Notas de Crédito (%s registros)') % created_lines,
+            'name': _('Libro Mayor - Notas de Crédito'),
             'type': 'ir.actions.act_window',
             'res_model': 'credit.note.line.view',
             'view_mode': 'tree',
             'view_id': self.env.ref('sm_pos_credit_note_detail.view_credit_note_line_expanded_tree').id,
-            'domain': [('search_token', '=', search_token)],
+            'domain': [],  # SIN FILTRO - mostrar todos
             'context': {
                 'create': False,
                 'edit': False,
