@@ -75,10 +75,7 @@ class ReconcileConfirmationWizard(models.TransientModel):
                     moves = self.env['account.move'].search([
                         ('journal_id', '=', payment_method.journal_id.id),
                         ('state', '=', 'posted'),
-                        '|', '|',
-                        
                         ('name', 'ilike', session.name),
-                        
                     ])
                     
                     # De esos asientos, buscar las líneas en la cuenta 211040020000
