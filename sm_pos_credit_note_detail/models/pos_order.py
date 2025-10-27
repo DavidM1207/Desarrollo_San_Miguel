@@ -18,20 +18,26 @@ class PosOrder(models.Model):
         # Limpiar datos anteriores
         self.env['credit.note.line'].search([]).unlink()
         
-        # Fecha inicio del mes actual
+        # Fecha inicio - ÚLTIMOS 6 MESES para asegurar que hay datos
         today = fields.Date.today()
-        first_day = today.replace(day=1)
+        six_months_ago = today - timedelta(days=180)
         
-        # Buscar sesiones cerradas del mes actual
+        # Buscar sesiones cerradas de los últimos 6 meses
         sessions = self.env['pos.session'].search([
             ('state', '=', 'closed'),
-            ('stop_at', '>=', first_day),
+            ('stop_at', '>=', six_months_ago),
         ], order='stop_at desc')
+        
+        if not sessions:
+            raise UserError(_('No se encontraron sesiones cerradas en los últimos 6 meses'))
         
         # Procesar cada sesión
         lines_created = 0
         for session in sessions:
             lines_created += self._process_session(session, nc_account)
+        
+        if lines_created == 0:
+            raise UserError(_('Se encontraron %s sesiones pero no se crearon líneas. Todas las NC están conciliadas o no hay NC.') % len(sessions))
         
         # Abrir la vista
         return {
@@ -47,75 +53,50 @@ class PosOrder(models.Model):
         """Procesa una sesión y crea las líneas de NC"""
         lines_created = 0
         
-        # Buscar NC de la sesión
+        # Buscar NC de la sesión (órdenes con monto negativo = NC)
         nc_orders = self.env['pos.order'].search([
             ('session_id', '=', session.id),
-            ('is_credit_note', '=', True),
+            ('amount_total', '<', 0),  # NC tienen monto negativo
         ])
         
         if not nc_orders:
             return 0
         
-        # BUSCAR EL ASIENTO AGRUPADO DEL MÉTODO DE PAGO
-        nc_payment_move_line = False
-        
+        # Buscar el apunte contable
+        move_line = False
         if session.move_id:
-            # Buscar el statement (extracto bancario) de la sesión con el método de pago NC
-            statements = self.env['account.bank.statement'].search([
-                ('pos_session_id', '=', session.id)
-            ])
+            move_lines_credit = session.move_id.line_ids.filtered(
+                lambda l: l.account_id.id == nc_account.id and l.credit > 0
+            )
+            move_lines_debit = session.move_id.line_ids.filtered(
+                lambda l: l.account_id.id == nc_account.id and l.debit > 0
+            )
             
-            for statement in statements:
-                # Buscar líneas del statement que tengan método de pago de NC
-                statement_lines = statement.line_ids.filtered(
-                    lambda l: l.payment_ref and (
-                        'crédit' in l.payment_ref.lower() or 
-                        'credit' in l.payment_ref.lower() or
-                        'nota' in l.payment_ref.lower()
-                    )
-                )
-                
-                for st_line in statement_lines:
-                    if st_line.move_id:
-                        # Buscar la línea en la cuenta 211040020000
-                        nc_line = st_line.move_id.line_ids.filtered(
-                            lambda l: l.account_id.id == nc_account.id
-                        )
-                        if nc_line:
-                            nc_payment_move_line = nc_line[0]
-                            break
-                
-                if nc_payment_move_line:
-                    break
-            
-            # Si no lo encontramos por statement, buscar directamente en el move_id de la sesión
-            if not nc_payment_move_line:
-                move_lines_credit = session.move_id.line_ids.filtered(
-                    lambda l: l.account_id.id == nc_account.id and l.credit > 0
-                )
-                move_lines_debit = session.move_id.line_ids.filtered(
-                    lambda l: l.account_id.id == nc_account.id and l.debit > 0
-                )
-                
-                if move_lines_credit:
-                    nc_payment_move_line = move_lines_credit[0]
-                elif move_lines_debit:
-                    nc_payment_move_line = move_lines_debit[0]
+            if move_lines_credit:
+                move_line = move_lines_credit[0]
+            elif move_lines_debit:
+                move_line = move_lines_debit[0]
         
         # Si está conciliado, saltar
-        if nc_payment_move_line and nc_payment_move_line.reconciled:
+        if move_line and move_line.reconciled:
             return 0
         
         # Determinar tipo
         nc_type = 'nota_credito'
-        if nc_payment_move_line and nc_payment_move_line.debit > 0:
+        if move_line and move_line.debit > 0:
             nc_type = 'refacturacion'
         
         # Crear línea por cada NC
         for nc in nc_orders:
             factura_origen = ''
-            if nc.origin_order_id and nc.origin_order_id.account_move:
+            # Buscar la orden original desde la cual se hizo la NC
+            if hasattr(nc, 'refunded_order_id') and nc.refunded_order_id and nc.refunded_order_id.account_move:
+                factura_origen = nc.refunded_order_id.account_move.name
+            elif hasattr(nc, 'origin_order_id') and nc.origin_order_id and nc.origin_order_id.account_move:
                 factura_origen = nc.origin_order_id.account_move.name
+            
+            # El monto de la NC es el valor absoluto del amount_total
+            nc_amount = abs(nc.amount_total)
             
             self.env['credit.note.line'].create({
                 'date': nc.date_order.date() if nc.date_order else fields.Date.today(),
@@ -124,11 +105,11 @@ class PosOrder(models.Model):
                 'session_name': session.name,
                 'nc_type': nc_type,
                 'description': 'NC del %s factura nota %s' % (session.name, factura_origen),
-                'debit': nc.credit_note_amount if nc_type == 'refacturacion' else 0.0,
-                'credit': nc.credit_note_amount if nc_type == 'nota_credito' else 0.0,
+                'debit': nc_amount if nc_type == 'refacturacion' else 0.0,
+                'credit': nc_amount if nc_type == 'nota_credito' else 0.0,
                 'currency_id': nc.currency_id.id,
                 'vendedor': session.user_id.name if session.user_id else '',
-                'move_line_id': nc_payment_move_line.id if nc_payment_move_line else False,
+                'move_line_id': move_line.id if move_line else False,
                 'pos_order_id': nc.id,
             })
             lines_created += 1
@@ -136,13 +117,13 @@ class PosOrder(models.Model):
         # Procesar refacturaciones (órdenes que pagaron con NC)
         orders = self.env['pos.order'].search([
             ('session_id', '=', session.id),
-            ('amount_total', '>', 0),
+            ('amount_total', '>', 0),  # Órdenes positivas
         ])
         
         for order in orders:
             nc_payments = order.payment_ids.filtered(
-                lambda p: 'crédit' in (p.payment_method_id.name or '').lower() or 
-                         'credit' in (p.payment_method_id.name or '').lower() or
+                lambda p: 'devolución' in (p.payment_method_id.name or '').lower() or 
+                         'devolucion' in (p.payment_method_id.name or '').lower() or
                          'nota' in (p.payment_method_id.name or '').lower()
             )
             
