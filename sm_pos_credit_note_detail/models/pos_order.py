@@ -165,17 +165,20 @@ class PosOrder(models.Model):
                                 'pos_order_id': order.id,
                             })
         
-        # Contar líneas creadas
+       # Contar líneas creadas
         created_lines = self.env['credit.note.line.view'].search_count([('search_token', '=', search_token)])
         
-        # Abrir la vista
+        # PRUEBA: Contar TODAS las líneas
+        all_lines = self.env['credit.note.line.view'].search_count([])
+        
+        # Abrir la vista SIN FILTRO para ver si hay datos
         return {
-            'name': _('Libro Mayor - Notas de Crédito (%s líneas)') % created_lines,
+            'name': _('Libro Mayor - Notas de Crédito (Token: %s líneas | Total: %s líneas)') % (created_lines, all_lines),
             'type': 'ir.actions.act_window',
             'res_model': 'credit.note.line.view',
             'view_mode': 'tree',
             'views': [(self.env.ref('sm_pos_credit_note_detail.view_credit_note_line_expanded_tree').id, 'tree')],
-            'domain': [('search_token', '=', search_token)],
+            'domain': [],  # SIN FILTRO - mostrar TODAS
             'context': {'create': False, 'edit': False, 'delete': False},
             'target': 'current',
         }
