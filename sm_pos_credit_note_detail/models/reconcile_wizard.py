@@ -31,59 +31,43 @@ class ReconcileConfirmationWizard(models.TransientModel):
                 wizard.line_details = '<p style="color: red;">⚠️ No se encontró la cuenta 211040020000</p>'
                 continue
             
-            # Obtener las órdenes de las líneas seleccionadas
+            # Obtener las órdenes
             orders = wizard.credit_note_line_ids.mapped('pos_order_id').filtered(lambda o: o)
             
-            if not orders:
-                wizard.line_details = '<p style="color: red;">⚠️ No se encontraron órdenes en las líneas seleccionadas</p>'
-                continue
-            
-            # Obtener las sesiones
-            sessions = orders.mapped('session_id').filtered(lambda s: s)
-            
-            if not sessions:
-                wizard.line_details = '<p style="color: red;">⚠️ No se encontraron sesiones</p>'
-                continue
-            
-            # Buscar los payments con método "devolución" o "nota" de esas órdenes
-            nc_payments = self.env['pos.payment']
+            # Buscar el método de pago "Devoluciones/Nota" de esas órdenes
+            payment_method = False
             for order in orders:
                 payments = order.payment_ids.filtered(
                     lambda p: 'devolución' in (p.payment_method_id.name or '').lower() or 
                              'devolucion' in (p.payment_method_id.name or '').lower() or
                              'nota' in (p.payment_method_id.name or '').lower()
                 )
-                nc_payments |= payments
+                if payments:
+                    payment_method = payments[0].payment_method_id
+                    break
             
-            if not nc_payments:
-                wizard.line_details = '<p style="color: red;">⚠️ No se encontraron pagos con método Devolución/Nota en las órdenes</p>'
+            if not payment_method:
+                wizard.line_details = '<p style="color: red;">⚠️ No se encontró método de pago Devolución/Nota</p>'
                 continue
             
-            # Obtener los métodos de pago y sus diarios
-            payment_methods = nc_payments.mapped('payment_method_id').filtered(lambda m: m.journal_id)
-            
-            if not payment_methods:
-                wizard.line_details = '<p style="color: red;">⚠️ Los métodos de pago encontrados no tienen diario configurado</p>'
+            if not payment_method.journal_id:
+                wizard.line_details = '<p style="color: red;">⚠️ El método de pago no tiene diario configurado</p>'
                 continue
             
-            # Buscar asientos en los DIARIOS de los métodos de pago que contengan el nombre de la sesión
+            # Buscar TODOS los asientos en el DIARIO del método de pago que tengan líneas en la cuenta 211040020000
+            # y que NO estén conciliados
+            all_moves = self.env['account.move'].search([
+                ('journal_id', '=', payment_method.journal_id.id),
+                ('state', '=', 'posted'),
+            ])
+            
             move_lines_to_reconcile = self.env['account.move.line']
-            
-            for payment_method in payment_methods:
-                for session in sessions:
-                    # Buscar asientos que contengan el nombre de la sesión en ref, name o narration
-                    moves = self.env['account.move'].search([
-                        ('journal_id', '=', payment_method.journal_id.id),
-                        ('state', '=', 'posted'),
-                        ('name', 'ilike', session.name),
-                    ])
-                    
-                    # De esos asientos, buscar las líneas en la cuenta 211040020000
-                    for move in moves:
-                        nc_lines = move.line_ids.filtered(
-                            lambda l: l.account_id.id == nc_account.id
-                        )
-                        move_lines_to_reconcile |= nc_lines
+            for move in all_moves:
+                # Buscar líneas en la cuenta 211040020000 que NO estén conciliadas
+                nc_lines = move.line_ids.filtered(
+                    lambda l: l.account_id.id == nc_account.id and not l.reconciled
+                )
+                move_lines_to_reconcile |= nc_lines
             
             # Guardar los move_lines encontrados
             wizard.move_line_ids = [(6, 0, move_lines_to_reconcile.ids)]
@@ -119,29 +103,23 @@ class ReconcileConfirmationWizard(models.TransientModel):
             html += '</tr>'
             html += '</table>'
             
-            # Información de búsqueda
+            # Información del diario
             html += '<div style="padding: 10px; background-color: #e3f2fd; border-left: 4px solid #2196f3; margin: 15px 0;">'
-            html += '<strong>🔍 Búsqueda Realizada:</strong><br/>'
-            html += '<strong>Métodos de Pago:</strong><br/>'
-            for pm in payment_methods:
-                html += '• %s (Diario: %s)<br/>' % (pm.name, pm.journal_id.name)
-            html += '<strong>Sesiones:</strong><br/>'
-            for session in sessions:
-                html += '• %s<br/>' % session.name
+            html += '<strong>💳 Método de Pago:</strong> %s<br/>' % payment_method.name
+            html += '<strong>📘 Diario:</strong> %s<br/>' % payment_method.journal_id.name
+            html += '<strong>🔢 Cuenta:</strong> %s - %s' % (nc_account.code, nc_account.name)
             html += '</div>'
             
-            # Mostrar asientos del DIARIO que se van a conciliar
+            # Mostrar asientos que se van a conciliar
             if move_lines_to_reconcile:
                 html += '<hr style="margin: 20px 0;"/>'
-                html += '<h4>🔗 Asientos del Diario del Método de Pago a Conciliar:</h4>'
-                html += '<p><strong>Total de asientos encontrados:</strong> %s</p>' % len(move_lines_to_reconcile)
+                html += '<h4>🔗 Apuntes del Diario a Conciliar:</h4>'
+                html += '<p><strong>Total de apuntes NO conciliados:</strong> %s</p>' % len(move_lines_to_reconcile)
                 html += '<table style="width:100%; border-collapse: collapse;">'
                 html += '<tr style="background-color: #e3f2fd; font-weight: bold;">'
                 html += '<th style="padding: 8px; border: 1px solid #ddd;">Asiento</th>'
                 html += '<th style="padding: 8px; border: 1px solid #ddd;">Ref</th>'
                 html += '<th style="padding: 8px; border: 1px solid #ddd;">Fecha</th>'
-                html += '<th style="padding: 8px; border: 1px solid #ddd;">Diario</th>'
-                html += '<th style="padding: 8px; border: 1px solid #ddd;">Cuenta</th>'
                 html += '<th style="padding: 8px; border: 1px solid #ddd;">Debe</th>'
                 html += '<th style="padding: 8px; border: 1px solid #ddd;">Haber</th>'
                 html += '</tr>'
@@ -149,10 +127,8 @@ class ReconcileConfirmationWizard(models.TransientModel):
                 for move_line in move_lines_to_reconcile:
                     html += '<tr>'
                     html += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % move_line.move_id.name
-                    html += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % (move_line.move_id.ref or '')
+                    html += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % (move_line.move_id.ref or '-')
                     html += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % move_line.date
-                    html += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % move_line.move_id.journal_id.name
-                    html += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % move_line.account_id.code
                     html += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">Q %.2f</td>' % move_line.debit
                     html += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">Q %.2f</td>' % move_line.credit
                     html += '</tr>'
@@ -161,27 +137,27 @@ class ReconcileConfirmationWizard(models.TransientModel):
                 total_move_credit = sum(move_lines_to_reconcile.mapped('credit'))
                 
                 html += '<tr style="background-color: #e8f5e9; font-weight: bold;">'
-                html += '<td colspan="5" style="padding: 8px; border: 1px solid #ddd; text-align: right;">TOTAL ASIENTOS:</td>'
+                html += '<td colspan="3" style="padding: 8px; border: 1px solid #ddd; text-align: right;">TOTAL:</td>'
                 html += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">Q %.2f</td>' % total_move_debit
                 html += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">Q %.2f</td>' % total_move_credit
                 html += '</tr>'
                 html += '</table>'
             else:
                 html += '<div style="padding: 10px; background-color: #ffebee; border: 1px solid #f44336; margin-top: 10px;">'
-                html += '⚠️ No se encontraron asientos en los diarios de los métodos de pago que contengan las sesiones seleccionadas'
+                html += '⚠️ No se encontraron apuntes NO conciliados en el diario <strong>%s</strong> en la cuenta <strong>%s</strong>' % (payment_method.journal_id.name, nc_account.code)
                 html += '</div>'
             
             wizard.line_details = html
     
     def action_confirm_reconcile(self):
-        """Ejecuta la conciliación de los asientos del diario del método de pago"""
+        """Ejecuta la conciliación"""
         self.ensure_one()
         
         if not self.move_line_ids:
-            raise UserError(_('No se encontraron asientos del diario del método de pago para conciliar.'))
+            raise UserError(_('No se encontraron apuntes del diario del método de pago para conciliar.'))
         
         if len(self.move_line_ids) < 2:
-            raise UserError(_('Se requieren al menos 2 asientos para conciliar. Solo se encontró %s asiento.') % len(self.move_line_ids))
+            raise UserError(_('Se requieren al menos 2 apuntes para conciliar. Solo se encontró %s apunte.') % len(self.move_line_ids))
         
         try:
             self.move_line_ids.reconcile()
@@ -191,7 +167,7 @@ class ReconcileConfirmationWizard(models.TransientModel):
                 'tag': 'display_notification',
                 'params': {
                     'title': _('✅ Conciliación Exitosa'),
-                    'message': _('Se conciliaron %s asientos del diario del método de pago correctamente.') % len(self.move_line_ids),
+                    'message': _('Se conciliaron %s apuntes del diario correctamente.') % len(self.move_line_ids),
                     'type': 'success',
                     'sticky': False,
                     'next': {'type': 'ir.actions.act_window_close'},
