@@ -7,6 +7,8 @@ class CreditNoteLine(models.Model):
     _description = 'Línea de Nota de Crédito'
     _order = 'date desc, id desc'
     
+    search_token = fields.Char(string='Token de Búsqueda', index=True)  # AGREGAR ESTA LÍNEA
+    
     date = fields.Date(string='Fecha', required=True, index=True)
     name = fields.Char(string='Orden', required=True)
     account_id = fields.Many2one('account.account', string='Cuenta', required=True)

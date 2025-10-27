@@ -10,12 +10,16 @@ class PosOrder(models.Model):
     def load_credit_notes_view(self):
         """Carga la vista de notas de crédito"""
         
+        # Generar token único
+        import uuid
+        search_token = str(uuid.uuid4())
+        
         # Buscar la cuenta 211040020000
         nc_account = self.env['account.account'].search([('code', '=', '211040020000')], limit=1)
         if not nc_account:
             raise UserError(_('No se encontró la cuenta 211040020000'))
         
-        # Limpiar datos anteriores
+        # Limpiar líneas anteriores
         self.env['credit.note.line'].search([]).unlink()
         
         # Fecha inicio del mes actual
@@ -98,6 +102,7 @@ class PosOrder(models.Model):
                         debit_amount = nc.credit_note_amount
                     
                     self.env['credit.note.line'].create({
+                        'search_token': search_token,
                         'date': nc.date_order.date() if nc.date_order else fields.Date.today(),
                         'name': nc.pos_reference or nc.name,
                         'account_id': nc_account.id,
@@ -136,6 +141,7 @@ class PosOrder(models.Model):
                     if nc_payments:
                         for payment in nc_payments:
                             self.env['credit.note.line'].create({
+                                'search_token': search_token,
                                 'date': order.date_order.date() if order.date_order else fields.Date.today(),
                                 'name': order.pos_reference or order.name,
                                 'account_id': nc_account.id,
@@ -151,14 +157,15 @@ class PosOrder(models.Model):
                             })
         
         # Contar líneas creadas
-        created_lines = self.env['credit.note.line'].search_count([])
+        created_lines = self.env['credit.note.line'].search_count([('search_token', '=', search_token)])
         
-        # Abrir la vista siempre
+        # Abrir la vista con el filtro del token
         return {
             'name': _('Libro Mayor - Notas de Crédito') + (' (%s)' % created_lines if created_lines > 0 else ' (Sin registros)'),
             'type': 'ir.actions.act_window',
             'res_model': 'credit.note.line',
             'view_mode': 'tree',
+            'domain': [('search_token', '=', search_token)],
             'target': 'current',
             'context': {'create': False, 'edit': False, 'delete': False},
         }
