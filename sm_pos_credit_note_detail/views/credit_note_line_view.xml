@@ -27,7 +27,7 @@
                 <field name="currency_id" column_invisible="1"/>
                 <field name="move_line_id" column_invisible="1"/>
                 <field name="pos_order_id" column_invisible="1"/>
-                <field name="create_date" column_invisible="1"/>
+                <field name="search_token" column_invisible="1"/>
             </tree>
         </field>
     </record>
@@ -62,6 +62,53 @@
                     <filter string="Fecha" name="group_date" context="{'group_by': 'date'}"/>
                 </group>
             </search>
+        </field>
+    </record>
+    
+    <!-- Vista form vacía con mensaje de ayuda -->
+    <record id="view_credit_note_line_form" model="ir.ui.view">
+        <field name="name">credit.note.line.view.form</field>
+        <field name="model">credit.note.line.view</field>
+        <field name="arch" type="xml">
+            <form string="Nota de Crédito" create="false" edit="false" delete="false">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="date"/>
+                            <field name="session_name"/>
+                            <field name="nc_type"/>
+                            <field name="vendedor"/>
+                        </group>
+                        <group>
+                            <field name="debit"/>
+                            <field name="credit"/>
+                            <field name="currency_id"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="description"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Acción window con mensaje de ayuda -->
+    <record id="action_credit_note_lines_window" model="ir.actions.act_window">
+        <field name="name">Libro Mayor - Notas de Crédito</field>
+        <field name="res_model">credit.note.line.view</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No hay notas de crédito pendientes de conciliar este mes
+            </p>
+            <p>
+                Todas las notas de crédito del mes actual están conciliadas o no hay sesiones cerradas con NC.<br/>
+                Use los filtros para ver otros meses o períodos.
+            </p>
         </field>
     </record>
     

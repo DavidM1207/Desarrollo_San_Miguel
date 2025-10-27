@@ -222,7 +222,6 @@ class PosOrder(models.Model):
 
     def action_reconcile_credit_note(self):
         """Abre una vista expandida mostrando cada NC como línea individual"""
-        # Ya no requiere ensure_one() - puede ser llamado desde el menú
         
         # Generar token único para esta búsqueda
         import uuid
@@ -375,12 +374,9 @@ class PosOrder(models.Model):
         # Contar cuántas líneas se crearon
         created_lines = self.env['credit.note.line.view'].search_count([('search_token', '=', search_token)])
         
-        if created_lines == 0:
-            raise UserError(_('No se encontraron notas de crédito pendientes de conciliar.'))
-        
-        # Abrir la vista expandida
+        # Abrir la vista SIEMPRE (aunque esté vacía)
         return {
-            'name': _('Libro Mayor - Notas de Crédito (%s)') % created_lines,
+            'name': _('Libro Mayor - Notas de Crédito') + (' (%s)' % created_lines if created_lines > 0 else ' (Sin registros)'),
             'type': 'ir.actions.act_window',
             'res_model': 'credit.note.line.view',
             'view_mode': 'tree',
