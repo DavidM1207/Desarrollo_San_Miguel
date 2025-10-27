@@ -1,22 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     
-    <!-- Acción de servidor que ejecuta action_reconcile_credit_note -->
-    <record id="action_load_credit_notes_server" model="ir.actions.server">
+    <!-- Acción de servidor que carga los datos -->
+    <record id="action_load_credit_notes" model="ir.actions.server">
         <field name="name">Libro Mayor - Notas de Crédito</field>
         <field name="model_id" ref="point_of_sale.model_pos_order"/>
         <field name="state">code</field>
         <field name="code">
-# Llamar al método que ya funciona
-action = env['pos.order'].action_reconcile_credit_note()
+action = model.load_credit_notes_view()
         </field>
     </record>
 
-    <!-- Menú principal -->
+    <!-- Menú -->
     <menuitem id="menu_credit_notes_ledger"
               name="Libro Mayor Notas de Crédito"
               parent="account.menu_finance_entries"
-              action="action_load_credit_notes_server"
+              action="action_load_credit_notes"
               sequence="15"/>
     
 </odoo>

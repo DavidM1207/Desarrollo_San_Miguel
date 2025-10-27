@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <!-- Vista de árbol -->
+    <record id="view_credit_note_line_tree" model="ir.ui.view">
+        <field name="name">credit.note.line.tree</field>
+        <field name="model">credit.note.line</field>
+        <field name="arch" type="xml">
+            <tree string="Libro Mayor - Notas de Crédito" 
+                  decoration-info="nc_type == 'nota_credito'"
+                  decoration-warning="nc_type == 'refacturacion'"
+                  create="false" delete="false" edit="false">
+                <field name="date"/>
+                <field name="name" string="Orden"/>
+                <field name="session_name" string="Sesión POS"/>
+                <field name="nc_type" string="Tipo"/>
+                <field name="description" string="Detalle NC"/>
+                <field name="debit" string="Debe" sum="Total Debe"/>
+                <field name="credit" string="Haber" sum="Total Haber"/>
+                <field name="vendedor" string="Vendedor"/>
+                <field name="reconciled" column_invisible="1"/>
+                <field name="account_id" column_invisible="1"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="move_line_id" column_invisible="1"/>
+                <field name="pos_order_id" column_invisible="1"/>
+            </tree>
+        </field>
+    </record>
+    
+    <!-- Vista de búsqueda -->
+    <record id="view_credit_note_line_search" model="ir.ui.view">
+        <field name="name">credit.note.line.search</field>
+        <field name="model">credit.note.line</field>
+        <field name="arch" type="xml">
+            <search string="Buscar NC">
+                <field name="name"/>
+                <field name="session_name"/>
+                <field name="vendedor"/>
+                <filter string="Notas de Crédito" name="nc_original" domain="[('nc_type', '=', 'nota_credito')]"/>
+                <filter string="Refacturaciones" name="nc_refund" domain="[('nc_type', '=', 'refacturacion')]"/>
+                <separator/>
+                <filter string="Este Mes" name="this_month" 
+                        domain="[('date', '&gt;=', (context_today() - relativedelta(day=1)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Mes Anterior" name="last_month" 
+                        domain="[('date', '&gt;=', (context_today() - relativedelta(months=1, day=1)).strftime('%Y-%m-%d')),
+                                ('date', '&lt;=', (context_today() - relativedelta(months=1, day=31)).strftime('%Y-%m-%d'))]"/>
+                <group string="Agrupar por">
+                    <filter string="Sesión" name="group_session" context="{'group_by': 'session_name'}"/>
+                    <filter string="Vendedor" name="group_vendedor" context="{'group_by': 'vendedor'}"/>
+                    <filter string="Fecha" name="group_date" context="{'group_by': 'date'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    
+    <!-- Wizard de confirmación -->
+    <record id="view_reconcile_wizard_form" model="ir.ui.view">
+        <field name="name">reconcile.confirmation.wizard.form</field>
+        <field name="model">reconcile.confirmation.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Confirmar Conciliación">
+                <group>
+                    <field name="line_count" readonly="1"/>
+                    <field name="total_debit" readonly="1"/>
+                    <field name="total_credit" readonly="1"/>
+                </group>
+                <notebook>
+                    <page string="Detalle">
+                        <field name="line_details" readonly="1" nolabel="1"/>
+                    </page>
+                </notebook>
+                <footer>
+                    <button string="Confirmar y Conciliar" name="action_confirm_reconcile" type="object" class="btn-primary"/>
+                    <button string="Cancelar" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Acción de servidor para reconciliar -->
+    <record id="action_reconcile_credit_note_lines" model="ir.actions.server">
+        <field name="name">Reconciliar apuntes</field>
+        <field name="model_id" ref="model_credit_note_line"/>
+        <field name="binding_model_id" ref="model_credit_note_line"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">
+if records:
+    action = records.action_reconcile_lines()
+        </field>
+    </record>
+    
+</odoo>
