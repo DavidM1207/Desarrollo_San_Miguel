@@ -1,5 +1,6 @@
 from odoo import models, api, fields, _
 from odoo.exceptions import UserError
+from datetime import timedelta
 
 
 class PosOrder(models.Model):
@@ -17,23 +18,30 @@ class PosOrder(models.Model):
         # Limpiar datos anteriores
         self.env['credit.note.line'].search([]).unlink()
         
-        # Fecha inicio del mes actual
+        # Fecha inicio - ÚLTIMOS 6 MESES para asegurar que hay datos
         today = fields.Date.today()
-        first_day = today.replace(day=1)
+        six_months_ago = today - timedelta(days=180)
         
-        # Buscar sesiones cerradas del mes actual
+        # Buscar sesiones cerradas de los últimos 6 meses
         sessions = self.env['pos.session'].search([
             ('state', '=', 'closed'),
-            ('stop_at', '>=', first_day),
+            ('stop_at', '>=', six_months_ago),
         ], order='stop_at desc')
         
+        if not sessions:
+            raise UserError(_('No se encontraron sesiones cerradas en los últimos 6 meses'))
+        
         # Procesar cada sesión
+        lines_created = 0
         for session in sessions:
-            self._process_session(session, nc_account)
+            lines_created += self._process_session(session, nc_account)
+        
+        if lines_created == 0:
+            raise UserError(_('Se encontraron %s sesiones pero no se crearon líneas. Todas las NC están conciliadas o no hay NC.') % len(sessions))
         
         # Abrir la vista
         return {
-            'name': 'Libro Mayor - Notas de Crédito',
+            'name': _('Libro Mayor - Notas de Crédito (%s líneas)') % lines_created,
             'type': 'ir.actions.act_window',
             'res_model': 'credit.note.line',
             'view_mode': 'tree',
@@ -43,6 +51,7 @@ class PosOrder(models.Model):
     
     def _process_session(self, session, nc_account):
         """Procesa una sesión y crea las líneas de NC"""
+        lines_created = 0
         
         # Buscar NC de la sesión
         nc_orders = self.env['pos.order'].search([
@@ -51,7 +60,7 @@ class PosOrder(models.Model):
         ])
         
         if not nc_orders:
-            return
+            return 0
         
         # Buscar el apunte contable
         move_line = False
@@ -70,7 +79,7 @@ class PosOrder(models.Model):
         
         # Si está conciliado, saltar
         if move_line and move_line.reconciled:
-            return
+            return 0
         
         # Determinar tipo
         nc_type = 'nota_credito'
@@ -97,6 +106,7 @@ class PosOrder(models.Model):
                 'move_line_id': move_line.id if move_line else False,
                 'pos_order_id': nc.id,
             })
+            lines_created += 1
         
         # Procesar refacturaciones (órdenes que pagaron con NC)
         orders = self.env['pos.order'].search([
@@ -137,3 +147,6 @@ class PosOrder(models.Model):
                         'move_line_id': move_line_debit.id if move_line_debit else False,
                         'pos_order_id': order.id,
                     })
+                    lines_created += 1
+        
+        return lines_created
