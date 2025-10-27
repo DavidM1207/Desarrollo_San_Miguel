@@ -205,7 +205,7 @@ class PosOrder(models.Model):
     
     @api.model
     def load_all_credit_notes(self):
-        """Carga todas las NC del mes actual"""
+        """Carga todas las NC del mes actual automáticamente"""
         
         # Buscar la cuenta 211040020000
         nc_account = self.env['account.account'].search([
@@ -215,7 +215,7 @@ class PosOrder(models.Model):
         if not nc_account:
             raise UserError(_('No se encontró la cuenta 211040020000 - Notas de Crédito por Aplicar'))
         
-        # Limpiar registros viejos (más de 1 día)
+        # Limpiar registros antiguos (más de 1 día de antigüedad)
         old_date = fields.Datetime.now() - timedelta(days=1)
         old_records = self.env['credit.note.line.view'].search([
             ('create_date', '<', old_date)
@@ -223,10 +223,10 @@ class PosOrder(models.Model):
         if old_records:
             old_records.unlink()
         
-        # Limpiar registros de hoy para regenerar
-        today_records = self.env['credit.note.line.view'].search([])
-        if today_records:
-            today_records.unlink()
+        # Limpiar todos los registros actuales para regenerar
+        current_records = self.env['credit.note.line.view'].search([])
+        if current_records:
+            current_records.unlink()
         
         # Obtener fecha del mes actual
         today = fields.Date.today()
@@ -237,6 +237,8 @@ class PosOrder(models.Model):
             ('state', '=', 'closed'),
             ('stop_at', '>=', first_day),
         ], order='stop_at desc')
+        
+        lines_created = 0
         
         # Procesar cada sesión
         for session in all_sessions:
@@ -321,6 +323,7 @@ class PosOrder(models.Model):
                         'move_line_id': move_line.id if move_line else False,
                         'pos_order_id': nc.id,
                     })
+                    lines_created += 1
             
             # Procesar refacturaciones
             if has_refacturacion:
@@ -359,18 +362,16 @@ class PosOrder(models.Model):
                                 'move_line_id': move_line_debit.id if move_line_debit else False,
                                 'pos_order_id': order.id,
                             })
+                            lines_created += 1
         
-        # Contar líneas creadas
-        created_lines = self.env['credit.note.line.view'].search_count([])
-        
-        # Abrir la vista
+        # Abrir la vista con los datos cargados
         return {
-            'name': _('Libro Mayor - Notas de Crédito'),
+            'name': _('Libro Mayor - Notas de Crédito (%s)') % lines_created,
             'type': 'ir.actions.act_window',
             'res_model': 'credit.note.line.view',
             'view_mode': 'tree',
             'view_id': self.env.ref('sm_pos_credit_note_detail.view_credit_note_line_expanded_tree').id,
-            'domain': [],  # SIN FILTRO - mostrar todos
+            'domain': [],
             'context': {
                 'create': False,
                 'edit': False,

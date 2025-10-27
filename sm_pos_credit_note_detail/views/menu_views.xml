@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     
-    <!-- Acción window directa -->
-    <record id="action_credit_note_lines_main" model="ir.actions.act_window">
-        <field name="name">Libro Mayor - Notas de Crédito</field>
-        <field name="res_model">credit.note.line.view</field>
-        <field name="view_mode">tree</field>
-        <field name="view_id" ref="view_credit_note_line_expanded_tree"/>
-        <field name="context">{}</field>
-        <field name="domain">[]</field>
+    <!-- Acción de servidor que ejecuta el método de carga -->
+    <record id="action_load_credit_notes_server" model="ir.actions.server">
+        <field name="name">Cargar Libro Mayor NC</field>
+        <field name="model_id" ref="point_of_sale.model_pos_order"/>
+        <field name="state">code</field>
+        <field name="code">
+action = model.load_all_credit_notes()
+        </field>
     </record>
 
-    <!-- Menú -->
+    <!-- Menú que ejecuta la acción de servidor -->
     <menuitem id="menu_credit_notes_ledger"
               name="Libro Mayor Notas de Crédito"
               parent="account.menu_finance_entries"
-              action="action_credit_note_lines_main"
+              action="action_load_credit_notes_server"
               sequence="15"/>
     
 </odoo>

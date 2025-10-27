@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     
-    <!-- Vista de árbol con botón de recarga -->
+    <!-- Vista de árbol -->
     <record id="view_credit_note_line_expanded_tree" model="ir.ui.view">
         <field name="name">credit.note.line.view.tree</field>
         <field name="model">credit.note.line.view</field>
@@ -10,13 +10,8 @@
                   decoration-info="nc_type == 'nota_credito'"
                   decoration-warning="nc_type == 'refacturacion'"
                   create="false"
-                  delete="false">
-                <header>
-                    <button name="action_reload_data" 
-                            string="🔄 Recargar Datos" 
-                            type="object" 
-                            class="btn-primary"/>
-                </header>
+                  delete="false"
+                  edit="false">
                 <field name="date"/>
                 <field name="name" string="Orden"/>
                 <field name="session_name" string="Sesión POS"/>
@@ -57,6 +52,8 @@
                 <filter string="Mes Anterior" name="last_month" 
                         domain="[('date', '&gt;=', (context_today() - relativedelta(months=1, day=1)).strftime('%Y-%m-%d')),
                                 ('date', '&lt;=', (context_today() - relativedelta(months=1, day=31)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Últimos 3 Meses" name="last_3_months" 
+                        domain="[('date', '&gt;=', (context_today() - relativedelta(months=3)).strftime('%Y-%m-%d'))]"/>
                 
                 <group expand="0" string="Agrupar por">
                     <filter string="Tipo" name="group_type" context="{'group_by': 'nc_type'}"/>
