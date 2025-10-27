@@ -53,10 +53,10 @@ class PosOrder(models.Model):
         """Procesa una sesión y crea las líneas de NC"""
         lines_created = 0
         
-        # Buscar NC de la sesión
+        # Buscar NC de la sesión (órdenes con monto negativo = NC)
         nc_orders = self.env['pos.order'].search([
             ('session_id', '=', session.id),
-            ('is_credit_note', '=', True),
+            ('amount_total', '<', 0),  # NC tienen monto negativo
         ])
         
         if not nc_orders:
@@ -89,8 +89,14 @@ class PosOrder(models.Model):
         # Crear línea por cada NC
         for nc in nc_orders:
             factura_origen = ''
-            if nc.origin_order_id and nc.origin_order_id.account_move:
+            # Buscar la orden original desde la cual se hizo la NC
+            if hasattr(nc, 'refunded_order_id') and nc.refunded_order_id and nc.refunded_order_id.account_move:
+                factura_origen = nc.refunded_order_id.account_move.name
+            elif hasattr(nc, 'origin_order_id') and nc.origin_order_id and nc.origin_order_id.account_move:
                 factura_origen = nc.origin_order_id.account_move.name
+            
+            # El monto de la NC es el valor absoluto del amount_total
+            nc_amount = abs(nc.amount_total)
             
             self.env['credit.note.line'].create({
                 'date': nc.date_order.date() if nc.date_order else fields.Date.today(),
@@ -99,8 +105,8 @@ class PosOrder(models.Model):
                 'session_name': session.name,
                 'nc_type': nc_type,
                 'description': 'NC del %s factura nota %s' % (session.name, factura_origen),
-                'debit': nc.credit_note_amount if nc_type == 'refacturacion' else 0.0,
-                'credit': nc.credit_note_amount if nc_type == 'nota_credito' else 0.0,
+                'debit': nc_amount if nc_type == 'refacturacion' else 0.0,
+                'credit': nc_amount if nc_type == 'nota_credito' else 0.0,
                 'currency_id': nc.currency_id.id,
                 'vendedor': session.user_id.name if session.user_id else '',
                 'move_line_id': move_line.id if move_line else False,
@@ -111,7 +117,7 @@ class PosOrder(models.Model):
         # Procesar refacturaciones (órdenes que pagaron con NC)
         orders = self.env['pos.order'].search([
             ('session_id', '=', session.id),
-            ('amount_total', '>', 0),
+            ('amount_total', '>', 0),  # Órdenes positivas
         ])
         
         for order in orders:
