@@ -140,58 +140,51 @@ class StockMove(models.Model):
 
     def write(self, vals):
         """
-        BLOQUEAR la sincronización automática de Odoo
+        SOLUCIÓN DEFINITIVA: Bloquear la modificación de product_uom_qty
+        y evitar que se propague a move_dest_ids
         """
         # Verificar permisos
         group_id = "dv_requisition_custom.group_requisition_quantity_manager"
         has_group = self.env.user.has_group(group_id)
         
-        # Si se intenta modificar cantidad en movimientos de requisición
-        if not has_group and ('quantity' in vals or 'quantity_done' in vals or 'product_uom_qty' in vals):
-            for move in self:
-                # Solo para movimientos de requisición ORIGEN
-                if (move.id and 
-                    move.requisition_order and 
-                    move.usage_origin == 'internal' and 
-                    move.usage_dest == 'transit' and 
-                    move.state not in ('done', 'cancel')):
+        # Crear una copia de vals para modificar
+        vals_copy = vals.copy()
+        
+        # Recorrer cada movimiento
+        for move in self:
+            # Solo aplicar a movimientos de requisición ORIGEN que ya existen
+            if (move.id and 
+                move.requisition_order and 
+                move.usage_origin == 'internal' and 
+                move.usage_dest == 'transit' and 
+                move.state not in ('done', 'cancel')):
+                
+                # Si NO tiene permisos y se intenta cambiar product_uom_qty
+                if not has_group and 'product_uom_qty' in vals_copy:
+                    # ELIMINAR product_uom_qty de vals para que NO se propague
+                    del vals_copy['product_uom_qty']
                     
-                    # Determinar qué cantidad se está intentando modificar
-                    new_qty = vals.get('quantity') or vals.get('quantity_done') or vals.get('product_uom_qty')
+                    # Notificar al usuario
+                    raise UserError(
+                        _("⛔ NO PUEDE MODIFICAR LA DEMANDA\n\n"
+                          "La cantidad demandada no puede ser modificada en movimientos de requisición.\n\n"
+                          "Producto: %s\n"
+                          "Demanda actual: %s %s") %
+                        (move.product_id.display_name, move.product_uom_qty, move.product_uom.name)
+                    )
+                
+                # Si se intenta cambiar quantity o quantity_done
+                if not has_group and ('quantity' in vals_copy or 'quantity_done' in vals_copy):
+                    new_qty = vals_copy.get('quantity') or vals_copy.get('quantity_done')
                     
-                    if new_qty is not None and new_qty != 0 and new_qty != move.product_uom_qty:
-                        # NO llamar a super() - RECHAZAR COMPLETAMENTE
-                        raise UserError(
-                            _("⛔ OPERACIÓN BLOQUEADA\n\n"
-                              "La cantidad realizada (%s) debe ser igual a la cantidad demandada (%s) "
-                              "para el producto: %s\n\n"
-                              "No puede modificar esta cantidad.") %
+                    # Solo permitir 0 o igual a product_uom_qty
+                    if new_qty != 0 and new_qty != move.product_uom_qty:
+                        raise ValidationError(
+                            _("⛔ CANTIDAD NO PERMITIDA\n\n"
+                              "La cantidad realizada (%s) debe ser 0 o igual a la demandada (%s)\n\n"
+                              "Producto: %s") %
                             (new_qty, move.product_uom_qty, move.product_id.display_name)
                         )
         
-        # CRÍTICO: Desactivar la propagación automática a movimientos destino
-        # Guardar los move_dest_ids originales
-        moves_to_update = self.filtered(
-            lambda m: m.requisition_order and 
-                     m.usage_origin == 'internal' and 
-                     m.usage_dest == 'transit' and
-                     m.state not in ('done', 'cancel')
-        )
-        
-        # Temporalmente desconectar los movimientos destino
-        original_dest_moves = {}
-        for move in moves_to_update:
-            if move.move_dest_ids:
-                original_dest_moves[move.id] = move.move_dest_ids.ids
-                # Desconectar temporalmente usando unlink sin delete
-                move.move_dest_ids = [(5, 0, 0)]
-        
-        # Ejecutar el write SIN propagación
-        result = super(StockMove, self).write(vals)
-        
-        # Reconectar los movimientos destino
-        for move in moves_to_update:
-            if move.id in original_dest_moves:
-                move.move_dest_ids = [(6, 0, original_dest_moves[move.id])]
-        
-        return result
+        # Llamar a super con vals_copy (sin product_uom_qty si fue removido)
+        return super(StockMove, self).write(vals_copy)
