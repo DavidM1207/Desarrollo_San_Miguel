@@ -90,7 +90,7 @@ class StockPicking(models.Model):
 class StockMove(models.Model):
     _inherit = "stock.move"
 
-    requisition_order = fields.Char(string='Requisición', readonly=True, copy=False, related='picking_id.requisicion_order')
+    requisition_order = fields.Char(string='Requisición', readonly=True, copy=False, related='picking_id.requisition_order')
     usage_origin = fields.Selection(related='picking_id.location_id.usage', string='Uso de Ubicación Origen', readonly=True)
     usage_dest = fields.Selection(related='picking_id.location_dest_id.usage', string='Uso de Ubicación Destino', readonly=True)
 
