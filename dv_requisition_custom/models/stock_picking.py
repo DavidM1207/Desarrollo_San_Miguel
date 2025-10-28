@@ -138,27 +138,60 @@ class StockMove(models.Model):
             else:
                 move.quantity_readonly = False
 
-    @api.constrains('quantity', 'product_uom_qty')
-    def _check_quantity_origin_constraints(self):
+    def write(self, vals):
         """
-        REPLICAR EXACTAMENTE lo que hace en el movimiento destino
+        BLOQUEAR la sincronización automática de Odoo
         """
         # Verificar permisos
         group_id = "dv_requisition_custom.group_requisition_quantity_manager"
         has_group = self.env.user.has_group(group_id)
         
-        if not has_group:
+        # Si se intenta modificar cantidad en movimientos de requisición
+        if not has_group and ('quantity' in vals or 'quantity_done' in vals or 'product_uom_qty' in vals):
             for move in self:
-                # Solo para movimientos de requisición ORIGEN (internal -> transit)
-                if (move.requisition_order and 
+                # Solo para movimientos de requisición ORIGEN
+                if (move.id and 
+                    move.requisition_order and 
                     move.usage_origin == 'internal' and 
                     move.usage_dest == 'transit' and 
                     move.state not in ('done', 'cancel')):
                     
-                    # Permitir 0 o igual a demanda, bloquear todo lo demás
-                    if move.quantity != 0 and move.quantity != move.product_uom_qty:
-                        raise ValidationError(
-                            _("La cantidad realizada (%s) debe ser igual a la cantidad demandada (%s) "
-                              "para el producto: %s") %
-                            (move.quantity, move.product_uom_qty, move.product_id.display_name)
+                    # Determinar qué cantidad se está intentando modificar
+                    new_qty = vals.get('quantity') or vals.get('quantity_done') or vals.get('product_uom_qty')
+                    
+                    if new_qty is not None and new_qty != 0 and new_qty != move.product_uom_qty:
+                        # NO llamar a super() - RECHAZAR COMPLETAMENTE
+                        raise UserError(
+                            _("⛔ OPERACIÓN BLOQUEADA\n\n"
+                              "La cantidad realizada (%s) debe ser igual a la cantidad demandada (%s) "
+                              "para el producto: %s\n\n"
+                              "No puede modificar esta cantidad.") %
+                            (new_qty, move.product_uom_qty, move.product_id.display_name)
                         )
+        
+        # CRÍTICO: Desactivar la propagación automática a movimientos destino
+        # Guardar los move_dest_ids originales
+        moves_to_update = self.filtered(
+            lambda m: m.requisition_order and 
+                     m.usage_origin == 'internal' and 
+                     m.usage_dest == 'transit' and
+                     m.state not in ('done', 'cancel')
+        )
+        
+        # Temporalmente desconectar los movimientos destino
+        original_dest_moves = {}
+        for move in moves_to_update:
+            if move.move_dest_ids:
+                original_dest_moves[move.id] = move.move_dest_ids.ids
+                # Desconectar temporalmente usando unlink sin delete
+                move.move_dest_ids = [(5, 0, 0)]
+        
+        # Ejecutar el write SIN propagación
+        result = super(StockMove, self).write(vals)
+        
+        # Reconectar los movimientos destino
+        for move in moves_to_update:
+            if move.id in original_dest_moves:
+                move.move_dest_ids = [(6, 0, original_dest_moves[move.id])]
+        
+        return result
