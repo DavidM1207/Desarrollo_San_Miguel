@@ -31,10 +31,15 @@ class ReconcileConfirmationWizard(models.TransientModel):
                 wizard.line_details = '<p style="color: red;">⚠️ No se encontró la cuenta 211040020000</p>'
                 continue
             
-            # Obtener las órdenes
+            # Obtener las órdenes y sesiones ÚNICAS de las líneas seleccionadas
             orders = wizard.credit_note_line_ids.mapped('pos_order_id').filtered(lambda o: o)
+            sessions = orders.mapped('session_id').filtered(lambda s: s)
             
-            # Buscar TODOS los métodos de pago únicos "Devolución/Nota" de TODAS las órdenes
+            if not sessions:
+                wizard.line_details = '<p style="color: red;">⚠️ No se encontraron sesiones</p>'
+                continue
+            
+            # Buscar TODOS los métodos de pago únicos "Devolución/Nota" de esas órdenes
             payment_methods = self.env['pos.payment.method']
             
             for order in orders:
@@ -43,39 +48,42 @@ class ReconcileConfirmationWizard(models.TransientModel):
                              'devolucion' in (p.payment_method_id.name or '').lower() or
                              'nota' in (p.payment_method_id.name or '').lower()
                 )
-                # Agregar TODOS los métodos de pago encontrados
                 payment_methods |= payments.mapped('payment_method_id')
             
             if not payment_methods:
                 wizard.line_details = '<p style="color: red;">⚠️ No se encontraron métodos de pago Devolución/Nota</p>'
                 continue
             
-            # Filtrar solo los que tienen diario configurado
             payment_methods_with_journal = payment_methods.filtered(lambda m: m.journal_id)
             
             if not payment_methods_with_journal:
                 wizard.line_details = '<p style="color: red;">⚠️ Los métodos de pago no tienen diario configurado</p>'
                 continue
             
-            # Buscar asientos en TODOS los diarios de TODOS los métodos de pago encontrados
+            # Buscar asientos SOLO de las sesiones seleccionadas
             move_lines_to_reconcile = self.env['account.move.line']
             asientos_por_metodo = {}
             
             for payment_method in payment_methods_with_journal:
-                # Buscar asientos en el DIARIO de este método de pago
-                all_moves = self.env['account.move'].search([
-                    ('journal_id', '=', payment_method.journal_id.id),
-                    ('state', '=', 'posted'),
-                ])
-                
                 method_move_lines = self.env['account.move.line']
                 
-                for move in all_moves:
-                    # Buscar líneas en la cuenta 211040020000 que NO estén conciliadas
-                    nc_lines = move.line_ids.filtered(
-                        lambda l: l.account_id.id == nc_account.id and not l.reconciled
-                    )
-                    method_move_lines |= nc_lines
+                # Para cada sesión, buscar SU asiento específico
+                for session in sessions:
+                    # Buscar asientos en el diario que coincidan con la fecha de la sesión
+                    session_date = session.stop_at.date() if session.stop_at else fields.Date.today()
+                    
+                    moves = self.env['account.move'].search([
+                        ('journal_id', '=', payment_method.journal_id.id),
+                        ('state', '=', 'posted'),
+                        ('date', '=', session_date),  # Mismo día de cierre de sesión
+                    ])
+                    
+                    # De esos asientos, buscar las líneas en la cuenta 211040020000 NO conciliadas
+                    for move in moves:
+                        nc_lines = move.line_ids.filtered(
+                            lambda l: l.account_id.id == nc_account.id and not l.reconciled
+                        )
+                        method_move_lines |= nc_lines
                 
                 if method_move_lines:
                     asientos_por_metodo[payment_method.name] = {
@@ -118,9 +126,13 @@ class ReconcileConfirmationWizard(models.TransientModel):
             html += '</tr>'
             html += '</table>'
             
-            # Información de métodos de pago encontrados
+            # Información de búsqueda
             html += '<div style="padding: 10px; background-color: #e3f2fd; border-left: 4px solid #2196f3; margin: 15px 0;">'
-            html += '<strong>💳 Métodos de Pago Encontrados:</strong> %s<br/>' % len(payment_methods_with_journal)
+            html += '<strong>🔍 Búsqueda por Sesiones:</strong><br/>'
+            for session in sessions:
+                session_date = session.stop_at.date() if session.stop_at else fields.Date.today()
+                html += '• %s (Fecha: %s)<br/>' % (session.name, session_date)
+            html += '<br/><strong>💳 Métodos de Pago:</strong><br/>'
             for pm in payment_methods_with_journal:
                 html += '• %s (Diario: %s)<br/>' % (pm.name, pm.journal_id.name)
             html += '<strong>🔢 Cuenta:</strong> %s - %s' % (nc_account.code, nc_account.name)
@@ -129,7 +141,7 @@ class ReconcileConfirmationWizard(models.TransientModel):
             # Mostrar asientos agrupados por método de pago
             if move_lines_to_reconcile:
                 html += '<hr style="margin: 20px 0;"/>'
-                html += '<h4>🔗 Apuntes a Conciliar (Agrupados por Método de Pago):</h4>'
+                html += '<h4>🔗 Apuntes a Conciliar (de las Sesiones Seleccionadas):</h4>'
                 
                 for method_name, info in asientos_por_metodo.items():
                     html += '<h5 style="margin-top: 20px; color: #1976d2;">💳 %s - Diario: %s</h5>' % (method_name, info['method'].journal_id.name)
@@ -176,7 +188,7 @@ class ReconcileConfirmationWizard(models.TransientModel):
                 html += '</table>'
             else:
                 html += '<div style="padding: 10px; background-color: #ffebee; border: 1px solid #f44336; margin-top: 10px;">'
-                html += '⚠️ No se encontraron apuntes NO conciliados en los diarios de los métodos de pago en la cuenta <strong>%s</strong>' % nc_account.code
+                html += '⚠️ No se encontraron asientos de las sesiones seleccionadas en los diarios de los métodos de pago'
                 html += '</div>'
             
             wizard.line_details = html
