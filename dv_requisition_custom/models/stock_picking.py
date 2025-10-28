@@ -138,53 +138,40 @@ class StockMove(models.Model):
             else:
                 move.quantity_readonly = False
 
-    def write(self, vals):
+
+class StockMoveLine(models.Model):
+    _inherit = "stock.move.line"
+
+    @api.constrains('quantity', 'reserved_uom_qty')
+    def _check_quantity_move_line_requisition(self):
         """
-        SOLUCIÓN DEFINITIVA: Bloquear la modificación de product_uom_qty
-        y evitar que se propague a move_dest_ids
+        VALIDACIÓN EN STOCK.MOVE.LINE para movimientos de requisición ORIGEN
+        Replicar exactamente lo que funciona en el destino
         """
         # Verificar permisos
         group_id = "dv_requisition_custom.group_requisition_quantity_manager"
         has_group = self.env.user.has_group(group_id)
         
-        # Crear una copia de vals para modificar
-        vals_copy = vals.copy()
-        
-        # Recorrer cada movimiento
-        for move in self:
-            # Solo aplicar a movimientos de requisición ORIGEN que ya existen
-            if (move.id and 
-                move.requisition_order and 
-                move.usage_origin == 'internal' and 
-                move.usage_dest == 'transit' and 
-                move.state not in ('done', 'cancel')):
-                
-                # Si NO tiene permisos y se intenta cambiar product_uom_qty
-                if not has_group and 'product_uom_qty' in vals_copy:
-                    # ELIMINAR product_uom_qty de vals para que NO se propague
-                    del vals_copy['product_uom_qty']
+        if not has_group:
+            for line in self:
+                # Verificar si la línea pertenece a un movimiento de requisición ORIGEN
+                if (line.move_id and 
+                    line.move_id.requisition_order and 
+                    line.move_id.picking_id.location_id.usage == 'internal' and 
+                    line.move_id.picking_id.location_dest_id.usage == 'transit' and
+                    line.state not in ('done', 'cancel')):
                     
-                    # Notificar al usuario
-                    raise UserError(
-                        _("⛔ NO PUEDE MODIFICAR LA DEMANDA\n\n"
-                          "La cantidad demandada no puede ser modificada en movimientos de requisición.\n\n"
-                          "Producto: %s\n"
-                          "Demanda actual: %s %s") %
-                        (move.product_id.display_name, move.product_uom_qty, move.product_uom.name)
-                    )
-                
-                # Si se intenta cambiar quantity o quantity_done
-                if not has_group and ('quantity' in vals_copy or 'quantity_done' in vals_copy):
-                    new_qty = vals_copy.get('quantity') or vals_copy.get('quantity_done')
+                    # Obtener la demanda del movimiento
+                    demand = line.move_id.product_uom_qty
                     
-                    # Solo permitir 0 o igual a product_uom_qty
-                    if new_qty != 0 and new_qty != move.product_uom_qty:
+                    # Obtener la cantidad realizada
+                    done_qty = line.quantity if line.quantity else 0
+                    
+                    # Permitir 0 (sin stock) o igual a demanda
+                    # Bloquear cualquier otro valor
+                    if done_qty != 0 and done_qty != demand:
                         raise ValidationError(
-                            _("⛔ CANTIDAD NO PERMITIDA\n\n"
-                              "La cantidad realizada (%s) debe ser 0 o igual a la demandada (%s)\n\n"
-                              "Producto: %s") %
-                            (new_qty, move.product_uom_qty, move.product_id.display_name)
+                            _("La cantidad realizada (%s) debe ser igual a la cantidad demandada (%s) "
+                              "para el producto: %s") %
+                            (done_qty, demand, line.product_id.display_name)
                         )
-        
-        # Llamar a super con vals_copy (sin product_uom_qty si fue removido)
-        return super(StockMove, self).write(vals_copy)
