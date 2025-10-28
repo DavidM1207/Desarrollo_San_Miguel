@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
 from odoo.exceptions import ValidationError
@@ -131,8 +133,8 @@ class StockMove(models.Model):
     @api.constrains('quantity', 'product_uom_qty', 'state')
     def _check_quantity_origin_requisition(self):
         """
-        VALIDACIÓN CRÍTICA: Replicar la misma validación que funciona en el destino
-        pero para el movimiento ORIGEN (internal -> transit)
+        VALIDACIÓN: Permitir cantidad 0 (creación inicial) o igual a product_uom_qty
+        NO permitir ningún otro valor
         """
         # Verificar permisos
         group_id = "dv_requisition_custom.group_requisition_quantity_manager"
@@ -141,16 +143,18 @@ class StockMove(models.Model):
         if not has_group:
             for move in self:
                 # Solo validar movimientos de requisición ORIGEN (internal -> transit)
-                # que NO estén finalizados
                 if (move.requisition_order and 
                     move.usage_origin == 'internal' and 
                     move.usage_dest == 'transit' and 
                     move.state not in ('done', 'cancel')):
                     
-                    # IGUAL QUE EN EL DESTINO: quantity debe ser IGUAL a product_uom_qty
-                    if move.quantity != move.product_uom_qty:
+                    # PERMITIR: cantidad = 0 (creación inicial) O cantidad = demanda
+                    # BLOQUEAR: cualquier otro valor (ej: 50 cuando demanda es 25)
+                    if move.quantity != 0 and move.quantity != move.product_uom_qty:
                         raise ValidationError(
-                            _("La cantidad realizada (%s) debe ser igual "
-                              "a la cantidad demandada (%s) para el producto: %s") %
+                            _("⛔ CANTIDAD NO PERMITIDA\n\n"
+                              "La cantidad realizada (%s) debe ser igual a la cantidad demandada (%s) "
+                              "para el producto: %s\n\n"
+                              "Solo se permite cantidad 0 (si no hay stock) o la cantidad demandada exacta.") %
                             (move.quantity, move.product_uom_qty, move.product_id.display_name)
                         )
