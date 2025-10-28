@@ -88,7 +88,7 @@ class StockPicking(models.Model):
 
 
 class StockMove(models.Model):
-    _inherit = "stock.move"
+    _inherit= "stock.move"
 
     requisition_order = fields.Char(string='Requisición', readonly=True, copy=False, related='picking_id.requisition_order')
     usage_origin = fields.Selection(related='picking_id.location_id.usage', string='Uso de Ubicación Origen', readonly=True)
@@ -132,42 +132,42 @@ class StockMove(models.Model):
 
     def write(self, vals):
         """
-        BLOQUEO: Prevenir modificación de quantity en movimientos 
-        de requisición internal->transit DESPUÉS de su creación
+        BLOQUEO CRÍTICO: Impedir que se guarde quantity diferente a product_uom_qty
+        en movimientos de requisición internal->transit
         """
-        # Si se intenta modificar 'quantity' o 'quantity_done'
-        if 'quantity' in vals or 'quantity_done' in vals:
-            # Verificar permisos del usuario
-            group_id = "dv_requisition_custom.group_requisition_quantity_manager"
-            has_group = self.env.user.has_group(group_id)
-            
-            # Si no tiene permisos especiales, validar cada movimiento
-            if not has_group:
-                for move in self:
-                    # IMPORTANTE: Solo bloquear si el movimiento YA EXISTE (tiene ID)
-                    # Esto permite la creación inicial con cantidad 0
-                    if move.id and (move.requisition_order and 
-                        move.usage_origin == 'internal' and 
-                        move.usage_dest == 'transit' and 
-                        move.state not in ('done', 'cancel')):
-                        
-                        # Obtener la cantidad actual y la nueva
-                        current_quantity = move.quantity
-                        new_quantity = vals.get('quantity', vals.get('quantity_done'))
-                        
-                        # Si intenta CAMBIAR la cantidad (no es la misma que ya tenía)
-                        if new_quantity is not None and new_quantity != current_quantity:
-                            raise UserError(
-                                _("NO PUEDE MODIFICAR LA CANTIDAD\n\n"
-                                  "Este movimiento es parte de una requisición y la cantidad "
-                                  "está bloqueada para mantener la sincronización.\n\n") %
-                                (move.product_id.display_name,
-                                 current_quantity,
-                                 move.product_uom.name,
-                                 new_quantity,
-                                 move.product_uom.name)
-                            )
+        # Verificar permisos del usuario UNA VEZ
+        group_id = "dv_requisition_custom.group_requisition_quantity_manager"
+        has_group = self.env.user.has_group(group_id)
+        
+        # Solo validar si NO tiene permisos especiales Y está intentando modificar quantity
+        if not has_group and ('quantity' in vals or 'quantity_done' in vals):
+            for move in self:
+                # Solo validar movimientos de requisición que YA EXISTEN
+                if (move.id and 
+                    move.requisition_order and 
+                    move.usage_origin == 'internal' and 
+                    move.usage_dest == 'transit' and 
+                    move.state not in ('done', 'cancel')):
+                    
+                    # Obtener la nueva cantidad que intenta guardar
+                    new_quantity = vals.get('quantity') if 'quantity' in vals else vals.get('quantity_done')
+                    
+                    # VALIDACIÓN CRÍTICA: La nueva cantidad DEBE ser igual a product_uom_qty
+                    if new_quantity != move.product_uom_qty:
+                        raise UserError(
+                            _("⛔ OPERACIÓN BLOQUEADA\n\n"
+                              "NO puede guardar una cantidad diferente a la demandada.\n\n"
+                              "📦 Producto: %s\n"
+                              "✅ Cantidad demandada (requerida): %s %s\n"
+                              "❌ Cantidad que intenta guardar: %s %s\n\n"
+                              "⚠️ Este movimiento es parte de una requisición.\n"
+                              "La cantidad realizada DEBE ser igual a la demandada.\n"
+                              "No se permite modificar para evitar descuadres.") %
+                            (move.product_id.display_name,
+                             move.product_uom_qty,
+                             move.product_uom.name,
+                             new_quantity,
+                             move.product_uom.name)
+                        )
         
         return super(StockMove, self).write(vals)
-
-    # ELIMINAMOS @api.constrains completamente para que NO valide en la creación
