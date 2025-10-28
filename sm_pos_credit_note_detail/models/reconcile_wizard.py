@@ -34,40 +34,55 @@ class ReconcileConfirmationWizard(models.TransientModel):
             # Obtener las órdenes
             orders = wizard.credit_note_line_ids.mapped('pos_order_id').filtered(lambda o: o)
             
-            # Buscar el método de pago "Devoluciones/Nota" de esas órdenes
-            payment_method = False
+            # Buscar TODOS los métodos de pago únicos "Devolución/Nota" de TODAS las órdenes
+            payment_methods = self.env['pos.payment.method']
+            
             for order in orders:
                 payments = order.payment_ids.filtered(
                     lambda p: 'devolución' in (p.payment_method_id.name or '').lower() or 
                              'devolucion' in (p.payment_method_id.name or '').lower() or
                              'nota' in (p.payment_method_id.name or '').lower()
                 )
-                if payments:
-                    payment_method = payments[0].payment_method_id
-                    break
+                # Agregar TODOS los métodos de pago encontrados
+                payment_methods |= payments.mapped('payment_method_id')
             
-            if not payment_method:
-                wizard.line_details = '<p style="color: red;">⚠️ No se encontró método de pago Devolución/Nota</p>'
+            if not payment_methods:
+                wizard.line_details = '<p style="color: red;">⚠️ No se encontraron métodos de pago Devolución/Nota</p>'
                 continue
             
-            if not payment_method.journal_id:
-                wizard.line_details = '<p style="color: red;">⚠️ El método de pago no tiene diario configurado</p>'
+            # Filtrar solo los que tienen diario configurado
+            payment_methods_with_journal = payment_methods.filtered(lambda m: m.journal_id)
+            
+            if not payment_methods_with_journal:
+                wizard.line_details = '<p style="color: red;">⚠️ Los métodos de pago no tienen diario configurado</p>'
                 continue
             
-            # Buscar TODOS los asientos en el DIARIO del método de pago que tengan líneas en la cuenta 211040020000
-            # y que NO estén conciliados
-            all_moves = self.env['account.move'].search([
-                ('journal_id', '=', payment_method.journal_id.id),
-                ('state', '=', 'posted'),
-            ])
-            
+            # Buscar asientos en TODOS los diarios de TODOS los métodos de pago encontrados
             move_lines_to_reconcile = self.env['account.move.line']
-            for move in all_moves:
-                # Buscar líneas en la cuenta 211040020000 que NO estén conciliadas
-                nc_lines = move.line_ids.filtered(
-                    lambda l: l.account_id.id == nc_account.id and not l.reconciled
-                )
-                move_lines_to_reconcile |= nc_lines
+            asientos_por_metodo = {}
+            
+            for payment_method in payment_methods_with_journal:
+                # Buscar asientos en el DIARIO de este método de pago
+                all_moves = self.env['account.move'].search([
+                    ('journal_id', '=', payment_method.journal_id.id),
+                    ('state', '=', 'posted'),
+                ])
+                
+                method_move_lines = self.env['account.move.line']
+                
+                for move in all_moves:
+                    # Buscar líneas en la cuenta 211040020000 que NO estén conciliadas
+                    nc_lines = move.line_ids.filtered(
+                        lambda l: l.account_id.id == nc_account.id and not l.reconciled
+                    )
+                    method_move_lines |= nc_lines
+                
+                if method_move_lines:
+                    asientos_por_metodo[payment_method.name] = {
+                        'method': payment_method,
+                        'move_lines': method_move_lines,
+                    }
+                    move_lines_to_reconcile |= method_move_lines
             
             # Guardar los move_lines encontrados
             wizard.move_line_ids = [(6, 0, move_lines_to_reconcile.ids)]
@@ -103,48 +118,65 @@ class ReconcileConfirmationWizard(models.TransientModel):
             html += '</tr>'
             html += '</table>'
             
-            # Información del diario
+            # Información de métodos de pago encontrados
             html += '<div style="padding: 10px; background-color: #e3f2fd; border-left: 4px solid #2196f3; margin: 15px 0;">'
-            html += '<strong>💳 Método de Pago:</strong> %s<br/>' % payment_method.name
-            html += '<strong>📘 Diario:</strong> %s<br/>' % payment_method.journal_id.name
+            html += '<strong>💳 Métodos de Pago Encontrados:</strong> %s<br/>' % len(payment_methods_with_journal)
+            for pm in payment_methods_with_journal:
+                html += '• %s (Diario: %s)<br/>' % (pm.name, pm.journal_id.name)
             html += '<strong>🔢 Cuenta:</strong> %s - %s' % (nc_account.code, nc_account.name)
             html += '</div>'
             
-            # Mostrar asientos que se van a conciliar
+            # Mostrar asientos agrupados por método de pago
             if move_lines_to_reconcile:
                 html += '<hr style="margin: 20px 0;"/>'
-                html += '<h4>🔗 Apuntes del Diario a Conciliar:</h4>'
-                html += '<p><strong>Total de apuntes NO conciliados:</strong> %s</p>' % len(move_lines_to_reconcile)
-                html += '<table style="width:100%; border-collapse: collapse;">'
-                html += '<tr style="background-color: #e3f2fd; font-weight: bold;">'
-                html += '<th style="padding: 8px; border: 1px solid #ddd;">Asiento</th>'
-                html += '<th style="padding: 8px; border: 1px solid #ddd;">Ref</th>'
-                html += '<th style="padding: 8px; border: 1px solid #ddd;">Fecha</th>'
-                html += '<th style="padding: 8px; border: 1px solid #ddd;">Debe</th>'
-                html += '<th style="padding: 8px; border: 1px solid #ddd;">Haber</th>'
-                html += '</tr>'
+                html += '<h4>🔗 Apuntes a Conciliar (Agrupados por Método de Pago):</h4>'
                 
-                for move_line in move_lines_to_reconcile:
-                    html += '<tr>'
-                    html += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % move_line.move_id.name
-                    html += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % (move_line.move_id.ref or '-')
-                    html += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % move_line.date
-                    html += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">Q %.2f</td>' % move_line.debit
-                    html += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">Q %.2f</td>' % move_line.credit
+                for method_name, info in asientos_por_metodo.items():
+                    html += '<h5 style="margin-top: 20px; color: #1976d2;">💳 %s - Diario: %s</h5>' % (method_name, info['method'].journal_id.name)
+                    html += '<table style="width:100%; border-collapse: collapse; margin-bottom: 20px;">'
+                    html += '<tr style="background-color: #e3f2fd; font-weight: bold;">'
+                    html += '<th style="padding: 8px; border: 1px solid #ddd;">Asiento</th>'
+                    html += '<th style="padding: 8px; border: 1px solid #ddd;">Ref</th>'
+                    html += '<th style="padding: 8px; border: 1px solid #ddd;">Fecha</th>'
+                    html += '<th style="padding: 8px; border: 1px solid #ddd;">Debe</th>'
+                    html += '<th style="padding: 8px; border: 1px solid #ddd;">Haber</th>'
                     html += '</tr>'
+                    
+                    method_debit = 0
+                    method_credit = 0
+                    
+                    for move_line in info['move_lines']:
+                        html += '<tr>'
+                        html += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % move_line.move_id.name
+                        html += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % (move_line.move_id.ref or '-')
+                        html += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % move_line.date
+                        html += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">Q %.2f</td>' % move_line.debit
+                        html += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">Q %.2f</td>' % move_line.credit
+                        html += '</tr>'
+                        method_debit += move_line.debit
+                        method_credit += move_line.credit
+                    
+                    html += '<tr style="background-color: #e8f5e9; font-weight: bold;">'
+                    html += '<td colspan="3" style="padding: 8px; border: 1px solid #ddd; text-align: right;">Subtotal %s:</td>' % method_name
+                    html += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">Q %.2f</td>' % method_debit
+                    html += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">Q %.2f</td>' % method_credit
+                    html += '</tr>'
+                    html += '</table>'
                 
+                # Total general
                 total_move_debit = sum(move_lines_to_reconcile.mapped('debit'))
                 total_move_credit = sum(move_lines_to_reconcile.mapped('credit'))
                 
-                html += '<tr style="background-color: #e8f5e9; font-weight: bold;">'
-                html += '<td colspan="3" style="padding: 8px; border: 1px solid #ddd; text-align: right;">TOTAL:</td>'
-                html += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">Q %.2f</td>' % total_move_debit
-                html += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">Q %.2f</td>' % total_move_credit
+                html += '<table style="width:100%; border-collapse: collapse; margin-top: 20px;">'
+                html += '<tr style="background-color: #4caf50; color: white; font-weight: bold; font-size: 1.1em;">'
+                html += '<td colspan="3" style="padding: 10px; border: 2px solid #4caf50; text-align: right;">TOTAL GENERAL:</td>'
+                html += '<td style="padding: 10px; border: 2px solid #4caf50; text-align: right;">Q %.2f</td>' % total_move_debit
+                html += '<td style="padding: 10px; border: 2px solid #4caf50; text-align: right;">Q %.2f</td>' % total_move_credit
                 html += '</tr>'
                 html += '</table>'
             else:
                 html += '<div style="padding: 10px; background-color: #ffebee; border: 1px solid #f44336; margin-top: 10px;">'
-                html += '⚠️ No se encontraron apuntes NO conciliados en el diario <strong>%s</strong> en la cuenta <strong>%s</strong>' % (payment_method.journal_id.name, nc_account.code)
+                html += '⚠️ No se encontraron apuntes NO conciliados en los diarios de los métodos de pago en la cuenta <strong>%s</strong>' % nc_account.code
                 html += '</div>'
             
             wizard.line_details = html
@@ -167,7 +199,7 @@ class ReconcileConfirmationWizard(models.TransientModel):
                 'tag': 'display_notification',
                 'params': {
                     'title': _('✅ Conciliación Exitosa'),
-                    'message': _('Se conciliaron %s apuntes del diario correctamente.') % len(self.move_line_ids),
+                    'message': _('Se conciliaron %s apuntes de los diarios correctamente.') % len(self.move_line_ids),
                     'type': 'success',
                     'sticky': False,
                     'next': {'type': 'ir.actions.act_window_close'},
