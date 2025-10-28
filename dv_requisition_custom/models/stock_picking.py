@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
 from odoo.exceptions import ValidationError
@@ -130,44 +128,29 @@ class StockMove(models.Model):
             else:
                 move.quantity_readonly = False
 
-    def write(self, vals):
+    @api.constrains('quantity', 'product_uom_qty', 'state')
+    def _check_quantity_origin_requisition(self):
         """
-        BLOQUEO CRÍTICO: Impedir que se guarde quantity diferente a product_uom_qty
-        en movimientos de requisición internal->transit
+        VALIDACIÓN CRÍTICA: Replicar la misma validación que funciona en el destino
+        pero para el movimiento ORIGEN (internal -> transit)
         """
-        # Verificar permisos del usuario UNA VEZ
+        # Verificar permisos
         group_id = "dv_requisition_custom.group_requisition_quantity_manager"
         has_group = self.env.user.has_group(group_id)
         
-        # Solo validar si NO tiene permisos especiales Y está intentando modificar quantity
-        if not has_group and ('quantity' in vals or 'quantity_done' in vals):
+        if not has_group:
             for move in self:
-                # Solo validar movimientos de requisición que YA EXISTEN
-                if (move.id and 
-                    move.requisition_order and 
+                # Solo validar movimientos de requisición ORIGEN (internal -> transit)
+                # que NO estén finalizados
+                if (move.requisition_order and 
                     move.usage_origin == 'internal' and 
                     move.usage_dest == 'transit' and 
                     move.state not in ('done', 'cancel')):
                     
-                    # Obtener la nueva cantidad que intenta guardar
-                    new_quantity = vals.get('quantity') if 'quantity' in vals else vals.get('quantity_done')
-                    
-                    # VALIDACIÓN CRÍTICA: La nueva cantidad DEBE ser igual a product_uom_qty
-                    if new_quantity != move.product_uom_qty:
-                        raise UserError(
-                            _("⛔ OPERACIÓN BLOQUEADA\n\n"
-                              "NO puede guardar una cantidad diferente a la demandada.\n\n"
-                              "📦 Producto: %s\n"
-                              "✅ Cantidad demandada (requerida): %s %s\n"
-                              "❌ Cantidad que intenta guardar: %s %s\n\n"
-                              "⚠️ Este movimiento es parte de una requisición.\n"
-                              "La cantidad realizada DEBE ser igual a la demandada.\n"
-                              "No se permite modificar para evitar descuadres.") %
-                            (move.product_id.display_name,
-                             move.product_uom_qty,
-                             move.product_uom.name,
-                             new_quantity,
-                             move.product_uom.name)
+                    # IGUAL QUE EN EL DESTINO: quantity debe ser IGUAL a product_uom_qty
+                    if move.quantity != move.product_uom_qty:
+                        raise ValidationError(
+                            _("La cantidad realizada (%s) debe ser igual "
+                              "a la cantidad demandada (%s) para el producto: %s") %
+                            (move.quantity, move.product_uom_qty, move.product_id.display_name)
                         )
-        
-        return super(StockMove, self).write(vals)
