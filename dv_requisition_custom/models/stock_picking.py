@@ -130,31 +130,37 @@ class StockMove(models.Model):
             else:
                 move.quantity_readonly = False
 
-    @api.constrains('quantity', 'product_uom_qty', 'state')
-    def _check_quantity_origin_requisition(self):
+    def write(self, vals):
         """
-        VALIDACIÓN: Permitir cantidad 0 (creación inicial) o igual a product_uom_qty
-        NO permitir ningún otro valor
+        BLOQUEO CRÍTICO: Interceptar ANTES de que se ejecute super().write()
+        para evitar que se sincronicen los movimientos relacionados
         """
-        # Verificar permisos
+        # Verificar permisos UNA SOLA VEZ
         group_id = "dv_requisition_custom.group_requisition_quantity_manager"
         has_group = self.env.user.has_group(group_id)
         
-        if not has_group:
+        # Solo validar si se intenta modificar quantity o quantity_done Y no tiene permisos
+        if not has_group and ('quantity' in vals or 'quantity_done' in vals):
             for move in self:
-                # Solo validar movimientos de requisición ORIGEN (internal -> transit)
-                if (move.requisition_order and 
+                # Solo validar movimientos de requisición ORIGEN que ya existen
+                if (move.id and 
+                    move.requisition_order and 
                     move.usage_origin == 'internal' and 
                     move.usage_dest == 'transit' and 
                     move.state not in ('done', 'cancel')):
                     
-                    # PERMITIR: cantidad = 0 (creación inicial) O cantidad = demanda
-                    # BLOQUEAR: cualquier otro valor (ej: 50 cuando demanda es 25)
-                    if move.quantity != 0 and move.quantity != move.product_uom_qty:
-                        raise ValidationError(
-                            _("⛔ CANTIDAD NO PERMITIDA\n\n"
+                    # Obtener el valor que intenta guardar
+                    new_quantity = vals.get('quantity') if 'quantity' in vals else vals.get('quantity_done')
+                    
+                    # VALIDACIÓN CRÍTICA: Solo permitir 0 o product_uom_qty
+                    # Cualquier otro valor debe bloquearse ANTES del super().write()
+                    if new_quantity != 0 and new_quantity != move.product_uom_qty:
+                        raise UserError(
+                            _("OPERACIÓN BLOQUEADA - NO SE PUEDE GUARDAR\n\n"
                               "La cantidad realizada (%s) debe ser igual a la cantidad demandada (%s) "
-                              "para el producto: %s\n\n"
-                              "Solo se permite cantidad 0 (si no hay stock) o la cantidad demandada exacta.") %
-                            (move.quantity, move.product_uom_qty, move.product_id.display_name)
+                              "para el producto: %s\n\n") %
+                            (new_quantity, move.product_uom_qty, move.product_id.display_name, move.product_uom_qty)
                         )
+        
+        # Si llegó aquí, la validación pasó, ejecutar el write normal
+        return super(StockMove, self).write(vals)
