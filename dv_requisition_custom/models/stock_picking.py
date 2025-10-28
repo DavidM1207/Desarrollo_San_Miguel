@@ -90,7 +90,7 @@ class StockPicking(models.Model):
 class StockMove(models.Model):
     _inherit = "stock.move"
 
-    requisition_order = fields.Char(string='Requisición', readonly=True, copy=False, related='picking_id.requisition_order')
+    requisition_order = fields.Char(string='Requisición', readonly=True, copy=False, related='picking_id.requisicion_order')
     usage_origin = fields.Selection(related='picking_id.location_id.usage', string='Uso de Ubicación Origen', readonly=True)
     usage_dest = fields.Selection(related='picking_id.location_dest_id.usage', string='Uso de Ubicación Destino', readonly=True)
 
@@ -132,8 +132,8 @@ class StockMove(models.Model):
 
     def write(self, vals):
         """
-        BLOQUEO CRÍTICO: Prevenir cualquier modificación de quantity 
-        en movimientos de requisición internal->transit
+        BLOQUEO: Prevenir modificación de quantity en movimientos 
+        de requisición internal->transit DESPUÉS de su creación
         """
         # Si se intenta modificar 'quantity' o 'quantity_done'
         if 'quantity' in vals or 'quantity_done' in vals:
@@ -144,27 +144,25 @@ class StockMove(models.Model):
             # Si no tiene permisos especiales, validar cada movimiento
             if not has_group:
                 for move in self:
-                    # Solo aplicar restricción a movimientos de requisición internal->transit
-                    if (move.requisition_order and 
+                    # IMPORTANTE: Solo bloquear si el movimiento YA EXISTE (tiene ID)
+                    # Esto permite la creación inicial con cantidad 0
+                    if move.id and (move.requisition_order and 
                         move.usage_origin == 'internal' and 
                         move.usage_dest == 'transit' and 
                         move.state not in ('done', 'cancel')):
                         
-                        # Obtener la cantidad que se intenta guardar
-                        new_quantity = vals.get('quantity', vals.get('quantity_done', move.quantity))
+                        # Obtener la cantidad actual y la nueva
+                        current_quantity = move.quantity
+                        new_quantity = vals.get('quantity', vals.get('quantity_done'))
                         
-                        # Si es diferente a la demanda, bloquear
-                        if new_quantity != move.product_uom_qty:
+                        # Si intenta CAMBIAR la cantidad (no es la misma que ya tenía)
+                        if new_quantity is not None and new_quantity != current_quantity:
                             raise UserError(
-                                _("⛔ NO PUEDE MODIFICAR LA CANTIDAD\n\n"
+                                _("NO PUEDE MODIFICAR LA CANTIDAD\n\n"
                                   "Este movimiento es parte de una requisición y la cantidad "
-                                  "está bloqueada para mantener la sincronización.\n\n"
-                                  "📦 Producto: %s\n"
-                                  "✅ Cantidad requerida: %s %s\n"
-                                  "❌ Cantidad que intenta guardar: %s %s\n\n"
-                                  "💡 La cantidad realizada debe ser igual a la demandada.") %
+                                  "está bloqueada para mantener la sincronización.\n\n") %
                                 (move.product_id.display_name,
-                                 move.product_uom_qty,
+                                 current_quantity,
                                  move.product_uom.name,
                                  new_quantity,
                                  move.product_uom.name)
@@ -172,26 +170,4 @@ class StockMove(models.Model):
         
         return super(StockMove, self).write(vals)
 
-    @api.constrains('quantity', 'product_uom_qty')
-    def _check_quantity_constraints(self):
-        """
-        Validación adicional como segunda capa de seguridad
-        """
-        group_id = "dv_requisition_custom.group_requisition_quantity_manager"
-        has_group = self.env.user.has_group(group_id)
-        
-        if not has_group:
-            for move in self:
-                if (move.requisition_order and 
-                    move.usage_origin == 'internal' and 
-                    move.usage_dest == 'transit' and 
-                    move.state not in ('done', 'cancel')):
-                    
-                    if move.quantity != move.product_uom_qty:
-                        raise ValidationError(
-                            _("⚠️ Validación de integridad: La cantidad del producto '%s' "
-                              "debe ser %s (detectado %s).") %
-                            (move.product_id.display_name, 
-                             move.product_uom_qty,
-                             move.quantity)
-                        )
+    # ELIMINAMOS @api.constrains completamente para que NO valide en la creación
