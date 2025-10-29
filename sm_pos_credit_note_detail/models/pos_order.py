@@ -49,110 +49,130 @@ class PosOrder(models.Model):
             'context': {'create': False, 'edit': False, 'delete': False},
         }
     
-    def _process_session(self, session, nc_account):
-        """Procesa una sesión y crea las líneas de NC"""
-        lines_created = 0
-        
-        # Buscar NC de la sesión (órdenes con monto negativo = NC)
-        nc_orders = self.env['pos.order'].search([
-            ('session_id', '=', session.id),
-            ('amount_total', '<', 0),  # NC tienen monto negativo
-        ])
-        
-        if not nc_orders:
-            return 0
-        
-        # Buscar el apunte contable
-        move_line = False
-        if session.move_id:
-            move_lines_credit = session.move_id.line_ids.filtered(
-                lambda l: l.account_id.id == nc_account.id and l.credit > 0
-            )
-            move_lines_debit = session.move_id.line_ids.filtered(
-                lambda l: l.account_id.id == nc_account.id and l.debit > 0
-            )
+    
+def _process_session(self, session, nc_account):
+    """Procesa una sesión y crea las líneas de NC"""
+    lines_created = 0
+    
+    # Buscar NC de la sesión
+    nc_orders = self.env['pos.order'].search([
+        ('session_id', '=', session.id),
+        ('is_credit_note', '=', True),
+    ])
+    
+    if not nc_orders:
+        return 0
+    
+    # Buscar el asiento contable del método de pago
+    nc_payment_move_line = False
+    
+    # Buscar pagos con método "Devolución" o "Nota" de esta sesión
+    nc_payments = self.env['pos.payment'].search([
+        ('session_id', '=', session.id),
+    ]).filtered(
+        lambda p: 'devolución' in (p.payment_method_id.name or '').lower() or 
+                 'devolucion' in (p.payment_method_id.name or '').lower() or
+                 'nota' in (p.payment_method_id.name or '').lower()
+    )
+    
+    if nc_payments:
+        payment_method = nc_payments[0].payment_method_id
+        if payment_method.journal_id:
+            # Buscar asientos en el diario del método de pago de esta sesión
+            moves = self.env['account.move'].search([
+                ('journal_id', '=', payment_method.journal_id.id),
+                ('state', '=', 'posted'),
+                ('date', '=', session.stop_at.date() if session.stop_at else fields.Date.today()),
+            ])
             
-            if move_lines_credit:
-                move_line = move_lines_credit[0]
-            elif move_lines_debit:
-                move_line = move_lines_debit[0]
+            for move in moves:
+                nc_lines = move.line_ids.filtered(
+                    lambda l: l.account_id.id == nc_account.id
+                )
+                if nc_lines:
+                    nc_payment_move_line = nc_lines[0]
+                    break
+    
+    # NO FILTRAR POR CONCILIADO - puede tener saldo pendiente
+    # Ya no validamos: if nc_payment_move_line and nc_payment_move_line.reconciled: return 0
+    
+    # Determinar tipo
+    nc_type = 'nota_credito'
+    if nc_payment_move_line and nc_payment_move_line.debit > 0:
+        nc_type = 'refacturacion'
+    
+    # Crear línea por cada NC
+    for nc in nc_orders:
+        factura_origen = ''
+        if nc.origin_order_id and nc.origin_order_id.account_move:
+            factura_origen = nc.origin_order_id.account_move.name
         
-        # Si está conciliado, saltar
-        if move_line and move_line.reconciled:
-            return 0
+        self.env['credit.note.line'].create({
+            'date': nc.date_order.date() if nc.date_order else fields.Date.today(),
+            'name': nc.pos_reference or nc.name,
+            'account_id': nc_account.id,
+            'session_name': session.name,
+            'nc_type': nc_type,
+            'description': 'NC del %s factura nota %s' % (session.name, factura_origen),
+            'debit': nc.credit_note_amount if nc_type == 'refacturacion' else 0.0,
+            'credit': nc.credit_note_amount if nc_type == 'nota_credito' else 0.0,
+            'currency_id': nc.currency_id.id,
+            'vendedor': session.user_id.name if session.user_id else '',
+            'move_line_id': nc_payment_move_line.id if nc_payment_move_line else False,
+            'pos_order_id': nc.id,
+        })
+        lines_created += 1
+    
+    # Procesar refacturaciones (órdenes que pagaron con NC)
+    orders = self.env['pos.order'].search([
+        ('session_id', '=', session.id),
+        ('amount_total', '>', 0),
+    ])
+    
+    for order in orders:
+        nc_payments = order.payment_ids.filtered(
+            lambda p: 'devolución' in (p.payment_method_id.name or '').lower() or 
+                     'devolucion' in (p.payment_method_id.name or '').lower() or
+                     'nota' in (p.payment_method_id.name or '').lower()
+        )
         
-        # Determinar tipo
-        nc_type = 'nota_credito'
-        if move_line and move_line.debit > 0:
-            nc_type = 'refacturacion'
-        
-        # Crear línea por cada NC
-        for nc in nc_orders:
-            factura_origen = ''
-            # Buscar la orden original desde la cual se hizo la NC
-            if hasattr(nc, 'refunded_order_id') and nc.refunded_order_id and nc.refunded_order_id.account_move:
-                factura_origen = nc.refunded_order_id.account_move.name
-            elif hasattr(nc, 'origin_order_id') and nc.origin_order_id and nc.origin_order_id.account_move:
-                factura_origen = nc.origin_order_id.account_move.name
+        if nc_payments:
+            # Buscar el asiento de refacturación
+            refund_move_line = False
             
-            # El monto de la NC es el valor absoluto del amount_total
-            nc_amount = abs(nc.amount_total)
-            
-            self.env['credit.note.line'].create({
-                'date': nc.date_order.date() if nc.date_order else fields.Date.today(),
-                'name': nc.pos_reference or nc.name,
-                'account_id': nc_account.id,
-                'session_name': session.name,
-                'nc_type': nc_type,
-                'description': 'NC del %s factura nota %s' % (session.name, factura_origen),
-                'debit': nc_amount if nc_type == 'refacturacion' else 0.0,
-                'credit': nc_amount if nc_type == 'nota_credito' else 0.0,
-                'currency_id': nc.currency_id.id,
-                'vendedor': session.user_id.name if session.user_id else '',
-                'move_line_id': move_line.id if move_line else False,
-                'pos_order_id': nc.id,
-            })
-            lines_created += 1
-        
-        # Procesar refacturaciones (órdenes que pagaron con NC)
-        orders = self.env['pos.order'].search([
-            ('session_id', '=', session.id),
-            ('amount_total', '>', 0),  # Órdenes positivas
-        ])
-        
-        for order in orders:
-            nc_payments = order.payment_ids.filtered(
-                lambda p: 'devolución' in (p.payment_method_id.name or '').lower() or 
-                         'devolucion' in (p.payment_method_id.name or '').lower() or
-                         'nota' in (p.payment_method_id.name or '').lower()
-            )
-            
-            if nc_payments:
-                move_line_debit = False
-                if session.move_id:
-                    move_line_debit = session.move_id.line_ids.filtered(
+            if nc_payments and nc_payments[0].payment_method_id.journal_id:
+                payment_method = nc_payments[0].payment_method_id
+                moves = self.env['account.move'].search([
+                    ('journal_id', '=', payment_method.journal_id.id),
+                    ('state', '=', 'posted'),
+                    ('date', '=', session.stop_at.date() if session.stop_at else fields.Date.today()),
+                ])
+                
+                for move in moves:
+                    refund_lines = move.line_ids.filtered(
                         lambda l: l.account_id.id == nc_account.id and l.debit > 0
                     )
-                    move_line_debit = move_line_debit[0] if move_line_debit else False
-                
-                if move_line_debit and move_line_debit.reconciled:
-                    continue
-                
-                for payment in nc_payments:
-                    self.env['credit.note.line'].create({
-                        'date': order.date_order.date() if order.date_order else fields.Date.today(),
-                        'name': order.pos_reference or order.name,
-                        'account_id': nc_account.id,
-                        'session_name': session.name,
-                        'nc_type': 'refacturacion',
-                        'description': 'Orden %s Uso NC' % (order.pos_reference or order.name),
-                        'debit': abs(payment.amount),
-                        'credit': 0.0,
-                        'currency_id': order.currency_id.id,
-                        'vendedor': session.user_id.name if session.user_id else '',
-                        'move_line_id': move_line_debit.id if move_line_debit else False,
-                        'pos_order_id': order.id,
-                    })
-                    lines_created += 1
-        
-        return lines_created
+                    if refund_lines:
+                        refund_move_line = refund_lines[0]
+                        break
+            
+            # NO FILTRAR POR CONCILIADO - puede tener saldo pendiente
+            
+            for payment in nc_payments:
+                self.env['credit.note.line'].create({
+                    'date': order.date_order.date() if order.date_order else fields.Date.today(),
+                    'name': order.pos_reference or order.name,
+                    'account_id': nc_account.id,
+                    'session_name': session.name,
+                    'nc_type': 'refacturacion',
+                    'description': 'Orden %s Uso NC' % (order.pos_reference or order.name),
+                    'debit': abs(payment.amount),
+                    'credit': 0.0,
+                    'currency_id': order.currency_id.id,
+                    'vendedor': session.user_id.name if session.user_id else '',
+                    'move_line_id': refund_move_line.id if refund_move_line else False,
+                    'pos_order_id': order.id,
+                })
+                lines_created += 1
+    
+    return lines_created
