@@ -5,7 +5,7 @@
         <field name="name">reconcile.confirmation.wizard.form</field>
         <field name="model">reconcile.confirmation.wizard</field>
         <field name="arch" type="xml">
-            <form string="Confirmar Conciliación">
+            <form string="Confirmar Conciliacion">
                 <sheet>
                     <group>
                         <group>
@@ -26,7 +26,7 @@
                 </sheet>
                 
                 <footer>
-                    <button string="✅ Confirmar Conciliación" 
+                    <button string="Confirmar Conciliacion" 
                             name="action_confirm_reconcile" 
                             type="object" 
                             class="btn-primary"/>
