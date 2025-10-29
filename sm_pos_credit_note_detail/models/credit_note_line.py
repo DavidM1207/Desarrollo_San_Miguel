@@ -39,7 +39,7 @@ class CreditNoteLine(models.Model):
         if len(move_lines) < 2:
             raise UserError(_('Solo hay %s apunte sin conciliar. Se necesitan al menos 2 para conciliar.') % len(move_lines))
         
-        # Calcular totales
+        # Calcular totales de las líneas
         total_debit = sum(self.mapped('debit'))
         total_credit = sum(self.mapped('credit'))
         
@@ -79,6 +79,7 @@ class CreditNoteLine(models.Model):
         html += '<tr style="background-color: #e3f2fd; font-weight: bold;">'
         html += '<th style="padding: 8px; border: 1px solid #ddd;">Asiento</th>'
         html += '<th style="padding: 8px; border: 1px solid #ddd;">Diario</th>'
+        html += '<th style="padding: 8px; border: 1px solid #ddd;">Ref</th>'
         html += '<th style="padding: 8px; border: 1px solid #ddd;">Fecha</th>'
         html += '<th style="padding: 8px; border: 1px solid #ddd;">Cuenta</th>'
         html += '<th style="padding: 8px; border: 1px solid #ddd;">Debe</th>'
@@ -91,6 +92,7 @@ class CreditNoteLine(models.Model):
             html += '<tr>'
             html += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % ml.move_id.name
             html += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % ml.move_id.journal_id.name
+            html += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % (ml.move_id.ref or '-')
             html += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % ml.date
             html += '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' % ml.account_id.code
             html += '<td style="padding: 8px; border: 1px solid #ddd; text-align: right;">Q %.2f</td>' % ml.debit
@@ -100,7 +102,7 @@ class CreditNoteLine(models.Model):
             move_credit += ml.credit
         
         html += '<tr style="background-color: #4caf50; color: white; font-weight: bold;">'
-        html += '<td colspan="4" style="padding: 10px; border: 2px solid #4caf50; text-align: right;">TOTAL ASIENTOS:</td>'
+        html += '<td colspan="5" style="padding: 10px; border: 2px solid #4caf50; text-align: right;">TOTAL ASIENTOS:</td>'
         html += '<td style="padding: 10px; border: 2px solid #4caf50; text-align: right;">Q %.2f</td>' % move_debit
         html += '<td style="padding: 10px; border: 2px solid #4caf50; text-align: right;">Q %.2f</td>' % move_credit
         html += '</tr>'

@@ -1,6 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     
+    <!-- Acción de servidor para conciliar -->
+    <record id="action_reconcile_credit_notes" model="ir.actions.server">
+        <field name="name">🔗 Conciliar Notas</field>
+        <field name="model_id" ref="model_credit_note_line"/>
+        <field name="binding_model_id" ref="model_credit_note_line"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">
+if records:
+    action = records.action_reconcile_lines()
+        </field>
+    </record>
+    
+    <!-- Vista tree -->
     <record id="view_credit_note_line_tree" model="ir.ui.view">
         <field name="name">credit.note.line.tree</field>
         <field name="model">credit.note.line</field>
@@ -20,18 +34,16 @@
                 <field name="debit" string="Debe" sum="Total Debe"/>
                 <field name="credit" string="Haber" sum="Total Haber"/>
                 <field name="vendedor" string="Vendedor"/>
-                
-                <!-- ESTE ES EL WIDGET NATIVO DE ODOO PARA CONCILIAR -->
-                <field name="move_line_id" string="Emparejar" widget="reconciliation"/>
-                
                 <field name="reconciled" string="✓" widget="boolean_toggle"/>
                 <field name="account_id" column_invisible="1"/>
                 <field name="currency_id" column_invisible="1"/>
                 <field name="pos_order_id" column_invisible="1"/>
+                <field name="move_line_id" column_invisible="1"/>
             </tree>
         </field>
     </record>
     
+    <!-- Vista search -->
     <record id="view_credit_note_line_search" model="ir.ui.view">
         <field name="name">credit.note.line.search</field>
         <field name="model">credit.note.line</field>
@@ -50,9 +62,6 @@
                 <separator/>
                 <filter string="Este Mes" name="this_month" 
                         domain="[('date', '&gt;=', (context_today() - relativedelta(day=1)).strftime('%Y-%m-%d'))]"/>
-                <filter string="Mes Anterior" name="last_month" 
-                        domain="[('date', '&gt;=', (context_today() - relativedelta(months=1, day=1)).strftime('%Y-%m-%d')),
-                                ('date', '&lt;=', (context_today() - relativedelta(months=1, day=31)).strftime('%Y-%m-%d'))]"/>
                 
                 <group expand="0" string="Agrupar por">
                     <filter string="Tipo" name="group_type" context="{'group_by': 'nc_type'}"/>
@@ -63,7 +72,5 @@
             </search>
         </field>
     </record>
-    
-    <!-- YA NO NECESITAMOS EL WIZARD NI LA ACCIÓN DE SERVIDOR -->
     
 </odoo>
