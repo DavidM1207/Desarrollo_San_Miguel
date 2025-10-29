@@ -1,5 +1,6 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
+from datetime import timedelta
 
 
 class CreditNoteLine(models.Model):
@@ -35,12 +36,10 @@ class CreditNoteLine(models.Model):
         if not nc_account:
             raise UserError(_('No se encontró la cuenta 211040020000'))
         
-        # Obtener las órdenes y sesiones
+        # Obtener las órdenes
         orders = self.mapped('pos_order_id').filtered(lambda o: o)
-        sessions = orders.mapped('session_id').filtered(lambda s: s)
-        
-        if not sessions:
-            raise UserError(_('No se encontraron sesiones en las líneas seleccionadas'))
+        if not orders:
+            raise UserError(_('No se encontraron órdenes POS en las líneas seleccionadas'))
         
         # Buscar todos los métodos de pago "Devolución/Nota" de las órdenes
         payment_methods = self.env['pos.payment.method']
@@ -53,46 +52,68 @@ class CreditNoteLine(models.Model):
             payment_methods |= payments.mapped('payment_method_id')
         
         if not payment_methods:
-            raise UserError(_('No se encontraron métodos de pago Devolución/Nota en las órdenes'))
+            raise UserError(_('No se encontraron métodos de pago Devolución/Nota en las órdenes seleccionadas'))
         
         payment_methods_with_journal = payment_methods.filtered(lambda m: m.journal_id)
         if not payment_methods_with_journal:
             raise UserError(_('Los métodos de pago no tienen diario configurado'))
         
-        # Buscar asientos en los diarios de los métodos de pago
+        # Obtener rango de fechas de las líneas seleccionadas (+/- 3 días)
+        min_date = min(self.mapped('date')) - timedelta(days=3)
+        max_date = max(self.mapped('date')) + timedelta(days=3)
+        
+        # Buscar TODOS los asientos en los diarios de los métodos de pago en ese rango de fechas
         move_lines_to_reconcile = self.env['account.move.line']
         
         for payment_method in payment_methods_with_journal:
-            for session in sessions:
-                # Buscar por nombre de sesión en ref o name
-                moves = self.env['account.move'].search([
-                    ('journal_id', '=', payment_method.journal_id.id),
-                    ('state', '=', 'posted'),
-                    '|',
-                    ('ref', 'ilike', session.name),
-                    ('name', 'ilike', session.name),
-                ])
-                
-                # Si no encuentra por nombre, buscar por fecha
-                if not moves and session.stop_at:
-                    moves = self.env['account.move'].search([
-                        ('journal_id', '=', payment_method.journal_id.id),
-                        ('state', '=', 'posted'),
-                        ('date', '=', session.stop_at.date()),
-                    ])
-                
-                # De esos asientos, buscar líneas en cuenta 211040020000 NO conciliadas
-                for move in moves:
-                    nc_lines = move.line_ids.filtered(
-                        lambda l: l.account_id.id == nc_account.id and not l.reconciled
-                    )
-                    move_lines_to_reconcile |= nc_lines
+            # Buscar asientos en el diario del método de pago
+            moves = self.env['account.move'].search([
+                ('journal_id', '=', payment_method.journal_id.id),
+                ('state', '=', 'posted'),
+                ('date', '>=', min_date),
+                ('date', '<=', max_date),
+            ])
+            
+            # De esos asientos, buscar líneas en cuenta 211040020000 NO conciliadas
+            for move in moves:
+                nc_lines = move.line_ids.filtered(
+                    lambda l: l.account_id.id == nc_account.id and not l.reconciled
+                )
+                move_lines_to_reconcile |= nc_lines
         
         if not move_lines_to_reconcile:
-            raise UserError(_('No se encontraron asientos contables sin conciliar para las sesiones seleccionadas'))
+            # Mensaje de debug más detallado
+            error_msg = 'No se encontraron asientos contables sin conciliar.\n\n'
+            error_msg += 'Informacion de busqueda:\n'
+            error_msg += '- Metodos de pago: %s\n' % ', '.join(payment_methods_with_journal.mapped('name'))
+            error_msg += '- Diarios: %s\n' % ', '.join(payment_methods_with_journal.mapped('journal_id.name'))
+            error_msg += '- Cuenta: %s\n' % nc_account.code
+            error_msg += '- Rango de fechas: %s a %s\n' % (min_date, max_date)
+            error_msg += '- Ordenes: %s\n' % len(orders)
+            
+            # Verificar si hay asientos en el diario (conciliados o no)
+            all_moves = self.env['account.move'].search([
+                ('journal_id', 'in', payment_methods_with_journal.mapped('journal_id').ids),
+                ('state', '=', 'posted'),
+                ('date', '>=', min_date),
+                ('date', '<=', max_date),
+            ])
+            
+            if all_moves:
+                error_msg += '\nSe encontraron %s asientos en los diarios, pero ninguno tiene lineas en cuenta %s sin conciliar.\n' % (len(all_moves), nc_account.code)
+                
+                # Verificar si hay líneas en la cuenta (aunque estén conciliadas)
+                all_lines = all_moves.mapped('line_ids').filtered(lambda l: l.account_id.id == nc_account.id)
+                if all_lines:
+                    reconciled_count = len(all_lines.filtered(lambda l: l.reconciled))
+                    error_msg += 'Se encontraron %s lineas en la cuenta %s, de las cuales %s ya estan conciliadas.\n' % (len(all_lines), nc_account.code, reconciled_count)
+            else:
+                error_msg += '\nNo se encontraron asientos en los diarios especificados para ese rango de fechas.'
+            
+            raise UserError(_(error_msg))
         
         if len(move_lines_to_reconcile) < 2:
-            raise UserError(_('Solo se encontró 1 asiento. Se necesitan al menos 2 para conciliar.'))
+            raise UserError(_('Solo se encontró 1 asiento sin conciliar. Se necesitan al menos 2 para conciliar.'))
         
         # Calcular totales
         total_debit = sum(self.mapped('debit'))
@@ -130,8 +151,9 @@ class CreditNoteLine(models.Model):
         
         # Asientos encontrados
         html += '<hr/><h4>Asientos Contables a Conciliar:</h4>'
-        html += '<p><strong>Sesiones:</strong> %s</p>' % ', '.join(sessions.mapped('name'))
         html += '<p><strong>Metodos de Pago:</strong> %s</p>' % ', '.join(payment_methods_with_journal.mapped('name'))
+        html += '<p><strong>Diarios:</strong> %s</p>' % ', '.join(payment_methods_with_journal.mapped('journal_id.name'))
+        html += '<p><strong>Total de asientos:</strong> %s</p>' % len(move_lines_to_reconcile)
         html += '<table style="width:100%; border-collapse: collapse;">'
         html += '<tr style="background-color: #e3f2fd; font-weight: bold;">'
         html += '<th style="padding: 8px; border: 1px solid #ddd;">Asiento</th>'
