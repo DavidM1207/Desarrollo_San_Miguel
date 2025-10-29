@@ -142,19 +142,20 @@ class StockMove(models.Model):
 class StockMoveLine(models.Model):
     _inherit = "stock.move.line"
 
-    @api.constrains('quantity', 'reserved_uom_qty')
-    def _check_quantity_move_line_requisition(self):
+    def write(self, vals):
         """
-        VALIDACIÓN EN STOCK.MOVE.LINE para movimientos de requisición ORIGEN
-        Replicar exactamente lo que funciona en el destino
+        BLOQUEAR modificación de cantidad en stock.move.line 
+        para movimientos de requisición ORIGEN (internal -> transit)
+        ANTES de que se ejecute super() y se sincronice
         """
         # Verificar permisos
         group_id = "dv_requisition_custom.group_requisition_quantity_manager"
         has_group = self.env.user.has_group(group_id)
         
-        if not has_group:
+        # Si se intenta modificar quantity o reserved_uom_qty
+        if not has_group and ('quantity' in vals or 'reserved_uom_qty' in vals):
             for line in self:
-                # Verificar si la línea pertenece a un movimiento de requisición ORIGEN
+                # Solo validar líneas de movimientos de requisición ORIGEN
                 if (line.move_id and 
                     line.move_id.requisition_order and 
                     line.move_id.picking_id.location_id.usage == 'internal' and 
@@ -164,14 +165,16 @@ class StockMoveLine(models.Model):
                     # Obtener la demanda del movimiento
                     demand = line.move_id.product_uom_qty
                     
-                    # Obtener la cantidad realizada
-                    done_qty = line.quantity if line.quantity else 0
+                    # Obtener la cantidad que se intenta guardar
+                    done_qty = vals.get('quantity', line.quantity)
                     
-                    # Permitir 0 (sin stock) o igual a demanda
-                    # Bloquear cualquier otro valor
+                    # VALIDACIÓN EXACTA - Replicada del destino
                     if done_qty != 0 and done_qty != demand:
                         raise ValidationError(
                             _("La cantidad realizada (%s) debe ser igual a la cantidad demandada (%s) "
                               "para el producto: %s") %
                             (done_qty, demand, line.product_id.display_name)
                         )
+        
+        # Si pasó la validación, ejecutar el write
+        return super(StockMoveLine, self).write(vals)
