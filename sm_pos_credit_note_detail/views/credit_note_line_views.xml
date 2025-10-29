@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <record id="view_credit_note_line_tree" model="ir.ui.view">
+        <field name="name">credit.note.line.tree</field>
+        <field name="model">credit.note.line</field>
+        <field name="arch" type="xml">
+            <tree string="Libro Mayor - Notas de Crédito" 
+                  decoration-info="nc_type == 'nota_credito'"
+                  decoration-warning="nc_type == 'refacturacion'"
+                  decoration-muted="reconciled == True"
+                  create="false" delete="false" edit="false">
+                <field name="date"/>
+                <field name="name" string="Orden"/>
+                <field name="session_name" string="Sesión POS"/>
+                <field name="nc_type" string="Tipo" widget="badge"
+                       decoration-info="nc_type == 'nota_credito'"
+                       decoration-warning="nc_type == 'refacturacion'"/>
+                <field name="description" string="Detalle NC"/>
+                <field name="debit" string="Debe" sum="Total Debe"/>
+                <field name="credit" string="Haber" sum="Total Haber"/>
+                <field name="vendedor" string="Vendedor"/>
+                
+                <!-- ESTE ES EL WIDGET NATIVO DE ODOO PARA CONCILIAR -->
+                <field name="move_line_id" string="Emparejar" widget="reconciliation"/>
+                
+                <field name="reconciled" string="✓" widget="boolean_toggle"/>
+                <field name="account_id" column_invisible="1"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="pos_order_id" column_invisible="1"/>
+            </tree>
+        </field>
+    </record>
+    
+    <record id="view_credit_note_line_search" model="ir.ui.view">
+        <field name="name">credit.note.line.search</field>
+        <field name="model">credit.note.line</field>
+        <field name="arch" type="xml">
+            <search string="Buscar NC">
+                <field name="name" string="Orden"/>
+                <field name="session_name" string="Sesión"/>
+                <field name="description" string="Descripción"/>
+                <field name="vendedor" string="Vendedor"/>
+                
+                <filter string="Notas de Crédito" name="nc_original" domain="[('nc_type', '=', 'nota_credito')]"/>
+                <filter string="Refacturaciones" name="nc_refund" domain="[('nc_type', '=', 'refacturacion')]"/>
+                <separator/>
+                <filter string="No Conciliadas" name="not_reconciled" domain="[('reconciled', '=', False)]"/>
+                <filter string="Conciliadas" name="reconciled" domain="[('reconciled', '=', True)]"/>
+                <separator/>
+                <filter string="Este Mes" name="this_month" 
+                        domain="[('date', '&gt;=', (context_today() - relativedelta(day=1)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Mes Anterior" name="last_month" 
+                        domain="[('date', '&gt;=', (context_today() - relativedelta(months=1, day=1)).strftime('%Y-%m-%d')),
+                                ('date', '&lt;=', (context_today() - relativedelta(months=1, day=31)).strftime('%Y-%m-%d'))]"/>
+                
+                <group expand="0" string="Agrupar por">
+                    <filter string="Tipo" name="group_type" context="{'group_by': 'nc_type'}"/>
+                    <filter string="Sesión" name="group_session" context="{'group_by': 'session_name'}"/>
+                    <filter string="Vendedor" name="group_vendedor" context="{'group_by': 'vendedor'}"/>
+                    <filter string="Estado" name="group_reconciled" context="{'group_by': 'reconciled'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    
+    <!-- YA NO NECESITAMOS EL WIZARD NI LA ACCIÓN DE SERVIDOR -->
+    
+</odoo>
