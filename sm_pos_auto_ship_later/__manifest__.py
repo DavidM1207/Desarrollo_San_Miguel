@@ -12,7 +12,9 @@
     """,
     'author': 'SAN MIGUEL, S.A.',
     'depends': ['base','point_of_sale', 'stock'],
-    'data': [],
+    'data': [
+        'views/pos_views.xml',
+    ],
     'assets': {
         'point_of_sale._assets_pos': [
             'pos_auto_ship_later/static/src/js/pos_auto_ship_later.js',
