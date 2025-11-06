@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <record id="view_purchase_requisition_fill_rate_tree" model="ir.ui.view">
+        <field name="name">purchase.requisition.fill.rate.tree</field>
+        <field name="model">purchase.requisition.fill.rate</field>
+        <field name="arch" type="xml">
+            <tree string="Reporte Fill Rate" create="false" edit="false" delete="false">
+                <field name="create_date" string="Fecha Creación"/>
+                <field name="requisition_name" string="Número Requisición"/>
+                <field name="product_name" string="Producto"/>
+                <field name="demanda" string="Demanda (Unidades Solicitadas)"/>
+                <field name="cantidad_entregada" string="Cantidad (Unidades Entregadas)"/>
+                <field name="fill_rate" string="Fill Rate (%)" 
+                       decoration-success="fill_rate &gt;= 100"
+                       decoration-warning="fill_rate &gt;= 80 and fill_rate &lt; 100"
+                       decoration-danger="fill_rate &lt; 80"/>
+                <field name="uom_id" string="UdM"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_purchase_requisition_fill_rate_form" model="ir.ui.view">
+        <field name="name">purchase.requisition.fill.rate.form</field>
+        <field name="model">purchase.requisition.fill.rate</field>
+        <field name="arch" type="xml">
+            <form string="Detalle Fill Rate" create="false" edit="false" delete="false">
+                <sheet>
+                    <group>
+                        <group name="requisition_info" string="Información de Requisición">
+                            <field name="requisition_id" readonly="1"/>
+                            <field name="requisition_name" readonly="1"/>
+                            <field name="create_date" readonly="1"/>
+                        </group>
+                        <group name="product_info" string="Información de Producto">
+                            <field name="product_id" readonly="1"/>
+                            <field name="product_name" readonly="1"/>
+                            <field name="uom_id" readonly="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group name="quantities" string="Cantidades">
+                            <field name="demanda" readonly="1"/>
+                            <field name="cantidad_entregada" readonly="1"/>
+                        </group>
+                        <group name="fill_rate_group" string="Fill Rate">
+                            <field name="fill_rate" readonly="1" 
+                                   widget="percentage"
+                                   decoration-success="fill_rate &gt;= 100"
+                                   decoration-warning="fill_rate &gt;= 80 and fill_rate &lt; 100"
+                                   decoration-danger="fill_rate &lt; 80"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_purchase_requisition_fill_rate_search" model="ir.ui.view">
+        <field name="name">purchase.requisition.fill.rate.search</field>
+        <field name="model">purchase.requisition.fill.rate</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Fill Rate">
+                <field name="requisition_name" string="Requisición"
+                       filter_domain="[('requisition_name', 'ilike', self)]"/>
+                <field name="product_name" string="Producto"
+                       filter_domain="[('product_name', 'ilike', self)]"/>
+                <field name="product_id"/>
+                <field name="requisition_id"/>
+                
+                <separator/>
+                
+                <filter string="Fill Rate &lt; 80%" name="fill_rate_low"
+                        domain="[('fill_rate', '&lt;', 80)]"/>
+                <filter string="Fill Rate 80-99%" name="fill_rate_medium"
+                        domain="[('fill_rate', '&gt;=', 80), ('fill_rate', '&lt;', 100)]"/>
+                <filter string="Fill Rate 100%" name="fill_rate_complete"
+                        domain="[('fill_rate', '&gt;=', 100)]"/>
+                
+                <separator/>
+                
+                <filter string="Este Mes" name="this_month"
+                        domain="[('create_date', '&gt;=', (context_today() - relativedelta(months=1)).strftime('%Y-%m-01'))]"/>
+                <filter string="Este Año" name="this_year"
+                        domain="[('create_date', '&gt;=', (context_today().strftime('%Y-01-01')))]"/>
+                
+                <group expand="0" string="Agrupar Por">
+                    <filter string="Requisición" name="group_requisition"
+                            context="{'group_by': 'requisition_id'}"/>
+                    <filter string="Producto" name="group_product"
+                            context="{'group_by': 'product_id'}"/>
+                    <filter string="Fecha Creación" name="group_date"
+                            context="{'group_by': 'create_date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_purchase_requisition_fill_rate_pivot" model="ir.ui.view">
+        <field name="name">purchase.requisition.fill.rate.pivot</field>
+        <field name="model">purchase.requisition.fill.rate</field>
+        <field name="arch" type="xml">
+            <pivot string="Análisis Fill Rate">
+                <field name="requisition_id" type="row"/>
+                <field name="product_id" type="row"/>
+                <field name="demanda" type="measure"/>
+                <field name="cantidad_entregada" type="measure"/>
+                <field name="fill_rate" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_purchase_requisition_fill_rate_graph" model="ir.ui.view">
+        <field name="name">purchase.requisition.fill.rate.graph</field>
+        <field name="model">purchase.requisition.fill.rate</field>
+        <field name="arch" type="xml">
+            <graph string="Gráfico Fill Rate" type="bar">
+                <field name="requisition_name"/>
+                <field name="fill_rate" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="action_purchase_requisition_fill_rate" model="ir.actions.act_window">
+        <field name="name">Fill Rate</field>
+        <field name="res_model">purchase.requisition.fill.rate</field>
+        <field name="view_mode">tree,form,pivot,graph</field>
+        <field name="search_view_id" ref="view_purchase_requisition_fill_rate_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No hay datos de Fill Rate disponibles
+            </p>
+            <p>
+                El reporte Fill Rate se genera automáticamente cuando se crean requisiciones
+                y se actualiza cuando se validan los movimientos de inventario.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_employee_purchase_requisition_reports"
+              name="Reportes"
+              parent="employee_purchase_requisition.menu_purchase_request_pro"
+              sequence="100"/>
+
+    <menuitem id="menu_purchase_requisition_fill_rate"
+              name="Fill Rate"
+              parent="menu_employee_purchase_requisition_reports"
+              action="action_purchase_requisition_fill_rate"
+              sequence="10"/>
+
+</odoo>
