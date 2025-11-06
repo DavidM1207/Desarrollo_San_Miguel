@@ -18,7 +18,7 @@ class FillRateReport(models.Model):
         ondelete='cascade'
     )
     requisition_line_id = fields.Many2one(
-        'employee.purchase.requisition.line',  # Modelo de líneas de requisición
+        'requisition.order',  # Modelo exacto de las líneas de requisición
         string='Línea de Requisición',
         required=True,
         readonly=True,
@@ -75,12 +75,10 @@ class FillRateReport(models.Model):
         store=True,
         readonly=True
     )
-    requisition_type = fields.Selection(
-        related='requisition_line_id.requisition_type',
-        string='Tipo',
-        store=True,
-        readonly=True
-    )
+    requisition_type = fields.Selection([
+        ('purchase_order', 'Orden de Compra'),
+        ('internal_transfer', 'Transferencia Interna'),
+    ], string='Tipo', readonly=True)
 
     @api.depends('qty_original', 'qty_delivered')
     def _compute_fill_rate(self):
@@ -129,6 +127,7 @@ class FillRateReport(models.Model):
                     'demand': line.demand if hasattr(line, 'demand') else line.qty,
                     'qty_original': line.qty,
                     'qty_delivered': qty_delivered,
+                    'requisition_type': line.requisition_type,  # Guardar el tipo manualmente
                 }
                 
                 # Verificar si ya existe el registro

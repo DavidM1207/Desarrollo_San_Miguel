@@ -75,6 +75,7 @@ class StockMoveInherit(models.Model):
                     'demand': line.demand if hasattr(line, 'demand') else line.qty,
                     'qty_original': line.qty,
                     'qty_delivered': qty_delivered,
+                    'requisition_type': line.requisition_type,  # Guardar el tipo manualmente
                 }
                 
                 if existing_report:

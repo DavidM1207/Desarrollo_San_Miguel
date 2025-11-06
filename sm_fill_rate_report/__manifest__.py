@@ -23,8 +23,8 @@
         El Fill Rate se calcula como:
         (Cantidad Entregada / Cantidad Solicitada) × 100
     """,
-    'author': 'SAN MIGUEL, S.A.',
-
+    'author': 'Tu Empresa',
+    'website': 'https://www.tuempresa.com',
     'license': 'LGPL-3',
     'depends': [
         'base',
