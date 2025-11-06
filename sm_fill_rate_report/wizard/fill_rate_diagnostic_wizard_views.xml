@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Vista del Wizard de Diagnóstico -->
+    <record id="view_fill_rate_diagnostic_wizard_form" model="ir.ui.view">
+        <field name="name">fill.rate.diagnostic.wizard.form</field>
+        <field name="model">fill.rate.diagnostic.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Diagnóstico Fill Rate">
+                <group>
+                    <group>
+                        <field name="action" widget="radio"/>
+                    </group>
+                </group>
+                
+                <notebook>
+                    <page string="Resultado" invisible="not diagnostic_result">
+                        <field name="diagnostic_result" nolabel="1" 
+                               readonly="1" 
+                               widget="html"/>
+                    </page>
+                    <page string="Información">
+                        <group>
+                            <div style="padding: 15px;">
+                                <h3>Acerca del Asistente de Diagnóstico</h3>
+                                <p>
+                                    Este asistente te ayuda a verificar la configuración del módulo Fill Rate
+                                    y diagnosticar posibles problemas de integración.
+                                </p>
+                                
+                                <h4>Opciones disponibles:</h4>
+                                <ul>
+                                    <li><strong>Ejecutar Diagnóstico:</strong> Analiza la configuración actual
+                                        y detecta problemas potenciales.</li>
+                                    <li><strong>Generar Datos del Reporte:</strong> Crea/actualiza los registros
+                                        del reporte basándose en las requisiciones existentes.</li>
+                                    <li><strong>Limpiar Datos del Reporte:</strong> Elimina todos los registros
+                                        actuales del reporte (útil para empezar de cero).</li>
+                                </ul>
+                                
+                                <h4>Recomendación:</h4>
+                                <p>
+                                    Ejecuta primero el diagnóstico para identificar cualquier problema de
+                                    configuración antes de generar datos.
+                                </p>
+                            </div>
+                        </group>
+                    </page>
+                </notebook>
+                
+                <footer>
+                    <button name="action_execute" 
+                            string="Ejecutar" 
+                            type="object" 
+                            class="oe_highlight"/>
+                    <button string="Cancelar" 
+                            class="btn-secondary" 
+                            special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Acción del Wizard -->
+    <record id="action_fill_rate_diagnostic_wizard" model="ir.actions.act_window">
+        <field name="name">Asistente de Diagnóstico Fill Rate</field>
+        <field name="res_model">fill.rate.diagnostic.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="model_fill_rate_report"/>
+        <field name="binding_view_types">list</field>
+    </record>
+
+    <!-- Menú para acceder al wizard -->
+    <menuitem id="menu_fill_rate_diagnostic"
+              name="Asistente de Diagnóstico"
+              parent="menu_requisition_reports"
+              action="action_fill_rate_diagnostic_wizard"
+              sequence="20"/>
+
+</odoo>
