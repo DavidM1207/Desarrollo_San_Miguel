@@ -1,0 +1,222 @@
+# -*- coding: utf-8 -*-
+
+from odoo import api, fields, models, _
+from odoo.exceptions import UserError
+
+
+class FillRateReport(models.Model):
+    _name = 'fill.rate.report'
+    _description = 'Reporte Fill Rate de Requisiciones'
+    _order = 'create_date desc, requisition_id desc'
+    _rec_name = 'requisition_id'
+
+    requisition_id = fields.Many2one(
+        'employee.purchase.requisition',
+        string='Requisición',
+        required=True,
+        readonly=True,
+        ondelete='cascade'
+    )
+    requisition_line_id = fields.Many2one(
+        'employee.purchase.requisition.order',
+        string='Línea de Requisición',
+        required=True,
+        readonly=True,
+        ondelete='cascade'
+    )
+    create_date = fields.Datetime(
+        string='Fecha Creación',
+        related='requisition_id.create_date',
+        store=True,
+        readonly=True
+    )
+    requisition_number = fields.Char(
+        string='Número Requisición',
+        related='requisition_id.name',
+        store=True,
+        readonly=True
+    )
+    product_id = fields.Many2one(
+        'product.product',
+        string='Producto',
+        readonly=True
+    )
+    product_name = fields.Char(
+        string='Nombre Producto',
+        related='product_id.display_name',
+        store=True,
+        readonly=True
+    )
+    demand = fields.Float(
+        string='Demanda',
+        readonly=True,
+        digits='Product Unit of Measure'
+    )
+    qty_original = fields.Float(
+        string='Cantidad Original (Solicitada)',
+        readonly=True,
+        digits='Product Unit of Measure'
+    )
+    qty_delivered = fields.Float(
+        string='Cantidad Entregada',
+        readonly=True,
+        digits='Product Unit of Measure'
+    )
+    fill_rate = fields.Float(
+        string='Fill Rate (%)',
+        compute='_compute_fill_rate',
+        store=True,
+        readonly=True,
+        digits=(16, 2)
+    )
+    requisition_type = fields.Selection(
+        related='requisition_line_id.requisition_type',
+        string='Tipo',
+        store=True,
+        readonly=True
+    )
+    state = fields.Selection(
+        related='requisition_id.state',
+        string='Estado',
+        store=True,
+        readonly=True
+    )
+
+    @api.depends('qty_original', 'qty_delivered')
+    def _compute_fill_rate(self):
+        """Calcula el Fill Rate como porcentaje de entrega"""
+        for record in self:
+            if record.qty_original and record.qty_original > 0:
+                record.fill_rate = (record.qty_delivered / record.qty_original) * 100
+            else:
+                record.fill_rate = 0.0
+
+    @api.model
+    def generate_report_data(self):
+        """
+        Genera/actualiza los datos del reporte Fill Rate
+        Este método se puede llamar manualmente o programar con un cron
+        """
+        # Limpiar datos anteriores (opcional, dependiendo de si quieres mantener histórico)
+        # self.search([]).unlink()
+
+        # Buscar todas las requisiciones de tipo transferencia interna
+        requisitions = self.env['employee.purchase.requisition'].search([])
+        
+        data_to_create = []
+        existing_records = {}
+        
+        # Cargar registros existentes para actualizarlos
+        existing = self.search([])
+        for rec in existing:
+            key = (rec.requisition_id.id, rec.requisition_line_id.id)
+            existing_records[key] = rec
+
+        for requisition in requisitions:
+            for line in requisition.requisition_order_ids:
+                # Filtrar solo transferencias internas
+                if line.requisition_type != 'internal_transfer':
+                    continue
+
+                # Calcular cantidad entregada desde stock moves
+                qty_delivered = self._get_delivered_quantity(line)
+                
+                # Datos del registro
+                data = {
+                    'requisition_id': requisition.id,
+                    'requisition_line_id': line.id,
+                    'product_id': line.product_id.id,
+                    'demand': line.demand if hasattr(line, 'demand') else line.qty,
+                    'qty_original': line.qty,
+                    'qty_delivered': qty_delivered,
+                }
+                
+                # Verificar si ya existe el registro
+                key = (requisition.id, line.id)
+                if key in existing_records:
+                    # Actualizar registro existente
+                    existing_records[key].write(data)
+                else:
+                    # Crear nuevo registro
+                    data_to_create.append(data)
+
+        # Crear nuevos registros en batch
+        if data_to_create:
+            self.create(data_to_create)
+
+        return True
+
+    def _get_delivered_quantity(self, requisition_line):
+        """
+        Calcula la cantidad entregada basándose en los movimientos de inventario
+        asociados a la línea de requisición
+        """
+        qty_delivered = 0.0
+        
+        # Buscar movimientos de stock asociados a esta línea de requisición
+        # Ajusta el campo según tu implementación específica
+        stock_moves = self.env['stock.move'].search([
+            ('requisition_line_id', '=', requisition_line.id),
+            ('state', '=', 'done'),  # Solo movimientos completados
+        ])
+        
+        # Si no hay campo directo, buscar por el picking relacionado
+        if not stock_moves:
+            # Intentar buscar por referencia o por el picking_id
+            if hasattr(requisition_line, 'picking_id'):
+                stock_moves = self.env['stock.move'].search([
+                    ('picking_id', '=', requisition_line.picking_id.id),
+                    ('product_id', '=', requisition_line.product_id.id),
+                    ('state', '=', 'done'),
+                ])
+        
+        # Sumar las cantidades de los movimientos completados
+        for move in stock_moves:
+            # Considerar la cantidad realmente procesada (done quantity)
+            qty_delivered += move.quantity_done if move.quantity_done else move.product_uom_qty
+        
+        return qty_delivered
+
+    @api.model
+    def action_refresh_report(self):
+        """Acción para refrescar los datos del reporte"""
+        self.generate_report_data()
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Actualizado'),
+                'message': _('El reporte Fill Rate ha sido actualizado exitosamente.'),
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
+    def action_view_requisition(self):
+        """Acción para ver la requisición desde el reporte"""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Requisición'),
+            'res_model': 'employee.purchase.requisition',
+            'res_id': self.requisition_id.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
+
+    def action_view_stock_moves(self):
+        """Acción para ver los movimientos de stock asociados"""
+        self.ensure_one()
+        
+        stock_moves = self.env['stock.move'].search([
+            ('requisition_line_id', '=', self.requisition_line_id.id),
+        ])
+        
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Movimientos de Inventario'),
+            'res_model': 'stock.move',
+            'domain': [('id', 'in', stock_moves.ids)],
+            'view_mode': 'tree,form',
+            'target': 'current',
+        }
