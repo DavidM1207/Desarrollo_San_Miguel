@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     
+    <!-- Vistas -->
     <record id="view_fill_rate_tree" model="ir.ui.view">
         <field name="name">fill.rate.tree</field>
         <field name="model">fill.rate.report</field>
@@ -35,17 +36,19 @@
         </field>
     </record>
 
+    <!-- Acción -->
     <record id="action_fill_rate" model="ir.actions.act_window">
         <field name="name">Fill Rate</field>
         <field name="res_model">fill.rate.report</field>
         <field name="view_mode">tree,form</field>
     </record>
 
+    <!-- Menú padre "Reportes" creado por tu módulo -->
     <menuitem id="menu_reports"
               name="Reportes"
-              parent="employee_purchase_requisition.menu_purchase_request_pro"
               sequence="100"/>
 
+    <!-- Menú hijo "Fill Rate" bajo "Reportes" -->
     <menuitem id="menu_fill_rate"
               name="Fill Rate"
               parent="menu_reports"
