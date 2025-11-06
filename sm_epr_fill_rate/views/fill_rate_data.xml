@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Función para generar Fill Rate de requisiciones existentes al instalar -->
+        <function model="employee.purchase.requisition" name="_generate_existing_fill_rate"/>
+    </data>
+</odoo>

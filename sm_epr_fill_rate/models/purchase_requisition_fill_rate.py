@@ -9,7 +9,7 @@ class PurchaseRequisitionFillRate(models.Model):
     _order = 'create_date desc, requisition_id, product_id'
 
     requisition_id = fields.Many2one(
-        'purchase.requisition',
+        'employee.purchase.requisition',
         string='Requisición',
         required=True,
         ondelete='cascade',
@@ -67,36 +67,41 @@ class PurchaseRequisitionFillRate(models.Model):
          'Ya existe un registro para este producto en esta requisición.')
     ]
 
-    @api.depends('requisition_id', 'product_id', 'requisition_id.purchase_ids.order_line.move_ids.state')
+    @api.depends('requisition_id', 'product_id')
     def _compute_cantidad_entregada(self):
         """Calcula la cantidad entregada basada en los movimientos validados"""
         for record in self:
             cantidad = 0.0
             if record.requisition_id and record.product_id:
                 # Obtener todas las órdenes de compra relacionadas con la requisición
-                purchase_orders = record.requisition_id.purchase_ids
+                purchase_orders = False
+                if hasattr(record.requisition_id, 'purchase_ids'):
+                    purchase_orders = record.requisition_id.purchase_ids
+                elif hasattr(record.requisition_id, 'order_ids'):
+                    purchase_orders = record.requisition_id.order_ids
                 
-                for po in purchase_orders:
-                    # Buscar las líneas de la orden de compra con el producto
-                    po_lines = po.order_line.filtered(
-                        lambda l: l.product_id == record.product_id
-                    )
-                    
-                    for line in po_lines:
-                        # Obtener los movimientos de stock validados (done)
-                        moves = line.move_ids.filtered(
-                            lambda m: m.state == 'done' and m.product_id == record.product_id
+                if purchase_orders:
+                    for po in purchase_orders:
+                        # Buscar las líneas de la orden de compra con el producto
+                        po_lines = po.order_line.filtered(
+                            lambda l: l.product_id == record.product_id
                         )
                         
-                        for move in moves:
-                            # Sumar la cantidad del movimiento convertida a la UdM del producto
-                            if move.product_uom != record.uom_id:
-                                cantidad += move.product_uom._compute_quantity(
-                                    move.product_uom_qty,
-                                    record.uom_id
-                                )
-                            else:
-                                cantidad += move.product_uom_qty
+                        for line in po_lines:
+                            # Obtener los movimientos de stock validados (done)
+                            moves = line.move_ids.filtered(
+                                lambda m: m.state == 'done' and m.product_id == record.product_id
+                            )
+                            
+                            for move in moves:
+                                # Sumar la cantidad del movimiento convertida a la UdM del producto
+                                if move.product_uom != record.uom_id:
+                                    cantidad += move.product_uom._compute_quantity(
+                                        move.product_uom_qty,
+                                        record.uom_id
+                                    )
+                                else:
+                                    cantidad += move.product_uom_qty
             
             record.cantidad_entregada = cantidad
 

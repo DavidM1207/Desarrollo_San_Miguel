@@ -143,22 +143,16 @@
         </field>
     </record>
 
-    <!-- Menú Principal: Requisiciones (nivel raíz) -->
-    <menuitem id="menu_purchase_requisition_root"
-              name="Requisiciones"
-              web_icon="purchase_requisition,static/description/icon.png"
-              sequence="25"/>
-    
-    <!-- Menú: Reportes -->
-    <menuitem id="menu_purchase_requisition_reports"
+    <!-- Menú: Reportes (dentro del módulo employee.purchase.requisition) -->
+    <menuitem id="menu_employee_purchase_requisition_reports"
               name="Reportes"
-              parent="menu_purchase_requisition_root"
+              parent="employee_purchase_requisition.menu_purchase_request_pro"
               sequence="100"/>
 
     <!-- Menú: Fill Rate -->
     <menuitem id="menu_purchase_requisition_fill_rate"
               name="Fill Rate"
-              parent="menu_purchase_requisition_reports"
+              parent="menu_employee_purchase_requisition_reports"
               action="action_purchase_requisition_fill_rate"
               sequence="10"/>
 

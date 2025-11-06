@@ -11,7 +11,7 @@ class StockMove(models.Model):
         res = super(StockMove, self)._action_done(cancel_backorder=cancel_backorder)
         
         # Recopilar las requisiciones afectadas
-        requisitions_to_update = self.env['purchase.requisition']
+        requisitions_to_update = self.env['employee.purchase.requisition']
         
         for move in self:
             # Verificar si el movimiento está relacionado con una orden de compra
@@ -19,7 +19,7 @@ class StockMove(models.Model):
                 purchase_order = move.purchase_line_id.order_id
                 
                 # Verificar si la orden de compra está relacionada con una requisición
-                if purchase_order.requisition_id:
+                if hasattr(purchase_order, 'requisition_id') and purchase_order.requisition_id:
                     requisitions_to_update |= purchase_order.requisition_id
         
         # Actualizar los registros de fill rate para las requisiciones afectadas
@@ -40,12 +40,12 @@ class StockMove(models.Model):
     def _action_cancel(self):
         """Override _action_cancel para actualizar fill rate cuando se cancelan movimientos"""
         # Recopilar las requisiciones afectadas antes de cancelar
-        requisitions_to_update = self.env['purchase.requisition']
+        requisitions_to_update = self.env['employee.purchase.requisition']
         
         for move in self:
             if move.purchase_line_id and move.purchase_line_id.order_id:
                 purchase_order = move.purchase_line_id.order_id
-                if purchase_order.requisition_id:
+                if hasattr(purchase_order, 'requisition_id') and purchase_order.requisition_id:
                     requisitions_to_update |= purchase_order.requisition_id
         
         res = super(StockMove, self)._action_cancel()

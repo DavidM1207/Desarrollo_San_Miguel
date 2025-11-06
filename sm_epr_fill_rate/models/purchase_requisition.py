@@ -3,8 +3,35 @@
 from odoo import models, api
 
 
-class PurchaseRequisition(models.Model):
-    _inherit = 'purchase.requisition'
+class EmployeePurchaseRequisition(models.Model):
+    _inherit = 'employee.purchase.requisition'
+
+    @api.model
+    def _generate_existing_fill_rate(self):
+        """Genera registros de Fill Rate para todas las requisiciones existentes"""
+        requisitions = self.search([])
+        for requisition in requisitions:
+            try:
+                requisition._create_fill_rate_records()
+            except Exception:
+                # Si falla, continuar con la siguiente
+                continue
+        return True
+
+    def action_generate_fill_rate(self):
+        """Acción manual para generar/regenerar registros de fill rate"""
+        for requisition in self:
+            requisition._create_fill_rate_records()
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Fill Rate',
+                'message': 'Registros de Fill Rate generados correctamente',
+                'type': 'success',
+                'sticky': False,
+            }
+        }
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -83,8 +110,8 @@ class PurchaseRequisition(models.Model):
                 record.unlink()
 
 
-class PurchaseRequisitionLine(models.Model):
-    _inherit = 'purchase.requisition.line'
+class EmployeePurchaseRequisitionLine(models.Model):
+    _inherit = 'employee.purchase.requisition.line'
 
     @api.model_create_multi
     def create(self, vals_list):
