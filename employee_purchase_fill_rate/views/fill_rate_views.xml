@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- Vista tipo lista (árbol) para el reporte de Fill Rate -->
+    <record id="view_fill_rate_tree" model="ir.ui.view">
+        <field name="name">purchase.order.fill.rate.tree</field>
+        <field name="model">purchase.order</field> <!-- AJUSTA si tus líneas usan otro modelo -->
+        <field name="arch" type="xml">
+            <tree string="Reporte Fill Rate" create="0" edit="0">
+                <!-- 1. Fecha creación (de la cabecera de requisición) -->
+                <field name="requisition_create_date" string="Fecha creación"/>
+
+                <!-- 2. Número de requisición -->
+                <field name="requisition_name" string="Número Requisición"/>
+
+                <!-- 3. Producto -->
+                <field name="product_id" string="Producto"/>
+
+                <!-- 4. Demanda -->
+                <field name="demanda" string="Demanda"/>
+
+                <!-- 5. Cantidad Original (Uds. solicitadas) -->
+                <field name="qty_original" string="Cantidad Original (Uds. solicitadas)"/>
+
+                <!-- 6. Cantidad Demanda (Uds. entregadas) -->
+                <field name="qty_delivered" string="Cantidad Demanda (Uds. entregadas)"/>
+
+                <!-- UdM opcional -->
+                <field name="product_uom_id" string="UdM"/>
+
+                <!-- 7. Fill Rate -->
+                <field name="fill_rate" string="Fill Rate (%)"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Acción de ventana para abrir el reporte -->
+    <record id="action_fill_rate_report" model="ir.actions.act_window">
+        <field name="name">Fill Rate</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">purchase.order</field> <!-- AJUSTA si usas otro modelo -->
+        <field name="view_mode">tree</field>
+        <field name="view_id" ref="view_fill_rate_tree"/>
+        <!--
+            Dominio básico: solo líneas vinculadas a una requisición.
+            Si tu campo Many2one se llama distinto a 'requisition_id', ajústalo.
+        -->
+        <field name="domain">[('requisition_id', '!=', False)]</field>
+        <field name="context">{}</field>
+    </record>
+
+    <!--
+        Menú "Reportes" dentro del módulo de employee_purchase_requisition.
+        OJO: necesitas el XML ID del menú raíz de tu módulo de requisiciones.
+        EJEMPLO: employee_purchase_requisition.menu_employee_purchase_root
+        Cámbialo en 'parent'.
+    -->
+    <menuitem
+        id="menu_employee_purchase_reports"
+        name="Reportes"
+        parent="employee_purchase_requisition.menu_employee_purchase_root"   
+        sequence="50"
+    />
+
+    <!-- Submenú "Fill Rate" que abre la acción -->
+    <menuitem
+        id="menu_fill_rate_report"
+        name="Fill Rate"
+        parent="menu_employee_purchase_reports"
+        action="action_fill_rate_report"
+        sequence="10"
+    />
+
+</odoo>
