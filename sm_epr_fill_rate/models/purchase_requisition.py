@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 from odoo import models, api
 
 
@@ -10,14 +9,20 @@ class EmployeePurchaseRequisition(models.Model):
     def create(self, vals_list):
         requisitions = super(EmployeePurchaseRequisition, self).create(vals_list)
         for requisition in requisitions:
-            requisition._create_fill_rate_records()
+            try:
+                requisition._create_fill_rate_records()
+            except:
+                pass
         return requisitions
 
     def write(self, vals):
         res = super(EmployeePurchaseRequisition, self).write(vals)
         if 'line_ids' in vals:
             for requisition in self:
-                requisition._update_fill_rate_records()
+                try:
+                    requisition._update_fill_rate_records()
+                except:
+                    pass
         return res
 
     def _create_fill_rate_records(self):
@@ -78,7 +83,10 @@ class EmployeePurchaseRequisitionLine(models.Model):
         lines = super(EmployeePurchaseRequisitionLine, self).create(vals_list)
         requisitions = lines.mapped('requisition_id')
         for requisition in requisitions:
-            requisition._update_fill_rate_records()
+            try:
+                requisition._update_fill_rate_records()
+            except:
+                pass
         return lines
 
     def write(self, vals):
@@ -86,12 +94,18 @@ class EmployeePurchaseRequisitionLine(models.Model):
         res = super(EmployeePurchaseRequisitionLine, self).write(vals)
         if 'product_qty' in vals or 'product_id' in vals:
             for requisition in requisitions:
-                requisition._update_fill_rate_records()
+                try:
+                    requisition._update_fill_rate_records()
+                except:
+                    pass
         return res
 
     def unlink(self):
         requisitions = self.mapped('requisition_id')
         res = super(EmployeePurchaseRequisitionLine, self).unlink()
         for requisition in requisitions:
-            requisition._update_fill_rate_records()
+            try:
+                requisition._update_fill_rate_records()
+            except:
+                pass
         return res

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-
 from odoo import models, fields, api
+from odoo.exceptions import ValidationError
 
 
 class PurchaseRequisitionFillRate(models.Model):
@@ -61,15 +61,19 @@ class PurchaseRequisitionFillRate(models.Model):
         store=True
     )
 
-    _sql_constraints = [
-        ('unique_requisition_product',
-         'UNIQUE(requisition_id, product_id)',
-         'Ya existe un registro para este producto en esta requisición.')
-    ]
+    @api.constrains('requisition_id', 'product_id')
+    def _check_unique_requisition_product(self):
+        for record in self:
+            existing = self.search([
+                ('requisition_id', '=', record.requisition_id.id),
+                ('product_id', '=', record.product_id.id),
+                ('id', '!=', record.id)
+            ])
+            if existing:
+                raise ValidationError('Ya existe un registro para este producto en esta requisición.')
 
     @api.depends('requisition_id', 'product_id')
     def _compute_cantidad_entregada(self):
-        """Calcula la cantidad entregada basada en los movimientos validados"""
         for record in self:
             cantidad = 0.0
             if record.requisition_id and record.product_id:
@@ -103,7 +107,6 @@ class PurchaseRequisitionFillRate(models.Model):
 
     @api.depends('demanda', 'cantidad_entregada')
     def _compute_fill_rate(self):
-        """Calcula el Fill Rate como (Cantidad Entregada / Demanda) * 100"""
         for record in self:
             if record.demanda > 0:
                 record.fill_rate = (record.cantidad_entregada / record.demanda) * 100
