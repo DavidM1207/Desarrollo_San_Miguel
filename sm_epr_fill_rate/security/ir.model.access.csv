@@ -1,3 +1,0 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fill_rate_report_user,access.fill.rate.report.user,model_employee_purchase_requisition_fill_rate_report,base.group_user,1,0,0,0
-access_fill_rate_report_manager,access.fill.rate.report.manager,model_employee_purchase_requisition_fill_rate_report,base.group_system,1,1,1,1
