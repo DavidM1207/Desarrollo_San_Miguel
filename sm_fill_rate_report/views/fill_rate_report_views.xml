@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Vista Tree del Reporte Fill Rate -->
     <record id="view_fill_rate_report_tree" model="ir.ui.view">
         <field name="name">fill.rate.report.tree</field>
         <field name="model">fill.rate.report</field>
@@ -9,37 +8,11 @@
                 <field name="create_date" string="Fecha de Creación"/>
                 <field name="requisition_name" string="Nombre de Requisición"/>
                 <field name="product_id" string="Producto"/>
-                <field name="fill_rate" string="% Fill Rate" widget="percentage" avg="Promedio Fill Rate"/>
+                <field name="fill_rate" string="% Fill Rate" widget="percentage"/>
             </tree>
         </field>
     </record>
 
-    <!-- Vista Form (para visualización detallada) -->
-    <record id="view_fill_rate_report_form" model="ir.ui.view">
-        <field name="name">fill.rate.report.form</field>
-        <field name="model">fill.rate.report</field>
-        <field name="arch" type="xml">
-            <form string="Detalle Fill Rate" create="false" edit="false" delete="false">
-                <sheet>
-                    <group>
-                        <group>
-                            <field name="create_date"/>
-                            <field name="requisition_name"/>
-                            <field name="requisition_id"/>
-                        </group>
-                        <group>
-                            <field name="product_id"/>
-                            <field name="cantidad_demandada"/>
-                            <field name="cantidad_recepcionada"/>
-                            <field name="fill_rate" widget="percentage"/>
-                        </group>
-                    </group>
-                </sheet>
-            </form>
-        </field>
-    </record>
-
-    <!-- Vista Search con filtros -->
     <record id="view_fill_rate_report_search" model="ir.ui.view">
         <field name="name">fill.rate.report.search</field>
         <field name="model">fill.rate.report</field>
@@ -47,97 +20,26 @@
             <search string="Buscar Fill Rate">
                 <field name="requisition_name"/>
                 <field name="product_id"/>
-                <field name="requisition_id"/>
-                <separator/>
-                <filter string="Fill Rate Bajo (&lt;80%)" name="low_fill_rate" 
-                    domain="[('fill_rate', '&lt;', 80)]"/>
-                <filter string="Fill Rate Medio (80-95%)" name="medium_fill_rate" 
-                    domain="[('fill_rate', '&gt;=', 80), ('fill_rate', '&lt;', 95)]"/>
-                <filter string="Fill Rate Alto (≥95%)" name="high_fill_rate" 
-                    domain="[('fill_rate', '&gt;=', 95)]"/>
-                <separator/>
-                <filter string="Última Semana" name="last_week" 
-                    domain="[('create_date', '&gt;=', (context_today() - relativedelta(weeks=1)).strftime('%Y-%m-%d'))]"/>
-                <filter string="Último Mes" name="last_month" 
-                    domain="[('create_date', '&gt;=', (context_today() - relativedelta(months=1)).strftime('%Y-%m-%d'))]"/>
-                <filter string="Último Trimestre" name="last_quarter" 
-                    domain="[('create_date', '&gt;=', (context_today() - relativedelta(months=3)).strftime('%Y-%m-%d'))]"/>
-                <filter string="Este Año" name="this_year" 
-                    domain="[('create_date', '&gt;=', time.strftime('%Y-01-01'))]"/>
-                <separator/>
                 <group expand="0" string="Agrupar Por">
                     <filter string="Producto" name="group_product" context="{'group_by': 'product_id'}"/>
                     <filter string="Requisición" name="group_requisition" context="{'group_by': 'requisition_name'}"/>
-                    <filter string="Fecha (Mes)" name="group_date_month" context="{'group_by': 'create_date:month'}"/>
-                    <filter string="Fecha (Semana)" name="group_date_week" context="{'group_by': 'create_date:week'}"/>
                 </group>
             </search>
         </field>
     </record>
 
-    <!-- Vista Graph -->
-    <record id="view_fill_rate_report_graph" model="ir.ui.view">
-        <field name="name">fill.rate.report.graph</field>
-        <field name="model">fill.rate.report</field>
-        <field name="arch" type="xml">
-            <graph string="Gráfico Fill Rate" type="bar">
-                <field name="product_id"/>
-                <field name="fill_rate" type="measure"/>
-            </graph>
-        </field>
-    </record>
-
-    <!-- Vista Pivot -->
-    <record id="view_fill_rate_report_pivot" model="ir.ui.view">
-        <field name="name">fill.rate.report.pivot</field>
-        <field name="model">fill.rate.report</field>
-        <field name="arch" type="xml">
-            <pivot string="Análisis Fill Rate">
-                <field name="requisition_name" type="row"/>
-                <field name="product_id" type="row"/>
-                <field name="fill_rate" type="measure"/>
-                <field name="cantidad_demandada" type="measure"/>
-                <field name="cantidad_recepcionada" type="measure"/>
-            </pivot>
-        </field>
-    </record>
-
-    <!-- Acción para refrescar el reporte -->
-    <record id="action_refresh_fill_rate_report" model="ir.actions.server">
-        <field name="name">Actualizar Reporte</field>
-        <field name="model_id" ref="model_fill_rate_report"/>
-        <field name="binding_model_id" ref="model_fill_rate_report"/>
-        <field name="state">code</field>
-        <field name="code">
-action = model.action_refresh_report()
-        </field>
-    </record>
-
-    <!-- Acción del Reporte -->
     <record id="action_fill_rate_report" model="ir.actions.act_window">
         <field name="name">Fill Rate</field>
         <field name="res_model">fill.rate.report</field>
-        <field name="view_mode">tree,graph,pivot,form</field>
+        <field name="view_mode">tree</field>
         <field name="search_view_id" ref="view_fill_rate_report_search"/>
-        <field name="context">{'search_default_this_year': 1}</field>
-        <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">
-                No hay datos de Fill Rate disponibles
-            </p>
-            <p>
-                El reporte de Fill Rate muestra la comparación entre la cantidad demandada 
-                y la cantidad recepcionada de productos en las requisiciones de compra.
-            </p>
-        </field>
     </record>
 
-    <!-- Menú Principal: Reportes -->
     <menuitem id="menu_employee_purchase_reports"
         name="Reportes"
         parent="employee_purchase_requisition.employee_purchase_requisition_menu_root"
         sequence="100"/>
 
-    <!-- Submenú: Fill Rate -->
     <menuitem id="menu_fill_rate_report"
         name="Fill Rate"
         parent="menu_employee_purchase_reports"
