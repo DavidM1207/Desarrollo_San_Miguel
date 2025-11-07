@@ -25,30 +25,30 @@ class FillRate(models.Model):
         requisitions = self.env['employee.purchase.requisition'].search([])
         
         for requisition in requisitions:
-            # Buscar picking ORIGEN (internal -> transit) en estado 'done'
-            origin_picking = self.env['stock.picking'].search([
+            # Buscar TODOS los pickings ORIGEN (internal -> transit) en estado 'done'
+            origin_pickings = self.env['stock.picking'].search([
                 ('requisition_order', '=', requisition.name),
                 ('location_id.usage', '=', 'internal'),
                 ('location_dest_id.usage', '=', 'transit'),
                 ('state', '=', 'done')
-            ], limit=1)
+            ])
             
-            # Buscar picking DESTINO (transit -> internal) en estado 'done'
-            dest_picking = self.env['stock.picking'].search([
+            # Buscar TODOS los pickings DESTINO (transit -> internal) en estado 'done'
+            dest_pickings = self.env['stock.picking'].search([
                 ('requisition_order', '=', requisition.name),
                 ('location_id.usage', '=', 'transit'),
                 ('location_dest_id.usage', '=', 'internal'),
                 ('state', '=', 'done')
-            ], limit=1)
+            ])
             
-            if not origin_picking or not dest_picking:
+            if not origin_pickings or not dest_pickings:
                 continue
             
-            # Obtener movimientos de ambos pickings
-            origin_moves = origin_picking.move_ids_without_package
-            dest_moves = dest_picking.move_ids_without_package
+            # Obtener todos los movimientos de origen y destino
+            origin_moves = origin_pickings.mapped('move_ids_without_package')
+            dest_moves = dest_pickings.mapped('move_ids_without_package')
             
-            # Obtener productos únicos
+            # Obtener productos únicos del origen
             products = origin_moves.mapped('product_id')
             
             for product in products:
@@ -57,16 +57,18 @@ class FillRate(models.Model):
                 # Movimientos de este producto en destino
                 dest_product_moves = dest_moves.filtered(lambda m: m.product_id.id == product.id)
                 
-                # DEMANDA = quantity del origen (lo que salió)
+                # DEMANDA = suma de quantity del origen (lo que salió)
                 total_demand = sum(origin_product_moves.mapped('quantity'))
                 
-                # RECIBIDO = quantity del destino (lo que llegó)
+                # RECIBIDO = suma de quantity del destino (lo que llegó)
                 total_received = sum(dest_product_moves.mapped('quantity'))
                 
+                # Solo crear registro si hay demanda
+                if total_demand <= 0:
+                    continue
+                
                 # Calcular fill rate
-                fill_rate = 0.0
-                if total_demand > 0:
-                    fill_rate = (total_received / total_demand) * 100
+                fill_rate = (total_received / total_demand) * 100
                 
                 # Crear registro
                 self.create({
