@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="fill_rate_tree_view" model="ir.ui.view">
+        <field name="name">fill.rate.tree</field>
+        <field name="model">fill.rate</field>
+        <field name="arch" type="xml">
+            <tree>
+            </tree>
+        </field>
+    </record>
+
+    <record id="fill_rate_action" model="ir.actions.act_window">
+        <field name="name">Fill Rate</field>
+        <field name="res_model">fill.rate</field>
+        <field name="view_mode">tree</field>
+    </record>
+
+    <menuitem id="menu_requisition_reportes"
+        name="Reportes"
+        parent="purchase_requisition.menu_purchase_requisition_pro_mgt"
+        sequence="10"/>
+
+    <menuitem id="menu_fill_rate"
+        name="Fill Rate"
+        parent="menu_requisition_reportes"
+        action="fill_rate_action"
+        sequence="10"/>
+</odoo>
