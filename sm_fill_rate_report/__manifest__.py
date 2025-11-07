@@ -1,6 +1,6 @@
 {
     'name': 'Fill Rate Report',
-    'version': '17.0.1.0.1',
+    'version': '17.0.1.0.0',
     'category': 'Inventory',
     'depends': ['employee_purchase_requisition'],
     'data': [
