@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api
-import logging
-
-_logger = logging.getLogger(__name__)
 
 class FillRateReport(models.Model):
     _name = 'fill.rate.report'
@@ -19,52 +16,30 @@ class FillRateReport(models.Model):
     fill_rate = fields.Float(string='% Fill Rate', readonly=True)
     stock_move_id = fields.Many2one('stock.move', string='Movimiento', readonly=True, ondelete='cascade')
 
+    def init(self):
+        """Se ejecuta al instalar/actualizar el módulo"""
+        self._generate_report_data()
+
     @api.model
     def _generate_report_data(self):
         """Genera los datos del reporte desde employee_purchase_requisition y stock.move"""
-        _logger.info("========== Iniciando generación de reporte Fill Rate ==========")
         
-        # Limpiar registros existentes
-        old_records = self.search([])
-        old_records.unlink()
-        _logger.info(f"Eliminados {len(old_records)} registros antiguos")
-        
-        # Buscar todas las requisiciones
         requisitions = self.env['employee.purchase.requisition'].search([])
-        _logger.info(f"Total requisiciones encontradas: {len(requisitions)}")
-        
-        records_created = 0
         
         for requisition in requisitions:
             if not requisition.name:
                 continue
             
-            _logger.info(f"\n--- Procesando Requisición: {requisition.name} (ID: {requisition.id}) ---")
-            
-            # Buscar pickings donde requisition_order = nombre de la requisición
             pickings = self.env['stock.picking'].search([
                 ('requisition_order', '=', requisition.name)
             ])
             
-            _logger.info(f"Pickings encontrados: {len(pickings)}")
-            
-            if not pickings:
-                _logger.warning(f"No se encontraron pickings para {requisition.name}")
-                continue
-            
-            # Procesar cada picking
             for picking in pickings:
-                _logger.info(f"  Picking: {picking.name}")
-                
-                # Buscar movimientos en estado done de este picking
                 moves = self.env['stock.move'].search([
                     ('picking_id', '=', picking.id),
                     ('state', '=', 'done')
                 ])
                 
-                _logger.info(f"    Movimientos done: {len(moves)}")
-                
-                # Crear registro por cada movimiento
                 for move in moves:
                     if not move.product_id:
                         continue
@@ -77,7 +52,11 @@ class FillRateReport(models.Model):
                     else:
                         fill_rate = 0.0
                     
-                    try:
+                    existing = self.search([
+                        ('stock_move_id', '=', move.id)
+                    ], limit=1)
+                    
+                    if not existing:
                         self.create({
                             'create_date': requisition.create_date,
                             'requisition_id': requisition.id,
@@ -88,17 +67,14 @@ class FillRateReport(models.Model):
                             'fill_rate': fill_rate,
                             'stock_move_id': move.id,
                         })
-                        records_created += 1
-                        _logger.info(f"      ✓ {move.product_id.display_name}: Demandada={cantidad_demandada}, Recepcionada={cantidad_recepcionada}, Fill Rate={fill_rate:.2f}%")
-                    except Exception as e:
-                        _logger.error(f"      ✗ Error: {str(e)}")
         
-        _logger.info(f"\n========== Generación completada. Registros creados: {records_created} ==========")
         return True
 
     @api.model
     def action_refresh_report(self):
         """Acción para refrescar el reporte"""
+        all_records = self.search([])
+        all_records.unlink()
         self._generate_report_data()
         return {
             'type': 'ir.actions.client',
