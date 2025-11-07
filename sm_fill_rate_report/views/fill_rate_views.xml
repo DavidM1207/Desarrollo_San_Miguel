@@ -17,7 +17,7 @@
 
     <menuitem id="menu_requisition_reportes"
         name="Reportes"
-        parent="purchase_requisition.menu_purchase_requisition_pro_mgt"
+        parent="employee_purchase_requisition.menu_employee_purchase_requisition"
         sequence="10"/>
 
     <menuitem id="menu_fill_rate"

@@ -1,8 +1,8 @@
 {
     'name': 'Fill Rate Report',
-    'version': '17.0.1.0.0',
+    'version': '17.0.1.0.1',
     'category': 'Inventory',
-    'depends': ['purchase_requisition'],
+    'depends': ['employee_purchase_requisition'],
     'data': [
         'security/ir.model.access.csv',
         'views/fill_rate_views.xml',
