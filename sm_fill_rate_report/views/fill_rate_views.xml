@@ -4,10 +4,12 @@
         <field name="name">fill.rate.tree</field>
         <field name="model">fill.rate</field>
         <field name="arch" type="xml">
-            <tree create="false">
+            <tree create="false" edit="false" delete="false">
                 <field name="create_date"/>
                 <field name="requisition_name"/>
                 <field name="product_id"/>
+                <field name="demand_qty"/>
+                <field name="received_qty"/>
                 <field name="fill_rate_percentage"/>
             </tree>
         </field>
