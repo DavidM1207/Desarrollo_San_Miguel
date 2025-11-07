@@ -19,51 +19,57 @@ class FillRate(models.Model):
 
     @api.model
     def generate_fill_rate_data(self):
-        """Genera los datos del fill rate desde las requisiciones"""
+        """Genera los datos del fill rate desde stock.move"""
         self.search([]).unlink()
         
-        requisitions = self.env['employee.purchase.requisition'].search([])
+        # Buscar todos los movimientos con requisition_order y estado done
+        all_moves = self.env['stock.move'].search([
+            ('requisition_order', '!=', False),
+            ('state', '=', 'done')
+        ])
         
-        for requisition in requisitions:
-            # Buscar TODOS los pickings ORIGEN (internal -> transit) en estado 'done'
-            origin_pickings = self.env['stock.picking'].search([
-                ('requisition_order', '=', requisition.name),
-                ('location_id.usage', '=', 'internal'),
-                ('location_dest_id.usage', '=', 'transit'),
-                ('state', '=', 'done')
-            ])
+        # Agrupar por requisition_order
+        requisition_names = list(set(all_moves.mapped('requisition_order')))
+        
+        for req_name in requisition_names:
+            # Buscar la requisición para obtener create_date
+            requisition = self.env['employee.purchase.requisition'].search([
+                ('name', '=', req_name)
+            ], limit=1)
             
-            # Buscar TODOS los pickings DESTINO (transit -> internal) en estado 'done'
-            dest_pickings = self.env['stock.picking'].search([
-                ('requisition_order', '=', requisition.name),
-                ('location_id.usage', '=', 'transit'),
-                ('location_dest_id.usage', '=', 'internal'),
-                ('state', '=', 'done')
-            ])
-            
-            if not origin_pickings or not dest_pickings:
+            if not requisition:
                 continue
             
-            # Obtener todos los movimientos de origen y destino
-            origin_moves = origin_pickings.mapped('move_ids_without_package')
-            dest_moves = dest_pickings.mapped('move_ids_without_package')
+            # Filtrar movimientos de esta requisición
+            req_moves = all_moves.filtered(lambda m: m.requisition_order == req_name)
             
-            # Obtener productos únicos del origen
+            # Separar movimientos ORIGEN (internal -> transit)
+            origin_moves = req_moves.filtered(
+                lambda m: m.usage_origin == 'internal' and m.usage_dest == 'transit'
+            )
+            
+            # Separar movimientos DESTINO (transit -> internal)
+            dest_moves = req_moves.filtered(
+                lambda m: m.usage_origin == 'transit' and m.usage_dest == 'internal'
+            )
+            
+            if not origin_moves or not dest_moves:
+                continue
+            
+            # Obtener productos únicos
             products = origin_moves.mapped('product_id')
             
             for product in products:
-                # Movimientos de este producto en origen
-                origin_product_moves = origin_moves.filtered(lambda m: m.product_id.id == product.id)
-                # Movimientos de este producto en destino
-                dest_product_moves = dest_moves.filtered(lambda m: m.product_id.id == product.id)
+                # Movimientos de este producto
+                origin_product = origin_moves.filtered(lambda m: m.product_id.id == product.id)
+                dest_product = dest_moves.filtered(lambda m: m.product_id.id == product.id)
                 
-                # DEMANDA = suma de quantity del origen (lo que salió)
-                total_demand = sum(origin_product_moves.mapped('quantity'))
+                # DEMANDA = suma de quantity del origen
+                total_demand = sum(origin_product.mapped('quantity'))
                 
-                # RECIBIDO = suma de quantity del destino (lo que llegó)
-                total_received = sum(dest_product_moves.mapped('quantity'))
+                # RECIBIDO = suma de quantity del destino
+                total_received = sum(dest_product.mapped('quantity'))
                 
-                # Solo crear registro si hay demanda
                 if total_demand <= 0:
                     continue
                 
@@ -73,7 +79,7 @@ class FillRate(models.Model):
                 # Crear registro
                 self.create({
                     'create_date': requisition.create_date,
-                    'requisition_name': requisition.name,
+                    'requisition_name': req_name,
                     'product_id': product.id,
                     'fill_rate_percentage': fill_rate,
                 })
