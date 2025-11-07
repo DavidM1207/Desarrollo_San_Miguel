@@ -22,7 +22,7 @@ class FillRateReport(models.Model):
     @api.model
     def _generate_report_data(self):
         """Genera los datos del reporte desde employee_purchase_requisition y stock.move"""
-        _logger.info("Iniciando generación de reporte Fill Rate...")
+        _logger.info("========== Iniciando generación de reporte Fill Rate ==========")
         
         # Limpiar registros existentes
         old_records = self.search([])
@@ -31,50 +31,42 @@ class FillRateReport(models.Model):
         
         # Buscar todas las requisiciones
         requisitions = self.env['employee.purchase.requisition'].search([])
-        _logger.info(f"Encontradas {len(requisitions)} requisiciones")
+        _logger.info(f"Total requisiciones encontradas: {len(requisitions)}")
         
         records_created = 0
         
         for requisition in requisitions:
-            # Verificar que la requisición tenga nombre
             if not requisition.name:
-                _logger.warning(f"Requisición ID {requisition.id} sin nombre, omitiendo...")
                 continue
             
-            _logger.info(f"Procesando requisición: {requisition.name}")
+            _logger.info(f"\n--- Procesando Requisición: {requisition.name} (ID: {requisition.id}) ---")
             
-            # Buscar pickings relacionados con esta requisición por el campo requisition_order
+            # Buscar pickings donde requisition_order = nombre de la requisición
             pickings = self.env['stock.picking'].search([
                 ('requisition_order', '=', requisition.name)
             ])
             
-            _logger.info(f"  Pickings encontrados para {requisition.name}: {len(pickings)}")
+            _logger.info(f"Pickings encontrados: {len(pickings)}")
             
-            # Si no hay pickings por name, intentar por ID
             if not pickings:
-                pickings = self.env['stock.picking'].search([
-                    ('requisition_order', '=', str(requisition.id))
-                ])
-                _logger.info(f"  Pickings por ID para {requisition.name}: {len(pickings)}")
+                _logger.warning(f"No se encontraron pickings para {requisition.name}")
+                continue
             
-            # Si tiene relación directa con pickings internos
-            if hasattr(requisition, 'internal_in_picking_id') and requisition.internal_in_picking_id:
-                pickings |= requisition.internal_in_picking_id
-                _logger.info(f"  Agregado internal_in_picking_id")
-            
-            if hasattr(requisition, 'internal_picking_id') and requisition.internal_picking_id:
-                pickings |= requisition.internal_picking_id
-                _logger.info(f"  Agregado internal_picking_id")
-            
-            # Obtener todos los movimientos de los pickings encontrados
+            # Procesar cada picking
             for picking in pickings:
-                moves = picking.move_ids.filtered(lambda m: m.state == 'done')
-                _logger.info(f"    Picking {picking.name}: {len(moves)} movimientos done")
+                _logger.info(f"  Picking: {picking.name}")
                 
+                # Buscar movimientos en estado done de este picking
+                moves = self.env['stock.move'].search([
+                    ('picking_id', '=', picking.id),
+                    ('state', '=', 'done')
+                ])
+                
+                _logger.info(f"    Movimientos done: {len(moves)}")
+                
+                # Crear registro por cada movimiento
                 for move in moves:
-                    # Validar que el movimiento y producto existen
-                    if not move.exists() or not move.product_id.exists():
-                        _logger.warning(f"    Move {move.id} o su producto no existe, omitiendo...")
+                    if not move.product_id:
                         continue
                     
                     cantidad_demandada = move.product_uom_qty or 0.0
@@ -97,11 +89,11 @@ class FillRateReport(models.Model):
                             'stock_move_id': move.id,
                         })
                         records_created += 1
-                        _logger.info(f"    ✓ Creado: {requisition.name} - {move.product_id.name} - Fill Rate: {fill_rate:.2f}%")
+                        _logger.info(f"      ✓ {move.product_id.display_name}: Demandada={cantidad_demandada}, Recepcionada={cantidad_recepcionada}, Fill Rate={fill_rate:.2f}%")
                     except Exception as e:
-                        _logger.error(f"    ✗ Error creando registro para move {move.id}: {str(e)}")
+                        _logger.error(f"      ✗ Error: {str(e)}")
         
-        _logger.info(f"=== Generación completada. Total registros creados: {records_created} ===")
+        _logger.info(f"\n========== Generación completada. Registros creados: {records_created} ==========")
         return True
 
     @api.model
