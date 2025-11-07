@@ -16,7 +16,7 @@ class FillRate(models.Model):
         """Genera los datos del fill rate desde las requisiciones"""
         self.search([]).unlink()  # Limpiar datos anteriores
         
-        requisitions = self.env['employee_purchase_requisition'].search([])
+        requisitions = self.env['employee.purchase.requisition'].search([])
         
         for requisition in requisitions:
             # Obtener líneas de productos de la requisición
