@@ -25,28 +25,43 @@ class FillRate(models.Model):
         requisitions = self.env['employee.purchase.requisition'].search([])
         
         for requisition in requisitions:
-            # Buscar pickings con estado 'done' para esta requisición
-            done_pickings = self.env['stock.picking'].search([
+            # Buscar picking ORIGEN (internal -> transit) en estado 'done'
+            origin_picking = self.env['stock.picking'].search([
                 ('requisition_order', '=', requisition.name),
+                ('location_id.usage', '=', 'internal'),
+                ('location_dest_id.usage', '=', 'transit'),
                 ('state', '=', 'done')
-            ])
+            ], limit=1)
             
-            if not done_pickings:
+            # Buscar picking DESTINO (transit -> internal) en estado 'done'
+            dest_picking = self.env['stock.picking'].search([
+                ('requisition_order', '=', requisition.name),
+                ('location_id.usage', '=', 'transit'),
+                ('location_dest_id.usage', '=', 'internal'),
+                ('state', '=', 'done')
+            ], limit=1)
+            
+            if not origin_picking or not dest_picking:
                 continue
             
-            # Obtener todos los movimientos
-            all_moves = done_pickings.mapped('move_ids_without_package')
+            # Obtener movimientos de ambos pickings
+            origin_moves = origin_picking.move_ids_without_package
+            dest_moves = dest_picking.move_ids_without_package
             
-            # Agrupar por producto
-            products = all_moves.mapped('product_id')
+            # Obtener productos únicos
+            products = origin_moves.mapped('product_id')
             
             for product in products:
-                # Filtrar movimientos de este producto
-                product_moves = all_moves.filtered(lambda m: m.product_id.id == product.id)
+                # Movimientos de este producto en origen
+                origin_product_moves = origin_moves.filtered(lambda m: m.product_id.id == product.id)
+                # Movimientos de este producto en destino
+                dest_product_moves = dest_moves.filtered(lambda m: m.product_id.id == product.id)
                 
-                # Sumar cantidades
-                total_demand = sum(product_moves.mapped('product_uom_qty'))
-                total_received = sum(product_moves.mapped('quantity'))
+                # DEMANDA = quantity del origen (lo que salió)
+                total_demand = sum(origin_product_moves.mapped('quantity'))
+                
+                # RECIBIDO = quantity del destino (lo que llegó)
+                total_received = sum(dest_product_moves.mapped('quantity'))
                 
                 # Calcular fill rate
                 fill_rate = 0.0
