@@ -4,7 +4,7 @@
         <field name="name">fill.rate.tree</field>
         <field name="model">fill.rate</field>
         <field name="arch" type="xml">
-            <tree>
+            <tree create="false">
                 <field name="create_date"/>
                 <field name="requisition_name"/>
                 <field name="product_id"/>
