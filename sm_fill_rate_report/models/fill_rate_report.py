@@ -26,31 +26,50 @@ class FillRateReport(models.Model):
         requisitions = self.env['employee.purchase.requisition'].search([])
         
         for requisition in requisitions:
-            # Buscar movimientos de stock relacionados con la requisición
-            # Buscar por el campo origin o por referencia en picking_id
-            moves = self.env['stock.move'].search([
-                ('state', '=', 'done'),
-                '|', '|',
-                ('origin', '=', requisition.name),
-                ('picking_id.origin', '=', requisition.name),
-                ('reference', '=', requisition.name)
-            ])
+            moves_to_process = self.env['stock.move']
             
-            # Si la requisición tiene un campo que vincule directamente con picking
-            if hasattr(requisition, 'picking_ids'):
-                picking_moves = self.env['stock.move'].search([
-                    ('state', '=', 'done'),
-                    ('picking_id', 'in', requisition.picking_ids.ids)
-                ])
-                moves = moves | picking_moves
-            
-            # Si la requisición tiene un campo que vincule directamente con moves
+            # Método 1: Si la requisición tiene relación directa con stock.move
             if hasattr(requisition, 'move_ids'):
-                direct_moves = requisition.move_ids.filtered(lambda m: m.state == 'done')
-                moves = moves | direct_moves
+                moves_to_process = requisition.move_ids.filtered(lambda m: m.state == 'done')
             
-            # Crear un registro por cada movimiento
-            for move in moves:
+            # Método 2: Si la requisición tiene relación con stock.picking
+            if not moves_to_process and hasattr(requisition, 'picking_ids'):
+                for picking in requisition.picking_ids:
+                    moves_to_process |= picking.move_ids.filtered(lambda m: m.state == 'done')
+            
+            # Método 3: Buscar por origin en stock.picking
+            if not moves_to_process:
+                pickings = self.env['stock.picking'].search([
+                    ('origin', '=', requisition.name)
+                ])
+                for picking in pickings:
+                    moves_to_process |= picking.move_ids.filtered(lambda m: m.state == 'done')
+            
+            # Método 4: Buscar directamente por origin en stock.move
+            if not moves_to_process:
+                moves_to_process = self.env['stock.move'].search([
+                    ('origin', '=', requisition.name),
+                    ('state', '=', 'done')
+                ])
+            
+            # Método 5: Si la requisición tiene líneas con productos
+            if not moves_to_process and hasattr(requisition, 'line_ids'):
+                # Obtener los productos de las líneas de la requisición
+                products = requisition.line_ids.mapped('product_id')
+                
+                # Buscar movimientos de esos productos relacionados con la requisición
+                # por reference, origin o picking
+                moves_to_process = self.env['stock.move'].search([
+                    ('product_id', 'in', products.ids),
+                    ('state', '=', 'done'),
+                    '|', '|',
+                    ('origin', '=', requisition.name),
+                    ('reference', 'ilike', requisition.name),
+                    ('picking_id.origin', '=', requisition.name)
+                ])
+            
+            # Crear un registro por cada movimiento encontrado
+            for move in moves_to_process:
                 # Calcular fill rate
                 cantidad_demandada = move.product_uom_qty or 0
                 cantidad_recepcionada = move.quantity or 0
