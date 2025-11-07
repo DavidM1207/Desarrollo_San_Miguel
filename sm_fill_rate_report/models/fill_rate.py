@@ -12,6 +12,12 @@ class FillRate(models.Model):
     fill_rate_percentage = fields.Float(string='% Fill Rate', digits=(5, 2))
 
     @api.model
+    def search_read(self, domain=None, fields=None, offset=0, limit=None, order=None):
+        """Generar datos automáticamente al abrir la vista"""
+        self.generate_fill_rate_data()
+        return super().search_read(domain=domain, fields=fields, offset=offset, limit=limit, order=order)
+
+    @api.model
     def generate_fill_rate_data(self):
         """Genera los datos del fill rate desde las requisiciones"""
         self.search([]).unlink()  # Limpiar datos anteriores
@@ -20,7 +26,7 @@ class FillRate(models.Model):
         
         for requisition in requisitions:
             # Obtener líneas de productos de la requisición
-            requisition_lines = self.env['requistion_order'].search([
+            requisition_lines = self.env['requisition.order'].search([
                 ('requisition_id', '=', requisition.id)
             ])
             
