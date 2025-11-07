@@ -31,40 +31,32 @@ class FillRate(models.Model):
         for requisition in requisitions:
             _logger.info(f"Procesando requisición: {requisition.name}")
             
-            # Obtener líneas de productos de la requisición
-            requisition_lines = self.env['requisition.order'].search([
-                ('requisition_id', '=', requisition.id)
+            # Buscar pickings con el nombre de la requisición y estado 'done'
+            done_pickings = self.env['stock.picking'].search([
+                ('requisition_order', '=', requisition.name),
+                ('state', '=', 'done')
             ])
-            _logger.info(f"Líneas encontradas para {requisition.name}: {len(requisition_lines)}")
+            _logger.info(f"Pickings en estado done para {requisition.name}: {len(done_pickings)}")
             
-            for line in requisition_lines:
-                _logger.info(f"Procesando producto: {line.product_id.name}")
+            if not done_pickings:
+                continue
+            
+            # Obtener todos los movimientos de estos pickings
+            all_moves = done_pickings.mapped('move_ids')
+            _logger.info(f"Total movimientos encontrados: {len(all_moves)}")
+            
+            # Agrupar por producto
+            products = all_moves.mapped('product_id')
+            _logger.info(f"Productos únicos: {len(products)}")
+            
+            for product in products:
+                # Filtrar movimientos de este producto
+                product_moves = all_moves.filtered(lambda m: m.product_id.id == product.id)
                 
-                # Obtener pickings relacionados en estado 'done'
-                done_pickings = requisition.requisition_order_ids.filtered(
-                    lambda p: p.state == 'done'
-                )
-                _logger.info(f"Pickings en estado done: {len(done_pickings)}")
+                total_demand = sum(product_moves.mapped('product_uom_qty'))
+                total_received = sum(product_moves.mapped('quantity'))
                 
-                if not done_pickings:
-                    continue
-                
-                total_demand = 0.0
-                total_received = 0.0
-                
-                # Recorrer los movimientos de los pickings
-                for picking in done_pickings:
-                    moves = picking.move_ids.filtered(
-                        lambda m: m.product_id.id == line.product_id.id
-                    )
-                    _logger.info(f"Movimientos encontrados para {line.product_id.name}: {len(moves)}")
-                    
-                    for move in moves:
-                        total_demand += move.product_uom_qty
-                        total_received += move.quantity
-                        _logger.info(f"Move - Demanda: {move.product_uom_qty}, Recibido: {move.quantity}")
-                
-                _logger.info(f"Total - Demanda: {total_demand}, Recibido: {total_received}")
+                _logger.info(f"Producto {product.name} - Demanda: {total_demand}, Recibido: {total_received}")
                 
                 # Calcular fill rate
                 fill_rate = 0.0
@@ -77,8 +69,9 @@ class FillRate(models.Model):
                 self.create({
                     'create_date': requisition.create_date,
                     'requisition_name': requisition.name,
-                    'product_id': line.product_id.id,
+                    'product_id': product.id,
                     'fill_rate_percentage': fill_rate,
                 })
         
+        _logger.info("Proceso de generación completado")
         return True
