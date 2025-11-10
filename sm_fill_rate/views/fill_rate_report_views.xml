@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- WIZARD: Formulario para generar reporte -->
+    <record id="view_fill_rate_report_wizard_form" model="ir.ui.view">
+        <field name="name">fill.rate.report.wizard.form</field>
+        <field name="model">fill.rate.report.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Generar Reporte de Fill Rate">
+                <sheet>
+                    <group>
+                        <group string="Rango de Fechas">
+                            <field name="date_from" required="1"/>
+                            <field name="date_to" required="1"/>
+                        </group>
+                        <group string="Filtros Opcionales">
+                            <field name="location_id" 
+                                   domain="[('usage', '=', 'internal')]"
+                                   options="{'no_create': True}"/>
+                            <field name="fill_rate_threshold"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Filtrar por Requisiciones">
+                            <field name="requisition_ids" 
+                                   widget="many2many_tags"
+                                   options="{'no_create': True}"/>
+                        </group>
+                        <group string="Filtrar por Productos">
+                            <field name="product_ids" 
+                                   widget="many2many_tags"
+                                   options="{'no_create': True}"/>
+                        </group>
+                    </group>
+                    <div class="alert alert-info text-center" role="alert">
+                        <p>
+                            <strong>Fill Rate:</strong> Porcentaje de cumplimiento entre la cantidad recibida 
+                            y la cantidad original solicitada en la requisición.
+                        </p>
+                        <p class="mb-0">
+                            <em>Fórmula: (Cantidad Recibida / Cantidad Original) × 100</em>
+                        </p>
+                    </div>
+                </sheet>
+                <footer>
+                    <button name="action_generate_report" 
+                            string="Generar Reporte" 
+                            type="object" 
+                            class="btn-primary"/>
+                    <button string="Cancelar" 
+                            class="btn-secondary" 
+                            special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- REPORTE: Vista de árbol -->
+    <record id="view_fill_rate_report_line_tree" model="ir.ui.view">
+        <field name="name">fill.rate.report.line.tree</field>
+        <field name="model">fill.rate.report.line</field>
+        <field name="arch" type="xml">
+            <tree string="Reporte de Fill Rate" 
+                  decoration-success="fill_rate &gt;= 95" 
+                  decoration-info="fill_rate &gt;= 80 and fill_rate &lt; 95"
+                  decoration-warning="fill_rate &gt;= 60 and fill_rate &lt; 80"
+                  decoration-danger="fill_rate &lt; 60"
+                  create="false" 
+                  edit="false">
+                
+                <field name="requisition_date"/>
+                <field name="requisition_name"/>
+                <field name="product_id"/>
+                <field name="original_qty" sum="Total Original"/>
+                <field name="sent_qty" sum="Total Enviado" optional="hide"/>
+                <field name="received_qty" sum="Total Recibido"/>
+                <field name="uom_id" optional="hide"/>
+                <field name="fill_rate" widget="percentage" avg="Promedio"/>
+                <field name="fill_rate_category" optional="hide"/>
+                <field name="variance_qty" sum="Total Variación" optional="hide"/>
+                <field name="variance_percentage" optional="hide"/>
+                <field name="location_origin_id" optional="hide"/>
+                <field name="location_dest_id" optional="hide"/>
+                
+                <button name="action_view_requisition" 
+                        type="object" 
+                        icon="fa-file-text-o" 
+                        title="Ver Requisición"/>
+                <button name="action_view_picking_origin" 
+                        type="object" 
+                        icon="fa-arrow-right" 
+                        title="Ver Traslado Origen"
+                        invisible="not picking_origin_id"/>
+                <button name="action_view_picking_dest" 
+                        type="object" 
+                        icon="fa-check-square" 
+                        title="Ver Traslado Destino"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- REPORTE: Vista de búsqueda -->
+    <record id="view_fill_rate_report_line_search" model="ir.ui.view">
+        <field name="name">fill.rate.report.line.search</field>
+        <field name="model">fill.rate.report.line</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Fill Rate">
+                <field name="requisition_name" string="Requisición"/>
+                <field name="product_id" string="Producto"/>
+                <field name="location_dest_id" string="Ubicación Destino"/>
+                
+                <filter name="filter_excellent" 
+                        string="Excelente (≥95%)" 
+                        domain="[('fill_rate', '&gt;=', 95)]"/>
+                <filter name="filter_good" 
+                        string="Bueno (80-94%)" 
+                        domain="[('fill_rate', '&gt;=', 80), ('fill_rate', '&lt;', 95)]"/>
+                <filter name="filter_regular" 
+                        string="Regular (60-79%)" 
+                        domain="[('fill_rate', '&gt;=', 60), ('fill_rate', '&lt;', 80)]"/>
+                <filter name="filter_poor" 
+                        string="Deficiente (&lt;60%)" 
+                        domain="[('fill_rate', '&lt;', 60)]"/>
+                
+                <separator/>
+                
+                <filter name="filter_incomplete" 
+                        string="Incompletos (&lt;100%)" 
+                        domain="[('fill_rate', '&lt;', 100)]"/>
+                <filter name="filter_complete" 
+                        string="Completos (=100%)" 
+                        domain="[('fill_rate', '=', 100)]"/>
+                <filter name="filter_excess" 
+                        string="Excedentes (&gt;100%)" 
+                        domain="[('fill_rate', '&gt;', 100)]"/>
+                
+                <separator/>
+                
+                <group expand="0" string="Agrupar Por">
+                    <filter name="group_by_requisition" 
+                            string="Requisición" 
+                            context="{'group_by': 'requisition_name'}"/>
+                    <filter name="group_by_product" 
+                            string="Producto" 
+                            context="{'group_by': 'product_id'}"/>
+                    <filter name="group_by_category" 
+                            string="Categoría Fill Rate" 
+                            context="{'group_by': 'fill_rate_category'}"/>
+                    <filter name="group_by_location" 
+                            string="Ubicación Destino" 
+                            context="{'group_by': 'location_dest_id'}"/>
+                    <filter name="group_by_date" 
+                            string="Fecha (Mes)" 
+                            context="{'group_by': 'requisition_date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- REPORTE: Vista gráfica -->
+    <record id="view_fill_rate_report_line_graph" model="ir.ui.view">
+        <field name="name">fill.rate.report.line.graph</field>
+        <field name="model">fill.rate.report.line</field>
+        <field name="arch" type="xml">
+            <graph string="Análisis de Fill Rate" type="bar" stacked="False">
+                <field name="product_id" type="row"/>
+                <field name="fill_rate" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- REPORTE: Vista pivot -->
+    <record id="view_fill_rate_report_line_pivot" model="ir.ui.view">
+        <field name="name">fill.rate.report.line.pivot</field>
+        <field name="model">fill.rate.report.line</field>
+        <field name="arch" type="xml">
+            <pivot string="Tabla Dinámica Fill Rate">
+                <field name="requisition_name" type="row"/>
+                <field name="product_id" type="row"/>
+                <field name="fill_rate" type="measure"/>
+                <field name="original_qty" type="measure"/>
+                <field name="received_qty" type="measure"/>
+                <field name="variance_qty" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- Acción para abrir el wizard -->
+    <record id="action_fill_rate_report_wizard" model="ir.actions.act_window">
+        <field name="name">Generar Reporte de Fill Rate</field>
+        <field name="res_model">fill.rate.report.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="model_employee_purchase_requisition"/>
+    </record>
+
+    <!-- Acción para ver el reporte generado -->
+    <record id="action_fill_rate_report_line" model="ir.actions.act_window">
+        <field name="name">Reporte de Fill Rate</field>
+        <field name="res_model">fill.rate.report.line</field>
+        <field name="view_mode">tree,graph,pivot</field>
+        <field name="context">{'search_default_group_by_requisition': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No hay datos de Fill Rate para mostrar
+            </p>
+            <p>
+                Genere un nuevo reporte utilizando el menú "Reportes > Generar Fill Rate"
+            </p>
+        </field>
+    </record>
+
+    <!-- MENÚS -->
+    <!-- Menú principal: Reportes -->
+    <menuitem id="menu_requisition_reports"
+              name="Reportes"
+              parent="employee_purchase_requisition.employee_purchase_requisition_menu_root"
+              sequence="100"/>
+
+    <!-- Submenú: Fill Rate (wizard) -->
+    <menuitem id="menu_fill_rate_report_wizard"
+              name="Generar Fill Rate"
+              parent="menu_requisition_reports"
+              action="action_fill_rate_report_wizard"
+              sequence="10"/>
+
+    <!-- Submenú: Ver Reportes de Fill Rate -->
+    <menuitem id="menu_fill_rate_report_view"
+              name="Ver Fill Rate"
+              parent="menu_requisition_reports"
+              action="action_fill_rate_report_line"
+              sequence="20"/>
+
+</odoo>
