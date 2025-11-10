@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+
+    <t t-name="pos_payment_validation.PaymentMethodButton" t-inherit="point_of_sale.PaymentMethodButton" t-inherit-mode="extension" owl="1">
+        <xpath expr="//div[hasclass('payment-method')]" position="attributes">
+            <attribute name="t-att-class">{
+                'payment-method': true,
+                'cash-method': props.paymentMethod.is_cash_count
+            }</attribute>
+        </xpath>
+    </t>
+
+</templates>
