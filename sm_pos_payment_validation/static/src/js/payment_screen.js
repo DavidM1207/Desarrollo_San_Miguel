@@ -153,26 +153,67 @@ patch(PaymentScreen.prototype, {
     },
 
     async _checkManagerPermission() {
-        try {
-            const userId = this.pos.user?.id;
-            
-            if (!userId) {
-                console.error("No hay user ID");
-                return false;
+    try {
+        console.log("═══════════════════════════════════════");
+        console.log("VERIFICANDO PERMISOS - INICIO");
+        console.log("═══════════════════════════════════════");
+        
+        // Obtener el usuario de diferentes formas posibles
+        console.log("1. this.pos.user:", this.pos.user);
+        console.log("2. this.pos.get_cashier():", this.pos.get_cashier());
+        
+        let userId = null;
+        
+        // Método 1: Desde this.pos.user
+        if (this.pos.user && this.pos.user.id) {
+            userId = this.pos.user.id;
+            console.log("✓ User ID obtenido desde this.pos.user.id:", userId);
+        }
+        
+        // Método 2: Desde get_cashier
+        if (!userId) {
+            const cashier = this.pos.get_cashier();
+            if (cashier && cashier.user_id) {
+                userId = Array.isArray(cashier.user_id) ? cashier.user_id[0] : cashier.user_id;
+                console.log("✓ User ID obtenido desde get_cashier():", userId);
             }
-            
-            const result = await this.orm.call(
-                'res.users',
-                'has_group',
-                [userId, 'sm_pos_payment_validation.group_pos_payment_manager']
-            );
-            
-            return result;
-        } catch (error) {
-            console.error("Error verificando permisos:", error);
+        }
+        
+        if (!userId) {
+            console.error("❌ No se pudo obtener el user ID");
             return false;
         }
-    },
+        
+        console.log("═══════════════════════════════════════");
+        console.log("LLAMANDO A has_group");
+        console.log("User ID:", userId);
+        console.log("Group:", 'sm_pos_payment_validation.group_pos_payment_manager');
+        console.log("═══════════════════════════════════════");
+        
+        // Llamar a has_group
+        const result = await this.orm.call(
+            'res.users',
+            'has_group',
+            [userId, 'sm_pos_payment_validation.group_pos_payment_manager']
+        );
+        
+        console.log("═══════════════════════════════════════");
+        console.log("RESULTADO has_group:", result);
+        console.log(result ? "✅ SÍ TIENE PERMISO" : "❌ NO TIENE PERMISO");
+        console.log("═══════════════════════════════════════");
+        
+        return result;
+        
+    } catch (error) {
+        console.error("═══════════════════════════════════════");
+        console.error("❌ ERROR en _checkManagerPermission");
+        console.error("Error:", error);
+        console.error("Mensaje:", error.message);
+        console.error("Stack:", error.stack);
+        console.error("═══════════════════════════════════════");
+        return false;
+    }
+},
 
     async _validateManagerPin(pin) {
         try {
