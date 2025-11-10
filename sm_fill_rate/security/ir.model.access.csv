@@ -1,5 +1,3 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fill_rate_report_wizard_user,access.fill.rate.report.wizard.user,model_fill_rate_report_wizard,base.group_user,1,1,1,1
 access_fill_rate_report_line_user,access.fill.rate.report.line.user,model_fill_rate_report_line,base.group_user,1,1,1,1
-access_fill_rate_report_wizard_manager,access.fill.rate.report.wizard.manager,model_fill_rate_report_wizard,employee_purchase_requisition.group_requisition_manager,1,1,1,1
-access_fill_rate_report_line_manager,access.fill.rate.report.line.manager,model_fill_rate_report_line,employee_purchase_requisition.group_requisition_manager,1,1,1,1
