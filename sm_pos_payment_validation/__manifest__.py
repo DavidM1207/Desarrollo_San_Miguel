@@ -25,6 +25,7 @@
             'sm_pos_payment_validation/static/src/js/password_popup.js',
             'sm_pos_payment_validation/static/src/js/payment_screen.js',
             'sm_pos_payment_validation/static/src/xml/password_popup.xml',
+            'sm_pos_payment_validation/static/src/css/password_popup.css',
         ],
     },
     'installable': True,

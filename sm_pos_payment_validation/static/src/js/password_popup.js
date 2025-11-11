@@ -7,7 +7,7 @@ import { useState } from "@odoo/owl";
 export class PasswordPopup extends AbstractAwaitablePopup {
     static template = "sm_pos_payment_validation.PasswordPopup";
     static defaultProps = {
-        confirmText: _t("Confirmar"),
+        confirmText: _t("Ok"),
         cancelText: _t("Cancelar"),
         title: "",
         body: "",
@@ -17,16 +17,28 @@ export class PasswordPopup extends AbstractAwaitablePopup {
     setup() {
         super.setup();
         this.state = useState({ 
-            inputValue: this.props.startingValue,
-            displayValue: ""
+            inputValue: this.props.startingValue
         });
     }
 
-    onInputChange(event) {
-        const value = event.target.value;
-        this.state.inputValue = value;
-        // Mostrar puntos en lugar de números
-        this.state.displayValue = "●".repeat(value.length);
+    // Agregar dígito al presionar botón del teclado
+    appendDigit(digit) {
+        this.state.inputValue = this.state.inputValue + digit.toString();
+    }
+
+    // Borrar último dígito
+    deleteDigit() {
+        this.state.inputValue = this.state.inputValue.slice(0, -1);
+    }
+
+    // Limpiar todo
+    clearInput() {
+        this.state.inputValue = "";
+    }
+
+    // Obtener valor como puntos para mostrar
+    get displayValue() {
+        return "●".repeat(this.state.inputValue.length);
     }
 
     getPayload() {
