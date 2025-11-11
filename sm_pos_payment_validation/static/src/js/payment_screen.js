@@ -155,14 +155,14 @@ patch(PaymentScreen.prototype, {
         console.log("PIN:", pin);
         console.log("═══════════════════════════════════════");
         
-        // Buscar empleado por PIN
+        // 1. Buscar empleado por PIN
         const employees = await this.orm.searchRead(
             'hr.employee',
             [['pin', '=', String(pin)]],
             ['name', 'user_id']
         );
 
-        console.log("Empleados encontrados:", employees.length);
+        console.log("1. Empleados encontrados:", employees.length);
 
         if (employees.length === 0) {
             return { 
@@ -172,7 +172,7 @@ patch(PaymentScreen.prototype, {
         }
 
         const employee = employees[0];
-        console.log("Empleado encontrado:", employee.name);
+        console.log("2. Empleado:", employee.name);
 
         if (!employee.user_id || employee.user_id.length === 0) {
             return { 
@@ -182,10 +182,10 @@ patch(PaymentScreen.prototype, {
         }
 
         const userId = employee.user_id[0];
-        console.log("User ID:", userId);
+        console.log("3. User ID:", userId);
 
-        // MÉTODO ALTERNATIVO: Buscar el grupo por nombre
-        console.log("Buscando grupo 'POS Payment Manager'...");
+        // 2. Buscar el grupo "POS Payment Manager"
+        console.log("4. Buscando grupo 'POS Payment Manager'...");
         
         const groups = await this.orm.searchRead(
             'res.groups',
@@ -194,38 +194,52 @@ patch(PaymentScreen.prototype, {
         );
 
         if (groups.length === 0) {
-            console.error("❌ No se encontró el grupo 'POS Payment Manager'");
+            console.error("❌ No se encontró el grupo");
             return { 
                 valid: false,
-                error_message: "Error: No se encontró el grupo de gerentes en el sistema."
+                error_message: "Error: No se encontró el grupo de gerentes."
             };
         }
 
         const groupId = groups[0].id;
-        console.log("Group ID encontrado:", groupId);
+        console.log("5. Group ID:", groupId);
 
-        // Verificar si el usuario tiene ese grupo asignado
-        console.log("Verificando si el usuario tiene el grupo...");
+        // 3. Obtener el usuario con sus grupos
+        console.log("6. Obteniendo grupos del usuario...");
         
-        const userGroupsRel = await this.orm.searchRead(
-            'res.groups.users.rel',
-            [
-                ['uid', '=', userId],
-                ['gid', '=', groupId]
-            ],
-            ['uid', 'gid']
+        const users = await this.orm.searchRead(
+            'res.users',
+            [['id', '=', userId]],
+            ['id', 'name', 'groups_id']
         );
 
-        console.log("Relación encontrada:", userGroupsRel.length > 0);
+        if (users.length === 0) {
+            console.error("❌ Usuario no encontrado");
+            return { 
+                valid: false,
+                error_message: "Error: Usuario no encontrado."
+            };
+        }
 
-        if (userGroupsRel.length > 0) {
-            console.log("✅ AUTORIZADO - Usuario tiene el grupo");
+        const user = users[0];
+        console.log("7. Usuario encontrado:", user.name);
+        console.log("8. Grupos del usuario (IDs):", user.groups_id);
+
+        // 4. Verificar si el grupo de gerente está en los grupos del usuario
+        const hasGroup = user.groups_id && user.groups_id.includes(groupId);
+        
+        console.log("9. ¿Usuario tiene el grupo?:", hasGroup);
+
+        if (hasGroup) {
+            console.log("✅ AUTORIZADO - Usuario tiene permisos de gerente");
+            console.log("═══════════════════════════════════════");
             return {
                 valid: true,
                 manager_name: employee.name
             };
         } else {
-            console.log("❌ DENEGADO - Usuario no tiene el grupo");
+            console.log("❌ DENEGADO - Usuario NO tiene permisos de gerente");
+            console.log("═══════════════════════════════════════");
             return { 
                 valid: false,
                 error_message: "El empleado '" + employee.name + "' no tiene permisos de gerente."
@@ -233,13 +247,17 @@ patch(PaymentScreen.prototype, {
         }
 
     } catch (error) {
-        console.error("❌ ERROR validando PIN:", error);
+        console.error("═══════════════════════════════════════");
+        console.error("❌ ERROR validando PIN");
         console.error("Tipo:", error.constructor.name);
         console.error("Mensaje:", error.message);
         
         if (error.data) {
-            console.error("Data:", error.data);
+            console.error("Data del error:", error.data);
+            console.error("Debug:", error.data.debug);
         }
+        
+        console.error("═══════════════════════════════════════");
         
         return { 
             valid: false,
