@@ -12,8 +12,8 @@
         * Registro de cambios de método de pago
         * Permisos específicos para aprobación
     """,
-    'author': 'Tu Empresa',
-    'website': 'https://www.tuempresa.com',
+    'author': 'SAN MIGUEL MADERA, S.A.',
+
     'depends': ['point_of_sale'],
     'data': [
         'security/security.xml',
@@ -22,7 +22,9 @@
     'assets': {
         'point_of_sale._assets_pos': [
             'sm_pos_payment_validation/static/src/js/models.js',
+            'sm_pos_payment_validation/static/src/js/password_popup.js',
             'sm_pos_payment_validation/static/src/js/payment_screen.js',
+            'sm_pos_payment_validation/static/src/xml/password_popup.xml',
         ],
     },
     'installable': True,

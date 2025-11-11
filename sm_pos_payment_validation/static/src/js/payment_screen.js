@@ -3,9 +3,9 @@
 import { PaymentScreen } from "@point_of_sale/app/screens/payment_screen/payment_screen";
 import { patch } from "@web/core/utils/patch";
 import { _t } from "@web/core/l10n/translation";
-import { NumberPopup } from "@point_of_sale/app/utils/input_popups/number_popup";
 import { ErrorPopup } from "@point_of_sale/app/errors/popups/error_popup";
 import { ConfirmPopup } from "@point_of_sale/app/utils/confirm_popup/confirm_popup";
+import { PasswordPopup } from "@sm_pos_payment_validation/js/password_popup";
 
 patch(PaymentScreen.prototype, {
     
@@ -37,7 +37,7 @@ patch(PaymentScreen.prototype, {
                         title: _t("⚠️ ADVERTENCIA: Cambio a Efectivo"),
                         body: _t(
                             "Estás intentando cambiar a EFECTIVO.\n\n" +
-                            "⚠️ IMPORTANTE:\n" +
+                            "IMPORTANTE:\n" +
                             "• Solo usa efectivo si el cliente REALMENTE pagó en efectivo\n" +
                             "• NO uses efectivo para transferencias o pagos con tarjeta\n\n" +
                             "Método actual: " + existingMethod.name + "\n\n" +
@@ -73,12 +73,12 @@ patch(PaymentScreen.prototype, {
         // Primera selección de efectivo
         else if (paymentMethod.is_cash_count) {
             const confirmCash = await this.popup.add(ConfirmPopup, {
-                title: _t("💵 Pago en Efectivo"),
+                title: _t("Pago en Efectivo"),
                 body: _t("Vas a procesar un pago en EFECTIVO.\n\n¿El cliente está pagando en efectivo?"),
             });
 
             if (!confirmCash) {
-                console.log("❌ Efectivo cancelado");
+                console.log("Efectivo cancelado");
                 return;
             }
         }
@@ -88,65 +88,64 @@ patch(PaymentScreen.prototype, {
     },
 
     async _requestManagerPinAuthorization(oldMethod, newMethod) {
-        console.log("═══════════════════════════════════════");
-        console.log("SOLICITANDO AUTORIZACIÓN DE GERENTE");
-        console.log("═══════════════════════════════════════");
-        
-        // SIEMPRE pedir PIN (sin verificar si el usuario actual es gerente)
-        const { confirmed, payload: pin } = await this.popup.add(NumberPopup, {
-            title: _t("🔐 Autorización de Gerente Requerida"),
+    console.log("═══════════════════════════════════════");
+    console.log("SOLICITANDO AUTORIZACIÓN DE GERENTE");
+    console.log("═══════════════════════════════════════");
+    
+    // Usar PasswordPopup en lugar de NumberPopup
+    const { confirmed, payload: pin } = await this.popup.add(PasswordPopup, {
+        title: _t("🔐 Autorización de Gerente Requerida"),
+        body: _t(
+            "CAMBIO DE MÉTODO DE PAGO\n\n" +
+            "De: " + oldMethod.name + "\n" +
+            "A: " + newMethod.name + "\n\n" +
+            "═════════════════════════════\n" +
+            "Se requiere autorización de gerente.\n\n" +
+            "Gerente/Encargado: Ingresa tu PIN:"
+        ),
+        startingValue: "",
+    });
+
+    if (!confirmed || !pin) {
+        console.log("❌ No se ingresó PIN");
+        await this.popup.add(ErrorPopup, {
+            title: _t("❌ Cambio Cancelado"),
             body: _t(
-                "CAMBIO DE MÉTODO DE PAGO\n\n" +
-                "De: " + oldMethod.name + "\n" +
-                "A: " + newMethod.name + "\n\n" +
-                "═════════════════════════════\n" +
-                "Se requiere autorización de gerente.\n\n" +
-                "Gerente/Encargado: Ingresa tu PIN:"
+                "El cambio de método de pago ha sido cancelado.\n\n" +
+                "Se requiere autorización de gerente para continuar."
             ),
-            startingValue: "",
         });
+        return { approved: false };
+    }
 
-        if (!confirmed || !pin) {
-            console.log("❌ No se ingresó PIN");
-            await this.popup.add(ErrorPopup, {
-                title: _t("❌ Cambio Cancelado"),
-                body: _t(
-                    "El cambio de método de pago ha sido cancelado.\n\n" +
-                    "Se requiere autorización de gerente para continuar."
-                ),
-            });
-            return { approved: false };
-        }
-
-        console.log("Validando PIN:", pin);
+    console.log("Validando PIN");
+    
+    const validation = await this._validateManagerPin(pin);
+    
+    if (validation.valid) {
+        console.log("✅ PIN válido");
+        await this.popup.add(ErrorPopup, {
+            title: _t("✅ Cambio Autorizado"),
+            body: _t("Cambio autorizado por: " + validation.manager_name),
+        });
         
-        // Validar que el PIN pertenezca a un usuario con permisos
-        const validation = await this._validateManagerPin(pin);
-        
-        if (validation.valid) {
-            console.log("✅ PIN válido - Gerente:", validation.manager_name);
-            await this.popup.add(ErrorPopup, {
-                title: _t("✅ Cambio Autorizado"),
-                body: _t("Cambio autorizado por: " + validation.manager_name),
-            });
-            
-            return {
-                approved: true,
-                manager_name: validation.manager_name
-            };
-        } else {
-            console.log("❌ PIN inválido");
-            await this.popup.add(ErrorPopup, {
-                title: _t("❌ PIN Inválido"),
-                body: _t(
-                    "El PIN ingresado no es válido o no tiene permisos de gerente.\n\n" +
-                    validation.error_message + "\n\n" +
-                    "El cambio ha sido BLOQUEADO."
-                ),
-            });
-            return { approved: false };
-        }
-    },
+        return {
+            approved: true,
+            manager_name: validation.manager_name
+        };
+    } else {
+        console.log("❌ PIN inválido");
+        await this.popup.add(ErrorPopup, {
+            title: _t("❌ PIN Inválido"),
+            body: _t(
+                "El PIN ingresado no es válido o no tiene permisos de gerente.\n\n" +
+                validation.error_message + "\n\n" +
+                "El cambio ha sido BLOQUEADO."
+            ),
+        });
+        return { approved: false };
+    }
+},
 
     async _validateManagerPin(pin) {
     try {
@@ -248,7 +247,7 @@ patch(PaymentScreen.prototype, {
 
     } catch (error) {
         console.error("═══════════════════════════════════════");
-        console.error("❌ ERROR validando PIN");
+        console.error("ERROR validando PIN");
         console.error("Tipo:", error.constructor.name);
         console.error("Mensaje:", error.message);
         
