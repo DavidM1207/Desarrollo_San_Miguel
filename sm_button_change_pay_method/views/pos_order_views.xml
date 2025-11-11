@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_pos_order_form_change_payment_inherit" model="ir.ui.view">
+        <field name="name">pos.order.form.change.payment.inherit</field>
+        <field name="model">pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_pos_form"/>
+        <field name="arch" type="xml">
+            <!-- Opción 1: Agregar el botón junto al existente -->
+            <xpath expr="//button[@name='action_pos_order_change_payment']" position="after">
+                <button name="action_pos_order_change_payment_same_day" 
+                        string="Cambiar Pagos (Mismo Día)" 
+                        type="object" 
+                        class="btn-secondary"
+                        attrs="{'invisible': [('state', '!=', 'paid')]}"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
