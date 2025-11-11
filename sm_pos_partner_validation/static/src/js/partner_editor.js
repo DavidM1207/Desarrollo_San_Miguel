@@ -22,14 +22,11 @@ patch(PartnerDetailsEdit.prototype, {
         // Validar que ambos campos estén llenos
         const errors = [];
         
-        if (!mobile || mobile.trim() === "") {
+        if (!mobile || mobile.trim() === "" || !phone || phone.trim()=="") {
             errors.push("• Móvil (Mobile)");
         }
         
-        if (!phone || phone.trim() === "") {
-            errors.push("• Teléfono (Phone)");
-        }
-        
+         
         // Si hay errores, mostrar mensaje y bloquear guardado
         if (errors.length > 0) {
             console.log("❌ VALIDACIÓN FALLIDA");
