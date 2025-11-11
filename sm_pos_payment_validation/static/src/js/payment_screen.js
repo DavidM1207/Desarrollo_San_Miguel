@@ -149,75 +149,102 @@ patch(PaymentScreen.prototype, {
     },
 
     async _validateManagerPin(pin) {
-        try {
-            console.log("═══════════════════════════════════════");
-            console.log("VALIDANDO PIN DE GERENTE");
-            console.log("PIN:", pin);
-            console.log("═══════════════════════════════════════");
-            
-            // Buscar empleado por PIN
-            const employees = await this.orm.searchRead(
-                'hr.employee',
-                [['pin', '=', String(pin)]],
-                ['name', 'user_id']
-            );
+    try {
+        console.log("═══════════════════════════════════════");
+        console.log("VALIDANDO PIN DE GERENTE");
+        console.log("PIN:", pin);
+        console.log("═══════════════════════════════════════");
+        
+        // Buscar empleado por PIN
+        const employees = await this.orm.searchRead(
+            'hr.employee',
+            [['pin', '=', String(pin)]],
+            ['name', 'user_id']
+        );
 
-            console.log("Empleados encontrados:", employees.length);
+        console.log("Empleados encontrados:", employees.length);
 
-            if (employees.length === 0) {
-                console.log("❌ No se encontró empleado con ese PIN");
-                return { 
-                    valid: false,
-                    error_message: "No existe ningún empleado con ese PIN."
-                };
-            }
-
-            const employee = employees[0];
-            console.log("Empleado encontrado:", employee.name);
-
-            if (!employee.user_id || employee.user_id.length === 0) {
-                console.log("❌ Empleado sin usuario asociado");
-                return { 
-                    valid: false,
-                    error_message: "El empleado '" + employee.name + "' no tiene usuario en el sistema."
-                };
-            }
-
-            const userId = employee.user_id[0];
-            console.log("User ID:", userId);
-
-            // Verificar que el usuario tenga el grupo de gerente
-            console.log("Verificando grupo 'sm_pos_payment_validation.group_pos_payment_manager'");
-            
-            const hasPermission = await this.orm.call(
-                'res.users',
-                'has_group',
-                [userId, 'sm_pos_payment_validation.group_pos_payment_manager']
-            );
-
-            console.log("¿Tiene permisos?:", hasPermission);
-
-            if (hasPermission) {
-                console.log("✅ AUTORIZADO - PIN válido y tiene permisos");
-                return {
-                    valid: true,
-                    manager_name: employee.name
-                };
-            } else {
-                console.log("❌ DENEGADO - Empleado sin permisos de gerente");
-                return { 
-                    valid: false,
-                    error_message: "El empleado '" + employee.name + "' no tiene permisos de gerente."
-                };
-            }
-
-        } catch (error) {
-            console.error("❌ ERROR validando PIN:", error);
-            console.error("Detalles:", error.message);
+        if (employees.length === 0) {
             return { 
                 valid: false,
-                error_message: "Error del sistema: " + error.message
+                error_message: "No existe ningún empleado con ese PIN."
             };
         }
-    },
+
+        const employee = employees[0];
+        console.log("Empleado encontrado:", employee.name);
+
+        if (!employee.user_id || employee.user_id.length === 0) {
+            return { 
+                valid: false,
+                error_message: "El empleado no tiene usuario asociado."
+            };
+        }
+
+        const userId = employee.user_id[0];
+        console.log("User ID:", userId);
+
+        // MÉTODO ALTERNATIVO: Buscar el grupo por nombre
+        console.log("Buscando grupo 'POS Payment Manager'...");
+        
+        const groups = await this.orm.searchRead(
+            'res.groups',
+            [['name', '=', 'POS Payment Manager']],
+            ['id', 'name']
+        );
+
+        if (groups.length === 0) {
+            console.error("❌ No se encontró el grupo 'POS Payment Manager'");
+            return { 
+                valid: false,
+                error_message: "Error: No se encontró el grupo de gerentes en el sistema."
+            };
+        }
+
+        const groupId = groups[0].id;
+        console.log("Group ID encontrado:", groupId);
+
+        // Verificar si el usuario tiene ese grupo asignado
+        console.log("Verificando si el usuario tiene el grupo...");
+        
+        const userGroupsRel = await this.orm.searchRead(
+            'res.groups.users.rel',
+            [
+                ['uid', '=', userId],
+                ['gid', '=', groupId]
+            ],
+            ['uid', 'gid']
+        );
+
+        console.log("Relación encontrada:", userGroupsRel.length > 0);
+
+        if (userGroupsRel.length > 0) {
+            console.log("✅ AUTORIZADO - Usuario tiene el grupo");
+            return {
+                valid: true,
+                manager_name: employee.name
+            };
+        } else {
+            console.log("❌ DENEGADO - Usuario no tiene el grupo");
+            return { 
+                valid: false,
+                error_message: "El empleado '" + employee.name + "' no tiene permisos de gerente."
+            };
+        }
+
+    } catch (error) {
+        console.error("❌ ERROR validando PIN:", error);
+        console.error("Tipo:", error.constructor.name);
+        console.error("Mensaje:", error.message);
+        
+        if (error.data) {
+            console.error("Data:", error.data);
+        }
+        
+        return { 
+            valid: false,
+            error_message: "Error del sistema: " + error.message
+        };
+    }
+},
 });
