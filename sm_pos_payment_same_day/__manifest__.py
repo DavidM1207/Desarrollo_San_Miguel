@@ -4,12 +4,38 @@
     'version': '17.0.1.0.0',
     'category': 'Point of Sale',
     'summary': 'Botón para cambiar pagos solo del mismo día con solicitud de aprobación',
+    'description': """
+        Agrega un botón adicional que permite cambiar métodos de pago
+        únicamente para órdenes del mismo día.
+        
+        Características:
+        - Validación de fecha (solo órdenes del mismo día)
+        - Wizard de solicitud de aprobación para métodos específicos
+        - Replica funcionalidad del wizard del POS en el backend
+        - Compatible con el módulo de aprobaciones existente
+        
+        Cuando se seleccionan métodos de pago que requieren aprobación
+        (configurados con is_valid_for_payment_approval_request = True),
+        se abre un wizard para:
+        - Buscar o crear documento de pago
+        - Ingresar cantidad del comprobante
+        - Especificar cantidad a utilizar
+        - Adjuntar comprobante
+        
+        El botón original "Cambiar pagos" mantiene su funcionalidad normal.
+    """,
     'author': 'SAN MIGUEL MADERA, S.A.',
+    
     'depends': [
-        'pos_payment_change',
-        'pt_pos_payment_approval',
+        'pos_payment_change',        # Módulo original de cambio de pagos
+        'pt_pos_payment_approval',   # Módulo de aprobaciones
     ],
     'data': [
+        # Seguridad
+        'security/ir.model.access.csv',
+        
+        # Vistas (orden importante: wizards primero)
+        'views/pos_payment_approval_create_wizard_views.xml',
         'views/pos_order_views.xml',
     ],
     'installable': True,

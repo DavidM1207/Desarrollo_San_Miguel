@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_pos_payment_approval_create_wizard_form" model="ir.ui.view">
+        <field name="name">pos.payment.approval.create.wizard.form</field>
+        <field name="model">pos.payment.approval.create.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Solicitud de Aprobación de Pago">
+                <sheet>
+                    <group>
+                        <field name="pos_order_id" readonly="1"/>
+                    </group>
+                    
+                    <!-- Número de Documento con botón Buscar -->
+                    <group>
+                        <label for="document_identifier"/>
+                        <div class="o_row">
+                            <field name="document_identifier" 
+                                   placeholder="Ingrese el número de documento"
+                                   readonly="document_exists"/>
+                            <button name="action_search_document" 
+                                    string="Buscar" 
+                                    type="object" 
+                                    class="btn-info"
+                                    invisible="document_exists"/>
+                        </div>
+                    </group>
+                    
+                    <!-- Documento encontrado (si existe) -->
+                    <group invisible="not document_exists">
+                        <field name="payment_document_id" readonly="1"/>
+                        <field name="document_exists" invisible="1"/>
+                    </group>
+                    
+                    <!-- Método de Pago -->
+                    <group>
+                        <field name="payment_method_id" 
+                               readonly="document_exists"
+                               options="{'no_create': True, 'no_create_edit': True}"/>
+                    </group>
+                    
+                    <!-- Cantidad del Comprobante -->
+                    <group>
+                        <field name="voucher_amount" 
+                               readonly="document_exists"/>
+                    </group>
+                    
+                    <!-- Saldo Restante (solo si documento existe) -->
+                    <group invisible="not document_exists">
+                        <field name="remaining_balance" readonly="1"/>
+                    </group>
+                    
+                    <!-- Cantidad a Utilizar -->
+                    <group>
+                        <field name="amount_requested"/>
+                    </group>
+                    
+                    <!-- Adjuntar Archivo -->
+                    <group>
+                        <field name="attachment" 
+                               widget="binary" 
+                               filename="attachment_filename"/>
+                        <field name="attachment_filename" invisible="1"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_submit_request" 
+                            string="Enviar Solicitud" 
+                            type="object" 
+                            class="btn-primary"/>
+                    <button string="Cancelar" 
+                            class="btn-secondary" 
+                            special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>
