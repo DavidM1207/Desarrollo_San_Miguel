@@ -31,8 +31,7 @@
         'pt_pos_payment_approval',   # Módulo de aprobaciones
     ],
     'data': [
-        # Seguridad
-        'security/ir.model.access.csv',
+       
         
         # Vistas (orden importante: wizards primero)
         'views/pos_payment_approval_create_wizard_views.xml',
