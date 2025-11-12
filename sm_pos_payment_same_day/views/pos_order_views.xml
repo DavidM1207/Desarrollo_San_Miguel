@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_pos_order_form_same_day_payment" model="ir.ui.view">
+        <field name="model">pos.order</field>
+        <field name="inherit_id" ref="pos_payment_change.view_pos_order_form_payment_change"/>
+        <field name="arch" type="xml">
+            <!-- Agregar el nuevo botón después del botón existente -->
+            <button name="%(pos_payment_change.action_pos_payment_change_wizard)d" position="after">
+                <button
+                    name="action_pos_order_change_payment_same_day"
+                    string="Cambiar pagos día"
+                    type="object"
+                    class="btn-secondary"
+                    invisible="state not in ['paid', 'invoiced']"
+                    groups="point_of_sale.group_pos_user"/>
+            </button>
+        </field>
+    </record>
+</odoo>
