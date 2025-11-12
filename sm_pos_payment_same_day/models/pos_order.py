@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from datetime import date
-from odoo import models
+from odoo import models, _
 from odoo.exceptions import UserError
 
 
@@ -20,15 +20,18 @@ class PosOrder(models.Model):
         
         if order_date != today:
             raise UserError(
-                f'No se puede cambiar el método de pago.\n\n'
-                f'Esta acción solo está permitida para órdenes del mismo día.\n\n'
-                f'Fecha de la orden: {order_date.strftime("%d/%m/%Y")}\n'
-                f'Fecha actual: {today.strftime("%d/%m/%Y")}'
+                _('No se puede cambiar el método de pago.\n\n'
+                  'Esta acción solo está permitida para órdenes del mismo día.\n\n'
+                  'Fecha de la orden: %s\n'
+                  'Fecha actual: %s') % (
+                    order_date.strftime("%d/%m/%Y") if order_date else 'N/A',
+                    today.strftime("%d/%m/%Y")
+                )
             )
         
         # Si pasa la validación, abrir el wizard existente
         return {
-            'name': 'Cambiar Método de Pago',
+            'name': _('Cambiar Método de Pago'),
             'type': 'ir.actions.act_window',
             'res_model': 'pos.payment.change.wizard',
             'view_mode': 'form',
