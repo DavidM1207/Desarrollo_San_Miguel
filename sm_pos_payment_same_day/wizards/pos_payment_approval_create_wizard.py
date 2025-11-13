@@ -234,18 +234,15 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
         from datetime import datetime
         user_name = self.env.user.name
         comment = _(
-            "═══════════════════════════════════════\n"
-            "SOLICITUD DE CAMBIO DE MÉTODO DE PAGO\n"
-            "═══════════════════════════════════════\n"
-            "Fecha: %(date)s\n"
-            "Usuario solicitante: %(user)s\n"
-            "Orden: %(order)s\n"
-            "Número de solicitud: %(request)s\n"
-            "Método solicitado: %(method)s\n"
-            "Monto: %(amount)s\n"
-            "Razón del cambio: %(reason)s\n"
-            "Estado: Pendiente de aprobación\n"
-            "═══════════════════════════════════════"
+            "Fecha: %(date)s ,"
+            "Usuario solicitante: %(user)s ,"
+            "Orden: %(order)s ,"
+            "Número de solicitud: %(request)s ,"
+            "Método solicitado: %(method)s ,"
+            "Monto: %(amount)s ,"
+            "Razón del cambio: %(reason)s ,"
+            "Estado: Pendiente de aprobación."
+         
         ) % {
             'date': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
             'user': user_name,
@@ -262,12 +259,12 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
         })
         
         message = _(
-            "Solicitud de aprobación creada exitosamente.\n\n"
-            "Número de solicitud: %(name)s\n"
-            "Método de pago: %(method)s\n"
-            "Monto solicitado: %(amount)s\n"
-            "Usuario: %(user)s\n"
-            "Razón: %(reason)s\n\n"
+            "Solicitud de aprobación creada exitosamente."
+            "Número de solicitud: %(name)s ,"
+            "Método de pago: %(method)s ,"
+            "Monto solicitado: %(amount)s ,"
+            "Usuario: %(user)s ,"
+            "Razón: %(reason)s ,"
             "La solicitud está pendiente de aprobación."
         ) % {
             'name': request.name,

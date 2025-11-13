@@ -51,15 +51,11 @@ class PosPaymentApprovalRequest(models.Model):
             approver_name = self.env.user.name
             
             approval_note = _(
-                "\n═══════════════════════════════════════\n"
-                "SOLICITUD APROBADA\n"
-                "═══════════════════════════════════════\n"
-                "Fecha de aprobación: %(date)s\n"
-                "Aprobador: %(approver)s\n"
-                "Solicitud: %(request)s\n"
-                "Método de pago aplicado: %(method)s\n"
-                "Monto: %(amount)s\n"
-                "═══════════════════════════════════════"
+                "Fecha de aprobación: %(date)s , "
+                "Aprobador: %(approver)s ,"
+                "Solicitud: %(request)s ,"
+                "Método de pago aplicado: %(method)s ,"
+                "Monto: %(amount)s"
             ) % {
                 'date': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
                 'approver': approver_name,
@@ -91,17 +87,13 @@ class PosPaymentApprovalRequest(models.Model):
             rejecter_name = self.env.user.name
             
             rejection_note = _(
-                "\n═══════════════════════════════════════\n"
-                "SOLICITUD RECHAZADA\n"
-                "═══════════════════════════════════════\n"
-                "Fecha de rechazo: %(date)s\n"
-                "Rechazado por: %(rejecter)s\n"
-                "Solicitud: %(request)s\n"
-                "Método solicitado: %(method)s\n"
-                "Monto solicitado: %(amount)s\n"
-                "Motivo del rechazo: %(reason)s\n"
-                "Los pagos originales permanecen sin cambios.\n"
-                "═══════════════════════════════════════"
+                "Fecha de rechazo: %(date)s ,"
+                "Rechazado por: %(rejecter)s ,"
+                "Solicitud: %(request)s ,"
+                "Método solicitado: %(method)s , "
+                "Monto solicitado: %(amount)s ,"
+                "Motivo del rechazo: %(reason)s "
+                "Los pagos originales permanecen sin cambios."
             ) % {
                 'date': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
                 'rejecter': rejecter_name,
