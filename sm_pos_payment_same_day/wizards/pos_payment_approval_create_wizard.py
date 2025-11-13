@@ -79,14 +79,12 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
         string='Nombre del Archivo'
     )
     
-    # ← NUEVO CAMPO PARA LA RAZÓN DEL CAMBIO
     change_reason = fields.Text(
         string='Razón del Cambio',
         required=True,
         help='Explique el motivo del cambio de método de pago'
     )
     
-    # ← CAMPO PARA GUARDAR LOS PAGOS ANTIGUOS
     old_payment_ids = fields.Many2many(
         'pos.payment',
         string='Pagos Antiguos',
@@ -95,8 +93,7 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
     
     @api.model
     def create(self, vals):
-        """Override create para usar siempre sudo y capturar pagos antiguos"""
-        # Capturar los pagos actuales de la orden antes de crear
+        """Override create para capturar pagos antiguos"""
         if vals.get('pos_order_id'):
             order = self.env['pos.order'].browse(vals['pos_order_id'])
             vals['old_payment_ids'] = [(6, 0, order.payment_ids.ids)]
@@ -165,7 +162,7 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
         }
     
     def action_submit_request(self):
-        """Crea la solicitud de aprobación"""
+        """Crea la solicitud de aprobación SIN eliminar pagos antiguos"""
         self = self.sudo()
         self.ensure_one()
         
@@ -194,10 +191,6 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
         if not self.change_reason:
             raise UserError(_('Debe ingresar una razón del cambio.'))
         
-        _logger.info("Documento: %s", self.document_identifier)
-        _logger.info("Método: %s", self.payment_method_id.name)
-        _logger.info("Razón: %s", self.change_reason)
-        
         document_id = self.payment_document_id.id
         
         # Si el documento no existe, crearlo
@@ -211,7 +204,7 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
                 'verified': False,
             }).id
         
-        # Crear solicitud de aprobación CON LA RAZÓN Y PAGOS ANTIGUOS
+        # Crear solicitud de aprobación
         _logger.info("Creando solicitud de aprobación")
         request = self.env['pos.payment.approval.request'].create({
             'payment_document_id': document_id,
@@ -224,54 +217,65 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
             'state': 'pending',
         })
         
-        # Guardar info adicional en el contexto de la solicitud
-        # Esto lo usaremos cuando se apruebe
+        # Guardar la razón y los IDs de pagos antiguos en el campo edit_detail
+        # usando un formato que podamos parsear después
+        old_payment_ids_str = ','.join(map(str, self.old_payment_ids.ids))
+        detail_info = f"REASON:{self.change_reason}|OLD_PAYMENTS:{old_payment_ids_str}"
+        
         request.sudo().write({
-            'edit_detail': self.change_reason,  # Usar campo existente para guardar la razón
+            'edit_detail': detail_info,
         })
         
         _logger.info("✓ Solicitud creada: %s", request.name)
+        _logger.info("Pagos antiguos guardados: %s", old_payment_ids_str)
+        _logger.info("NO se eliminan hasta que se apruebe")
         
-        # ELIMINAR LOS PAGOS ANTIGUOS INMEDIATAMENTE
-        # (antes de que se apruebe, para evitar duplicados)
-        if self.old_payment_ids:
-            _logger.info("Eliminando pagos antiguos: %s", self.old_payment_ids.ids)
-            self.old_payment_ids.sudo().unlink()
+        # Agregar nota a la orden con usuario solicitante y número de orden
+        from datetime import datetime
+        user_name = self.env.user.name
+        comment = _(
+            "═══════════════════════════════════════\n"
+            "SOLICITUD DE CAMBIO DE MÉTODO DE PAGO\n"
+            "═══════════════════════════════════════\n"
+            "Fecha: %(date)s\n"
+            "Usuario solicitante: %(user)s\n"
+            "Orden: %(order)s\n"
+            "Número de solicitud: %(request)s\n"
+            "Método solicitado: %(method)s\n"
+            "Monto: %(amount)s\n"
+            "Razón del cambio: %(reason)s\n"
+            "Estado: Pendiente de aprobación\n"
+            "═══════════════════════════════════════"
+        ) % {
+            'date': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
+            'user': user_name,
+            'order': self.pos_order_id.name,
+            'request': request.name,
+            'method': self.payment_method_id.name,
+            'amount': self.amount_requested,
+            'reason': self.change_reason,
+        }
+        
+        current_note = self.pos_order_id.note or ""
+        self.pos_order_id.sudo().write({
+            'note': f"{current_note}\n\n{comment}" if current_note else comment
+        })
         
         message = _(
             "Solicitud de aprobación creada exitosamente.\n\n"
             "Número de solicitud: %(name)s\n"
             "Método de pago: %(method)s\n"
             "Monto solicitado: %(amount)s\n"
-            "Razón del cambio: %(reason)s\n\n"
+            "Usuario: %(user)s\n"
+            "Razón: %(reason)s\n\n"
             "La solicitud está pendiente de aprobación."
         ) % {
             'name': request.name,
             'method': self.payment_method_id.name,
             'amount': self.amount_requested,
+            'user': user_name,
             'reason': self.change_reason,
         }
-        
-        # Agregar la razón del cambio a las notas de la orden
-        from datetime import datetime
-        comment = _(
-            "Solicitud de cambio de pago creada el %(today)s.\n"
-            "Razón: %(reason)s\n"
-            "Estado: Pendiente de aprobación\n"
-            "Método solicitado: %(method)s\n"
-            "Monto: %(amount)s"
-        ) % {
-            'today': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
-            'reason': self.change_reason,
-            'method': self.payment_method_id.name,
-            'amount': self.amount_requested,
-        }
-        
-        # Agregar a las notas de la orden (como el botón original)
-        current_note = self.pos_order_id.note or ""
-        self.pos_order_id.sudo().write({
-            'note': f"{current_note}\n\n{comment}" if current_note else comment
-        })
         
         self.pos_order_id.message_post(
             body=message,
