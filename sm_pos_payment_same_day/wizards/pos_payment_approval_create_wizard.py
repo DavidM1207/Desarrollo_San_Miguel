@@ -2,6 +2,9 @@
 
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 class PosPaymentApprovalCreateWizard(models.TransientModel):
@@ -79,6 +82,7 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
         if not self.payment_method_id:
             raise UserError(_('Debe seleccionar un método de pago antes de buscar.'))
         
+        # Buscar documento sin sudo() ya que pos.payment.document tiene permisos
         PaymentDocument = self.env['pos.payment.document']
         result = PaymentDocument.search_document(
             self.document_identifier,
@@ -107,7 +111,8 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
                 }
             }
         
-        self.write({
+        # Actualizar campos del wizard con sudo()
+        self.sudo().write({
             'payment_document_id': result['id'],
             'document_exists': True,
             'voucher_amount': result['total_amount'],
@@ -128,6 +133,13 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
         """Crea la solicitud de aprobación"""
         self.ensure_one()
         
+        _logger.info("=" * 80)
+        _logger.info("SUBMIT REQUEST")
+        _logger.info("Documento: %s", self.document_identifier)
+        _logger.info("Método: %s", self.payment_method_id.name)
+        _logger.info("Monto: %s", self.amount_requested)
+        
+        # Validaciones
         if not self.document_identifier or not self.voucher_amount:
             raise UserError(_('Debe ingresar el identificador y monto del documento.'))
         
@@ -139,7 +151,9 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
         
         document_id = self.payment_document_id.id
         
+        # Si el documento no existe, crearlo (sin sudo, tiene permisos)
         if not self.document_exists:
+            _logger.info("Creando nuevo documento de pago")
             document_id = self.env['pos.payment.document'].create({
                 'name': self.document_identifier,
                 'total_amount': self.voucher_amount,
@@ -148,6 +162,8 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
                 'verified': False,
             }).id
         
+        # Crear solicitud (sin sudo, tiene permisos)
+        _logger.info("Creando solicitud de aprobación")
         request = self.env['pos.payment.approval.request'].create({
             'payment_document_id': document_id,
             'payment_method_id': self.payment_method_id.id,
@@ -158,6 +174,8 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
             'pos_order_id': self.pos_order_id.id,
             'state': 'pending',
         })
+        
+        _logger.info("✓ Solicitud creada: %s", request.name)
         
         message = _(
             "Solicitud de aprobación creada exitosamente.\n\n"
@@ -171,11 +189,14 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
             'amount': self.amount_requested,
         }
         
+        # Mensaje en el chatter
         self.pos_order_id.message_post(
             body=message,
             subject=_("Solicitud de aprobación creada"),
             message_type='notification'
         )
+        
+        _logger.info("=" * 80)
         
         return {
             'type': 'ir.actions.client',
