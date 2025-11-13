@@ -38,7 +38,7 @@ class PosPaymentChangeWizard(models.TransientModel):
         _logger.info("=" * 80)
         _logger.info("BUTTON CHANGE PAYMENT - INICIO")
         _logger.info("from_same_day_button (campo): %s", self.from_same_day_button)
-        _logger.info("from_same_day_button (contexto): %s", self.env.context.get('from_same_day_button'))
+        _logger.info("Orden: %s", order.name)
         _logger.info("=" * 80)
         
         # Validación de total (código original)
@@ -65,7 +65,6 @@ class PosPaymentChangeWizard(models.TransientModel):
             )
         
         # Verificar si viene del botón "Cambiar pagos día"
-        # Usar el campo en lugar del contexto (más confiable)
         if self.from_same_day_button or self.env.context.get('from_same_day_button'):
             _logger.info("✓ Detectado flag from_same_day_button")
             
@@ -76,17 +75,16 @@ class PosPaymentChangeWizard(models.TransientModel):
             
             _logger.info("Métodos de pago seleccionados:")
             for line in self.new_line_ids:
-                _logger.info("  - %s: requires_approval=%s", 
+                _logger.info("  - %s: requires_approval=%s, amount=%s", 
                            line.new_payment_method_id.name,
-                           line.new_payment_method_id.is_valid_for_payment_approval_request)
+                           line.new_payment_method_id.is_valid_for_payment_approval_request,
+                           line.amount)
             
             _logger.info("Total métodos que requieren aprobación: %s", len(methods_requiring_approval))
             
             if methods_requiring_approval:
                 _logger.info("✓✓✓ ABRIENDO WIZARD DE APROBACIÓN ✓✓✓")
-                # Cerrar el wizard actual
-                self.unlink()
-                # Abrir wizard de aprobación
+                # Abrir wizard de aprobación (NO eliminar el actual)
                 return self._open_approval_wizard(methods_requiring_approval)
         
         # Si no requiere aprobación, ejecutar flujo original
@@ -102,22 +100,23 @@ class PosPaymentChangeWizard(models.TransientModel):
         # Tomar la primera línea que requiere aprobación
         first_line = approval_lines[0]
         
-        _logger.info("Creando wizard de aprobación para:")
-        _logger.info("  Método: %s", first_line.new_payment_method_id.name)
+        _logger.info("Creando wizard de aprobación:")
+        _logger.info("  Orden: %s (ID: %s)", self.order_id.name, self.order_id.id)
+        _logger.info("  Método: %s (ID: %s)", first_line.new_payment_method_id.name, first_line.new_payment_method_id.id)
         _logger.info("  Monto: %s", first_line.amount)
-        _logger.info("  Orden: %s", self.order_id.name)
         
-        # Crear el wizard
+        # Crear el wizard de aprobación
         wizard = self.env['pos.payment.approval.create.wizard'].create({
             'pos_order_id': self.order_id.id,
             'payment_method_id': first_line.new_payment_method_id.id,
             'amount_requested': first_line.amount,
-            'voucher_amount': first_line.amount,  # Pre-llenar también
+            'voucher_amount': first_line.amount,
         })
         
-        _logger.info("Wizard creado con ID: %s", wizard.id)
+        _logger.info("✓ Wizard creado con ID: %s", wizard.id)
         
-        # Retornar acción para abrir el wizard
+        # Retornar acción para abrir el nuevo wizard
+        # Odoo cerrará el wizard actual automáticamente
         return {
             'name': _('Solicitud de Aprobación de Pago'),
             'type': 'ir.actions.act_window',
@@ -125,5 +124,4 @@ class PosPaymentChangeWizard(models.TransientModel):
             'res_id': wizard.id,
             'view_mode': 'form',
             'target': 'new',
-            'context': self.env.context,
         }
