@@ -2,6 +2,9 @@
 from datetime import date
 from odoo import models, _
 from odoo.exceptions import UserError
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 class PosOrder(models.Model):
@@ -10,9 +13,13 @@ class PosOrder(models.Model):
     def action_pos_order_change_payment_same_day(self):
         """
         Acción para cambiar pagos SOLO si la orden es del mismo día.
-        Reutiliza el wizard existente del módulo pos_payment_change.
         """
         self.ensure_one()
+        
+        _logger.info("=" * 80)
+        _logger.info("ACTION POS ORDER CHANGE PAYMENT SAME DAY")
+        _logger.info("Orden: %s", self.name)
+        _logger.info("=" * 80)
         
         # Validar que la orden sea del mismo día
         today = date.today()
@@ -29,7 +36,10 @@ class PosOrder(models.Model):
                 )
             )
         
-        # Si pasa la validación, abrir el wizard existente
+        _logger.info("✓ Validación de fecha correcta")
+        _logger.info("Abriendo wizard con contexto from_same_day_button=True")
+        
+        # Abrir el wizard con el flag
         return {
             'name': _('Cambiar Método de Pago'),
             'type': 'ir.actions.act_window',
@@ -38,7 +48,9 @@ class PosOrder(models.Model):
             'target': 'new',
             'context': {
                 'default_order_id': self.id,
+                'default_from_same_day_button': True,  # ← Usar default_ para el campo
                 'active_id': self.id,
                 'active_ids': self.ids,
+                'from_same_day_button': True,  # ← También en el contexto
             }
         }
