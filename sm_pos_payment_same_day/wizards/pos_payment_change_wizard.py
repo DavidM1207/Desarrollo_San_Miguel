@@ -59,7 +59,7 @@ class PosPaymentChangeWizard(models.TransientModel):
                 )
             )
         
-        # Verificar si viene del botón "Cambiar pagos día"
+        # SOLO interceptar si viene del botón "Cambiar pagos día"
         if self.from_same_day_button or self.env.context.get('from_same_day_button'):
             _logger.info("✓ Detectado flag from_same_day_button")
             
@@ -74,12 +74,30 @@ class PosPaymentChangeWizard(models.TransientModel):
                            line.new_payment_method_id.is_valid_for_payment_approval_request)
             
             if methods_requiring_approval:
-                _logger.info("✓✓✓ Hay %s métodos que requieren aprobación", len(methods_requiring_approval))
+                _logger.info("✓✓✓ Abriendo wizard de aprobación")
                 return self._open_approval_wizard(methods_requiring_approval)
+            else:
+                _logger.info("No hay métodos que requieran aprobación, flujo normal")
         
-        _logger.info("Flujo normal")
+        # Flujo normal - ASEGURAR QUE RETORNE CORRECTAMENTE
+        _logger.info("Ejecutando flujo original (super)")
+        
+        # Remover el flag del contexto para evitar recursión
+        ctx = dict(self.env.context)
+        ctx.pop('from_same_day_button', None)
+        ctx.pop('default_from_same_day_button', None)
+        
+        # Llamar al método original SIN nuestro contexto
+        result = super(PosPaymentChangeWizard, self.with_context(ctx)).button_change_payment()
+        
+        _logger.info("Resultado del super: %s", result)
         _logger.info("=" * 80)
-        return super(PosPaymentChangeWizard, self).button_change_payment()
+        
+        # Si no retorna nada, retornar acción de cerrar
+        if not result:
+            return {'type': 'ir.actions.act_window_close'}
+        
+        return result
     
     def _open_approval_wizard(self, approval_lines):
         """Abre wizard de aprobación con sudo() completo"""
@@ -102,7 +120,6 @@ class PosPaymentChangeWizard(models.TransientModel):
         
         _logger.info("✓ Wizard creado con ID: %s", wizard.id)
         
-        # Retornar acción usando el wizard con sudo para evitar errores de acceso
         return {
             'name': _('Solicitud de Aprobación de Pago'),
             'type': 'ir.actions.act_window',
@@ -110,7 +127,4 @@ class PosPaymentChangeWizard(models.TransientModel):
             'res_id': wizard.id,
             'view_mode': 'form',
             'target': 'new',
-            'context': {
-                'sudo_mode': True,  # Flag para indicar que se debe usar sudo
-            }
         }

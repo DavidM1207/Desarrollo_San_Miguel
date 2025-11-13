@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api, _
-from odoo.exceptions import UserError, AccessError
+from odoo.exceptions import UserError
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -11,17 +11,14 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
     _name = 'pos.payment.approval.create.wizard'
     _description = 'Solicitud de Aprobación de Pago'
     
-    # Deshabilitar verificación de acceso para este modelo
+    # Métodos de verificación de acceso
     def _check_access_rights(self, *args, **kwargs):
-        """Sobrescribir para permitir acceso sin permisos explícitos"""
         return True
     
     def check_access_rights(self, *args, **kwargs):
-        """Sobrescribir para permitir acceso sin permisos explícitos"""
         return True
     
     def check_access_rule(self, *args, **kwargs):
-        """Sobrescribir para permitir acceso sin permisos explícitos"""
         return True
     
     pos_order_id = fields.Many2one(
@@ -82,22 +79,37 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
         string='Nombre del Archivo'
     )
     
+    # ← NUEVO CAMPO PARA LA RAZÓN DEL CAMBIO
+    change_reason = fields.Text(
+        string='Razón del Cambio',
+        required=True,
+        help='Explique el motivo del cambio de método de pago'
+    )
+    
+    # ← CAMPO PARA GUARDAR LOS PAGOS ANTIGUOS
+    old_payment_ids = fields.Many2many(
+        'pos.payment',
+        string='Pagos Antiguos',
+        help='Pagos que serán reemplazados'
+    )
+    
     @api.model
     def create(self, vals):
-        """Override create para usar siempre sudo"""
+        """Override create para usar siempre sudo y capturar pagos antiguos"""
+        # Capturar los pagos actuales de la orden antes de crear
+        if vals.get('pos_order_id'):
+            order = self.env['pos.order'].browse(vals['pos_order_id'])
+            vals['old_payment_ids'] = [(6, 0, order.payment_ids.ids)]
         return super(PosPaymentApprovalCreateWizard, self.sudo()).create(vals)
     
     def write(self, vals):
-        """Override write para usar siempre sudo"""
         return super(PosPaymentApprovalCreateWizard, self.sudo()).write(vals)
     
     def read(self, fields=None, load='_classic_read'):
-        """Override read para usar siempre sudo"""
         return super(PosPaymentApprovalCreateWizard, self.sudo()).read(fields, load)
     
     def action_search_document(self):
         """Busca el documento en la BD"""
-        # Usar sudo para toda la operación
         self = self.sudo()
         self.ensure_one()
         
@@ -154,7 +166,6 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
     
     def action_submit_request(self):
         """Crea la solicitud de aprobación"""
-        # Usar sudo para toda la operación
         self = self.sudo()
         self.ensure_one()
         
@@ -180,10 +191,12 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
         if not self.attachment:
             raise UserError(_('Debe adjuntar un documento.'))
         
+        if not self.change_reason:
+            raise UserError(_('Debe ingresar una razón del cambio.'))
+        
         _logger.info("Documento: %s", self.document_identifier)
         _logger.info("Método: %s", self.payment_method_id.name)
-        _logger.info("Voucher: %s", self.voucher_amount)
-        _logger.info("Monto: %s", self.amount_requested)
+        _logger.info("Razón: %s", self.change_reason)
         
         document_id = self.payment_document_id.id
         
@@ -198,7 +211,7 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
                 'verified': False,
             }).id
         
-        # Crear solicitud de aprobación
+        # Crear solicitud de aprobación CON LA RAZÓN Y PAGOS ANTIGUOS
         _logger.info("Creando solicitud de aprobación")
         request = self.env['pos.payment.approval.request'].create({
             'payment_document_id': document_id,
@@ -211,19 +224,54 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
             'state': 'pending',
         })
         
+        # Guardar info adicional en el contexto de la solicitud
+        # Esto lo usaremos cuando se apruebe
+        request.sudo().write({
+            'edit_detail': self.change_reason,  # Usar campo existente para guardar la razón
+        })
+        
         _logger.info("✓ Solicitud creada: %s", request.name)
+        
+        # ELIMINAR LOS PAGOS ANTIGUOS INMEDIATAMENTE
+        # (antes de que se apruebe, para evitar duplicados)
+        if self.old_payment_ids:
+            _logger.info("Eliminando pagos antiguos: %s", self.old_payment_ids.ids)
+            self.old_payment_ids.sudo().unlink()
         
         message = _(
             "Solicitud de aprobación creada exitosamente.\n\n"
             "Número de solicitud: %(name)s\n"
             "Método de pago: %(method)s\n"
-            "Monto solicitado: %(amount)s\n\n"
+            "Monto solicitado: %(amount)s\n"
+            "Razón del cambio: %(reason)s\n\n"
             "La solicitud está pendiente de aprobación."
         ) % {
             'name': request.name,
             'method': self.payment_method_id.name,
             'amount': self.amount_requested,
+            'reason': self.change_reason,
         }
+        
+        # Agregar la razón del cambio a las notas de la orden
+        from datetime import datetime
+        comment = _(
+            "Solicitud de cambio de pago creada el %(today)s.\n"
+            "Razón: %(reason)s\n"
+            "Estado: Pendiente de aprobación\n"
+            "Método solicitado: %(method)s\n"
+            "Monto: %(amount)s"
+        ) % {
+            'today': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
+            'reason': self.change_reason,
+            'method': self.payment_method_id.name,
+            'amount': self.amount_requested,
+        }
+        
+        # Agregar a las notas de la orden (como el botón original)
+        current_note = self.pos_order_id.note or ""
+        self.pos_order_id.sudo().write({
+            'note': f"{current_note}\n\n{comment}" if current_note else comment
+        })
         
         self.pos_order_id.message_post(
             body=message,

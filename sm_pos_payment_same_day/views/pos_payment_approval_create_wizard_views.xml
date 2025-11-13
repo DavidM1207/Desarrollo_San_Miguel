@@ -8,6 +8,7 @@
                 <sheet>
                     <group>
                         <field name="pos_order_id" readonly="1"/>
+                        <field name="old_payment_ids" invisible="1"/>
                     </group>
                     
                     <!-- Número de Documento con botón Buscar -->
@@ -60,6 +61,13 @@
                                widget="binary" 
                                filename="attachment_filename"/>
                         <field name="attachment_filename" invisible="1"/>
+                    </group>
+                    
+                    <!-- ← NUEVO: Razón del Cambio -->
+                    <group>
+                        <field name="change_reason" 
+                               placeholder="Explique el motivo del cambio de método de pago..."
+                               widget="text"/>
                     </group>
                 </sheet>
                 <footer>
