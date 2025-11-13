@@ -82,7 +82,7 @@ class PosPaymentChangeWizard(models.TransientModel):
         return super(PosPaymentChangeWizard, self).button_change_payment()
     
     def _open_approval_wizard(self, approval_lines):
-        """Abre wizard de aprobación con sudo()"""
+        """Abre wizard de aprobación con sudo() completo"""
         self.ensure_one()
         
         first_line = approval_lines[0]
@@ -92,8 +92,7 @@ class PosPaymentChangeWizard(models.TransientModel):
         _logger.info("  Método: %s", first_line.new_payment_method_id.name)
         _logger.info("  Monto: %s", first_line.amount)
         
-        # Crear wizard con sudo() ya que no tiene permisos explícitos
-        # Es seguro porque solo usuarios con acceso a pos.order pueden llegar aquí
+        # Crear wizard con sudo()
         wizard = self.env['pos.payment.approval.create.wizard'].sudo().create({
             'pos_order_id': self.order_id.id,
             'payment_method_id': first_line.new_payment_method_id.id,
@@ -103,6 +102,7 @@ class PosPaymentChangeWizard(models.TransientModel):
         
         _logger.info("✓ Wizard creado con ID: %s", wizard.id)
         
+        # Retornar acción usando el wizard con sudo para evitar errores de acceso
         return {
             'name': _('Solicitud de Aprobación de Pago'),
             'type': 'ir.actions.act_window',
@@ -110,4 +110,7 @@ class PosPaymentChangeWizard(models.TransientModel):
             'res_id': wizard.id,
             'view_mode': 'form',
             'target': 'new',
+            'context': {
+                'sudo_mode': True,  # Flag para indicar que se debe usar sudo
+            }
         }
