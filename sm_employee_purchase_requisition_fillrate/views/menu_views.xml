@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
     
-    <!-- Menú padre para Reportes (si no existe) -->
+    <!-- Menú padre para Reportes -->
     <menuitem id="menu_employee_requisition_reports"
               name="Reportes"
-              parent="employee_purchase_requisition.employee_purchase_requisition_menu"
+              parent="employee_purchase_requisition.employee_purchase_requisition_menu_root"
               sequence="100"/>
     
     <!-- Menú para Fill Rate -->
