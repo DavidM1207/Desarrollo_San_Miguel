@@ -43,18 +43,7 @@
                 <!-- Separador -->
                 <separator/>
                 
-                <!-- Filtros predefinidos -->
-                <filter string="Fill Rate Completo (≥100%)" name="fill_rate_complete"
-                        domain="[('fill_rate_percentage', '&gt;=', 100)]"/>
-                <filter string="Fill Rate Parcial (50-99%)" name="fill_rate_partial"
-                        domain="[('fill_rate_percentage', '&gt;=', 50), ('fill_rate_percentage', '&lt;', 100)]"/>
-                <filter string="Fill Rate Bajo (&lt;50%)" name="fill_rate_low"
-                        domain="[('fill_rate_percentage', '&lt;', 50)]"/>
-                <filter string="Sin Recepción" name="no_reception"
-                        domain="[('qty_received', '=', 0)]"/>
-                
-                <separator/>
-                
+                <!-- Filtros por estado -->
                 <filter string="Estado: Recibido" name="state_received"
                         domain="[('state', '=', 'received')]"/>
                 <filter string="Estado: Movimientos Creados" name="state_purchase_created"
