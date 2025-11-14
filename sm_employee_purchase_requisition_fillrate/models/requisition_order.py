@@ -1,6 +1,6 @@
+# models/requisition_order.py
 # -*- coding: utf-8 -*-
 from odoo import api, fields, models
-from datetime import timedelta
 
 
 class RequisitionOrderFillRate(models.Model):
@@ -29,25 +29,22 @@ class RequisitionOrderFillRate(models.Model):
         readonly=True,
         help='Fecha de recepción del producto')
     
-    # Campos computados
+    # Campos computados SIN store=True (esto evita el timeout)
     date_diff_days = fields.Integer(
         string='Días de Diferencia',
         compute='_compute_date_diff',
-        store=True,
         readonly=True,
         help='Diferencia en días entre fecha de creación y recepción')
     
     qty_received = fields.Float(
         string='Cantidad Recepcionada',
         compute='_compute_qty_received',
-        store=True,
         readonly=True,
         help='Cantidad total recepcionada del producto')
     
     fill_rate_percentage = fields.Float(
         string='Fill Rate (%)',
         compute='_compute_fill_rate',
-        store=True,
         readonly=True,
         help='Porcentaje de Fill Rate: (Cantidad Recepcionada / Cantidad Solicitada) * 100')
 
