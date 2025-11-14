@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Fill Rate Report</title>
+</head>
+<body>
+    <section class="oe_container">
+        <div class="oe_row oe_spaced">
+            <h2 class="oe_slogan">Reporte de Fill Rate para Requisiciones</h2>
+            <h3 class="oe_slogan">Monitorea el cumplimiento de tus requisiciones de compra</h3>
+        </div>
+    </section>
+
+    <section class="oe_container oe_dark">
+        <div class="oe_row oe_spaced">
+            <h2>Características Principales</h2>
+            <div class="oe_span6">
+                <ul>
+                    <li>📊 Vista detallada de Fill Rate por línea de requisición</li>
+                    <li>📅 Seguimiento de fechas de creación y recepción</li>
+                    <li>⏱️ Cálculo automático de días de diferencia</li>
+                    <li>✅ Porcentaje de cumplimiento automático</li>
+                </ul>
+            </div>
+            <div class="oe_span6">
+                <ul>
+                    <li>🎨 Indicadores visuales por nivel de cumplimiento</li>
+                    <li>🔍 Filtros avanzados de búsqueda</li>
+                    <li>📈 Agrupaciones múltiples</li>
+                    <li>🔒 Vista de solo lectura</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section class="oe_container">
+        <div class="oe_row oe_spaced">
+            <h2>¿Cómo Funciona?</h2>
+            <div class="oe_span12">
+                <p class="oe_mt32">
+                    El módulo calcula automáticamente el Fill Rate comparando la cantidad solicitada 
+                    vs la cantidad recepcionada de cada producto en las requisiciones.
+                </p>
+                <p>
+                    <strong>Fórmula:</strong> Fill Rate (%) = (Cantidad Recepcionada / Cantidad Solicitada) × 100
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="oe_container oe_dark">
+        <div class="oe_row oe_spaced">
+            <h2>Ubicación</h2>
+            <div class="oe_span12">
+                <p class="oe_mt32 text-center">
+                    <strong>Requisiciones → Reportes → Fill Rate</strong>
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="oe_container">
+        <div class="oe_row oe_spaced">
+            <h2>Indicadores Visuales</h2>
+            <div class="oe_span4">
+                <div class="text-success">
+                    <h3>🟢 Verde</h3>
+                    <p>Fill Rate ≥ 100%</p>
+                    <p>Cumplimiento completo</p>
+                </div>
+            </div>
+            <div class="oe_span4">
+                <div class="text-warning">
+                    <h3>🟡 Amarillo</h3>
+                    <p>Fill Rate 50-99%</p>
+                    <p>Cumplimiento parcial</p>
+                </div>
+            </div>
+            <div class="oe_span4">
+                <div class="text-danger">
+                    <h3>🔴 Rojo</h3>
+                    <p>Fill Rate &lt; 50%</p>
+                    <p>Cumplimiento bajo</p>
+                </div>
+            </div>
+        </div>
+    </section>
+</body>
+</html>

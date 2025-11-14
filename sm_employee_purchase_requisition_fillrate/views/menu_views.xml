@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    
+    <!-- Menú padre para Reportes (si no existe) -->
+    <menuitem id="menu_employee_requisition_reports"
+              name="Reportes"
+              parent="employee_purchase_requisition.employee_purchase_requisition_menu"
+              sequence="100"/>
+    
+    <!-- Menú para Fill Rate -->
+    <menuitem id="menu_requisition_fillrate"
+              name="Fill Rate"
+              parent="menu_employee_requisition_reports"
+              action="requisition_order_fillrate_action"
+              sequence="10"/>
+
+</odoo>

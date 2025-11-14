@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Vista Tree para Reporte de Fill Rate -->
+    <record id="requisition_order_fillrate_view_tree" model="ir.ui.view">
+        <field name="name">requisition.order.fillrate.view.tree</field>
+        <field name="model">requisition.order</field>
+        <field name="arch" type="xml">
+            <tree create="false" delete="false" edit="false" 
+                  decoration-success="fill_rate_percentage &gt;= 100"
+                  decoration-warning="fill_rate_percentage &gt;= 50 and fill_rate_percentage &lt; 100"
+                  decoration-danger="fill_rate_percentage &lt; 50">
+                <field name="requisition_name" string="Requisición"/>
+                <field name="requisition_date" string="Fecha Creación"/>
+                <field name="receive_date" string="Fecha Recepción"/>
+                <field name="date_diff_days" string="Días de Diferencia"/>
+                <field name="product_id" string="Producto"/>
+                <field name="quantity" string="Cantidad Solicitada"/>
+                <field name="qty_received" string="Cantidad Recepcionada"/>
+                <field name="fill_rate_percentage" string="Fill Rate (%)" widget="percentage"/>
+                <field name="state" string="Estado" widget="badge"
+                       decoration-success="state in ('approved','received')"
+                       decoration-warning="state in ('waiting_department_approval','waiting_head_approval')"
+                       decoration-info="state =='purchase_order_created'"
+                       decoration-danger="state =='cancelled'"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Vista de Búsqueda para Fill Rate -->
+    <record id="requisition_order_fillrate_view_search" model="ir.ui.view">
+        <field name="name">requisition.order.fillrate.view.search</field>
+        <field name="model">requisition.order</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Fill Rate">
+                <!-- Filtros de búsqueda -->
+                <field name="requisition_name" string="Requisición" 
+                       filter_domain="[('requisition_name', 'ilike', self)]"/>
+                <field name="product_id" string="Producto" 
+                       filter_domain="[('product_id', 'ilike', self)]"/>
+                <field name="requisition_date" string="Fecha Creación"/>
+                <field name="receive_date" string="Fecha Recepción"/>
+                
+                <!-- Separador -->
+                <separator/>
+                
+                <!-- Filtros predefinidos -->
+                <filter string="Fill Rate Completo (≥100%)" name="fill_rate_complete"
+                        domain="[('fill_rate_percentage', '&gt;=', 100)]"/>
+                <filter string="Fill Rate Parcial (50-99%)" name="fill_rate_partial"
+                        domain="[('fill_rate_percentage', '&gt;=', 50), ('fill_rate_percentage', '&lt;', 100)]"/>
+                <filter string="Fill Rate Bajo (&lt;50%)" name="fill_rate_low"
+                        domain="[('fill_rate_percentage', '&lt;', 50)]"/>
+                <filter string="Sin Recepción" name="no_reception"
+                        domain="[('qty_received', '=', 0)]"/>
+                
+                <separator/>
+                
+                <filter string="Estado: Recibido" name="state_received"
+                        domain="[('state', '=', 'received')]"/>
+                <filter string="Estado: Movimientos Creados" name="state_purchase_created"
+                        domain="[('state', '=', 'purchase_order_created')]"/>
+                
+                <separator/>
+                
+                <!-- Filtros de fecha -->
+                <filter string="Creado Hoy" name="requisition_today"
+                        domain="[('requisition_date', '=', context_today().strftime('%Y-%m-%d'))]"/>
+                <filter string="Creado Esta Semana" name="requisition_this_week"
+                        domain="[('requisition_date', '&gt;=', (context_today() - relativedelta(weeks=1)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Creado Este Mes" name="requisition_this_month"
+                        domain="[('requisition_date', '&gt;=', (context_today() - relativedelta(months=1)).strftime('%Y-%m-%d'))]"/>
+                
+                <separator/>
+                
+                <filter string="Recibido Hoy" name="received_today"
+                        domain="[('receive_date', '=', context_today().strftime('%Y-%m-%d'))]"/>
+                <filter string="Recibido Esta Semana" name="received_this_week"
+                        domain="[('receive_date', '&gt;=', (context_today() - relativedelta(weeks=1)).strftime('%Y-%m-%d'))]"/>
+                <filter string="Recibido Este Mes" name="received_this_month"
+                        domain="[('receive_date', '&gt;=', (context_today() - relativedelta(months=1)).strftime('%Y-%m-%d'))]"/>
+                
+                <!-- Agrupaciones -->
+                <group expand="0" string="Agrupar Por">
+                    <filter string="Requisición" name="group_requisition"
+                            context="{'group_by':'requisition_name'}"/>
+                    <filter string="Producto" name="group_product"
+                            context="{'group_by':'product_id'}"/>
+                    <filter string="Estado" name="group_state"
+                            context="{'group_by':'state'}"/>
+                    <filter string="Fecha de Creación" name="group_requisition_date"
+                            context="{'group_by':'requisition_date'}"/>
+                    <filter string="Fecha de Recepción" name="group_receive_date"
+                            context="{'group_by':'receive_date'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Acción de ventana para el reporte -->
+    <record id="requisition_order_fillrate_action" model="ir.actions.act_window">
+        <field name="name">Fill Rate</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">requisition.order</field>
+        <field name="view_mode">tree</field>
+        <field name="view_id" ref="requisition_order_fillrate_view_tree"/>
+        <field name="search_view_id" ref="requisition_order_fillrate_view_search"/>
+        <field name="context">{
+            'create': False,
+            'delete': False,
+            'edit': False,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_empty_folder">
+                No hay datos de Fill Rate disponibles
+            </p>
+            <p>
+                El reporte de Fill Rate muestra el porcentaje de cumplimiento entre 
+                la cantidad solicitada y la cantidad recepcionada de cada producto 
+                en las requisiciones.
+            </p>
+        </field>
+    </record>
+
+</odoo>
