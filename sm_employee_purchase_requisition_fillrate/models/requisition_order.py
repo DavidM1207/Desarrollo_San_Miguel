@@ -40,7 +40,7 @@ class RequisitionOrderFillRate(models.Model):
         string='Cantidad Recepcionada',
         compute='_compute_qty_received',
         readonly=True,
-        help='Cantidad total recepcionada del producto')
+        help='Cantidad total recepcionada del producto (solo transito -> destino)')
     
     fill_rate_percentage = fields.Float(
         string='Fill Rate (%)',
@@ -58,19 +58,29 @@ class RequisitionOrderFillRate(models.Model):
             else:
                 record.date_diff_days = 0
 
-    @api.depends('product_id', 'requisition_product_id.name')
+    @api.depends('product_id', 'requisition_product_id.name', 'requisition_product_id.destination_location_id')
     def _compute_qty_received(self):
-        """Calcula la cantidad recepcionada desde stock.move"""
+        """Calcula la cantidad recepcionada desde stock.move - SOLO transito -> destino"""
         for record in self:
             if not record.requisition_product_id or not record.product_id:
                 record.qty_received = 0.0
                 continue
             
-            # Buscar todos los movimientos de stock relacionados con esta requisición
+            # Obtener ubicaciones de tránsito y destino
+            transit_location_id = record.requisition_product_id.company_id.internal_transit_location_id
+            destination_location_id = record.requisition_product_id.destination_location_id
+            
+            if not transit_location_id or not destination_location_id:
+                record.qty_received = 0.0
+                continue
+            
+            # Buscar SOLO los movimientos de tránsito -> destino
             stock_moves = self.env['stock.move'].search([
                 ('product_id', '=', record.product_id.id),
                 ('state', '=', 'done'),
-                ('picking_id.requisition_order', '=', record.requisition_product_id.name)
+                ('picking_id.requisition_order', '=', record.requisition_product_id.name),
+                ('location_id', '=', transit_location_id.id),  # DESDE tránsito
+                ('location_dest_id', '=', destination_location_id.id)  # HACIA destino
             ])
             
             # Sumar las cantidades recepcionadas
@@ -82,6 +92,6 @@ class RequisitionOrderFillRate(models.Model):
         """Calcula el porcentaje de Fill Rate"""
         for record in self:
             if record.quantity and record.quantity > 0:
-                record.fill_rate_percentage = (record.qty_received / record.quantity) * 100
+                record.fill_rate_percentage = (record.qty_received / record.quantity)
             else:
                 record.fill_rate_percentage = 0.0
