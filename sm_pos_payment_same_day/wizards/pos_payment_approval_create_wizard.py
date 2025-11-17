@@ -233,25 +233,33 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
         # Agregar nota a la orden con usuario solicitante y número de orden
         from datetime import datetime
         user_name = self.env.user.name
+
+        old_payment_methods = []
+        for payment in self.old_payment_ids:
+            old_payment_methods.append(f"  • {payment.payment_method_id.name}: {payment.amount}")
+        old_payments_text = "\n".join(old_payment_methods) if old_payment_methods else "  • Ninguno"
+
         comment = _(
             "Fecha: %(date)s ,"
             "Usuario solicitante: %(user)s ,"
             "Orden: %(order)s ,"
             "Número de solicitud: %(request)s ,"
-            "Método solicitado: %(method)s ,"
+            "MÉTODOS DE PAGO ANTERIORES: %(old_methods)s ,"
+            "NUEVO MÉTODO SOLICITADO: %(method)s ,"
             "Monto: %(amount)s ,"
             "Razón del cambio: %(reason)s ,"
             "Estado: Pendiente de aprobación."
          
         ) % {
-            'date': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
-            'user': user_name,
-            'order': self.pos_order_id.name,
-            'request': request.name,
-            'method': self.payment_method_id.name,
-            'amount': self.amount_requested,
-            'reason': self.change_reason,
-        }
+    'date': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
+    'user': user_name,
+    'order': self.pos_order_id.name,
+    'request': request.name,
+    'old_methods': old_payments_text,
+    'method': self.payment_method_id.name,
+    'amount': self.amount_requested,
+    'reason': self.change_reason,
+}
         
         current_note = self.pos_order_id.note or ""
         self.pos_order_id.sudo().write({
