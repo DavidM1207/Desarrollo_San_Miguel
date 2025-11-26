@@ -68,6 +68,7 @@ class RequisitionOrderFillRate(models.Model):
         ],
         compute='_compute_picking_state',
         readonly=True,
+        store=True,
         help='Estado del movimiento de stock (transito -> destino)')
 
     @api.depends('requisition_date', 'receive_date')
