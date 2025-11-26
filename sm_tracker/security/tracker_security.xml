@@ -1,30 +1,25 @@
-<!-- tracker/security/tracker_security.xml -->
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data noupdate="0">
         
-        <!-- Categoría de Módulo -->
         <record id="module_category_tracker" model="ir.module.category">
             <field name="name">Tracker</field>
             <field name="description">Gestión de seguimiento de proyectos</field>
             <field name="sequence">50</field>
         </record>
 
-        <!-- Grupo: Usuario Tracker -->
         <record id="group_tracker_user" model="res.groups">
             <field name="name">Usuario</field>
             <field name="category_id" ref="module_category_tracker"/>
             <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
         </record>
 
-        <!-- Grupo: Manager Tracker -->
         <record id="group_tracker_manager" model="res.groups">
             <field name="name">Manager</field>
             <field name="category_id" ref="module_category_tracker"/>
             <field name="implied_ids" eval="[(4, ref('group_tracker_user'))]"/>
         </record>
 
-        <!-- Record Rules: Proyectos - Usuarios solo ven sus tiendas -->
         <record id="tracker_project_rule_user" model="ir.rule">
             <field name="name">Tracker Project: User - Own Store</field>
             <field name="model_id" ref="model_tracker_project"/>
@@ -40,7 +35,6 @@
             <field name="perm_unlink" eval="False"/>
         </record>
 
-        <!-- Record Rules: Proyectos - Managers ven todo -->
         <record id="tracker_project_rule_manager" model="ir.rule">
             <field name="name">Tracker Project: Manager - All</field>
             <field name="model_id" ref="model_tracker_project"/>
@@ -52,7 +46,6 @@
             <field name="perm_unlink" eval="True"/>
         </record>
 
-        <!-- Record Rules: Tareas - Usuarios solo ven sus tiendas -->
         <record id="tracker_task_rule_user" model="ir.rule">
             <field name="name">Tracker Task: User - Own Store</field>
             <field name="model_id" ref="model_tracker_task"/>
@@ -68,7 +61,6 @@
             <field name="perm_unlink" eval="False"/>
         </record>
 
-        <!-- Record Rules: Tareas - Managers ven todo -->
         <record id="tracker_task_rule_manager" model="ir.rule">
             <field name="name">Tracker Task: Manager - All</field>
             <field name="model_id" ref="model_tracker_task"/>
@@ -80,7 +72,6 @@
             <field name="perm_unlink" eval="True"/>
         </record>
 
-        <!-- Record Rules: Timesheet - Usuarios solo ven sus registros -->
         <record id="tracker_timesheet_rule_user" model="ir.rule">
             <field name="name">Tracker Timesheet: User - Own Records</field>
             <field name="model_id" ref="model_tracker_timesheet"/>
@@ -96,7 +87,6 @@
             <field name="perm_unlink" eval="True"/>
         </record>
 
-        <!-- Record Rules: Timesheet - Managers ven todo -->
         <record id="tracker_timesheet_rule_manager" model="ir.rule">
             <field name="name">Tracker Timesheet: Manager - All</field>
             <field name="model_id" ref="model_tracker_timesheet"/>

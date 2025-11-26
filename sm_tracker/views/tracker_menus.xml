@@ -1,24 +1,17 @@
-<!-- tracker/views/tracker_menus.xml -->
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
         
-        <!-- Menú Principal -->
         <menuitem id="menu_tracker_root" name="Tracker" sequence="60"/>
 
-        <!-- Menú de Proyectos -->
         <menuitem id="menu_tracker_projects" name="Proyectos" parent="menu_tracker_root" sequence="10" action="action_tracker_project"/>
 
-        <!-- Menú de Tareas -->
         <menuitem id="menu_tracker_tasks" name="Tareas" parent="menu_tracker_root" sequence="20" action="action_tracker_task"/>
 
-        <!-- Menú de Registros de Tiempo -->
         <menuitem id="menu_tracker_timesheets" name="Registros de Tiempo" parent="menu_tracker_root" sequence="30" action="action_tracker_timesheet"/>
 
-        <!-- Menú de Configuración -->
         <menuitem id="menu_tracker_config" name="Configuración" parent="menu_tracker_root" sequence="100"/>
 
-        <!-- Menú de Empleados -->
         <menuitem id="menu_tracker_employees" name="Empleados" parent="menu_tracker_config" sequence="10" action="hr.open_view_employee_list_my"/>
 
     </data>
