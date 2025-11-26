@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        
+        <!-- Vista Pivot de Proyectos -->
+        <record id="view_tracker_project_pivot" model="ir.ui.view">
+            <field name="name">tracker.project.pivot</field>
+            <field name="model">tracker.project</field>
+            <field name="arch" type="xml">
+                <pivot string="Análisis de Proyectos">
+                    <field name="analytic_account_id" type="row"/>
+                    <field name="state" type="col"/>
+                    <field name="total_hours" type="measure"/>
+                    <field name="delay_days" type="measure"/>
+                </pivot>
+            </field>
+        </record>
+
+        <!-- Vista Graph de Proyectos -->
+        <record id="view_tracker_project_graph" model="ir.ui.view">
+            <field name="name">tracker.project.graph</field>
+            <field name="model">tracker.project</field>
+            <field name="arch" type="xml">
+                <graph string="Análisis de Proyectos" type="bar">
+                    <field name="analytic_account_id"/>
+                    <field name="total_hours" type="measure"/>
+                </graph>
+            </field>
+        </record>
+
+        <!-- Action de Análisis de Proyectos -->
+        <record id="action_tracker_project_analysis" model="ir.actions.act_window">
+            <field name="name">Análisis de Proyectos</field>
+            <field name="res_model">tracker.project</field>
+            <field name="view_mode">graph,pivot</field>
+            <field name="context">{}</field>
+        </record>
+
+        <!-- Vista Pivot de Tareas -->
+        <record id="view_tracker_task_pivot" model="ir.ui.view">
+            <field name="name">tracker.task.pivot</field>
+            <field name="model">tracker.task</field>
+            <field name="arch" type="xml">
+                <pivot string="Análisis de Tareas">
+                    <field name="employee_id" type="row"/>
+                    <field name="state" type="col"/>
+                    <field name="total_hours" type="measure"/>
+                </pivot>
+            </field>
+        </record>
+
+        <!-- Vista Graph de Tareas -->
+        <record id="view_tracker_task_graph" model="ir.ui.view">
+            <field name="name">tracker.task.graph</field>
+            <field name="model">tracker.task</field>
+            <field name="arch" type="xml">
+                <graph string="Análisis de Tareas" type="bar">
+                    <field name="employee_id"/>
+                    <field name="total_hours" type="measure"/>
+                </graph>
+            </field>
+        </record>
+
+        <!-- Action de Análisis de Tareas -->
+        <record id="action_tracker_task_analysis" model="ir.actions.act_window">
+            <field name="name">Análisis de Tareas</field>
+            <field name="res_model">tracker.task</field>
+            <field name="view_mode">graph,pivot</field>
+            <field name="context">{}</field>
+        </record>
+
+        <!-- Vista Pivot de Timesheet -->
+        <record id="view_tracker_timesheet_pivot" model="ir.ui.view">
+            <field name="name">tracker.timesheet.pivot</field>
+            <field name="model">tracker.timesheet</field>
+            <field name="arch" type="xml">
+                <pivot string="Análisis de Horas">
+                    <field name="employee_id" type="row"/>
+                    <field name="analytic_account_id" type="row"/>
+                    <field name="date" interval="month" type="col"/>
+                    <field name="hours" type="measure"/>
+                </pivot>
+            </field>
+        </record>
+
+        <!-- Vista Graph de Timesheet -->
+        <record id="view_tracker_timesheet_graph" model="ir.ui.view">
+            <field name="name">tracker.timesheet.graph</field>
+            <field name="model">tracker.timesheet</field>
+            <field name="arch" type="xml">
+                <graph string="Análisis de Horas" type="line">
+                    <field name="date" interval="week"/>
+                    <field name="hours" type="measure"/>
+                </graph>
+            </field>
+        </record>
+
+        <!-- Action de Análisis de Horas -->
+        <record id="action_tracker_timesheet_analysis" model="ir.actions.act_window">
+            <field name="name">Análisis de Horas</field>
+            <field name="res_model">tracker.timesheet</field>
+            <field name="view_mode">graph,pivot</field>
+            <field name="context">{}</field>
+        </record>
+
+        <!-- Menú de Reportes -->
+        <menuitem id="menu_tracker_reports" name="Reportes" parent="menu_tracker_root" sequence="90" groups="tracker.group_tracker_manager"/>
+        
+        <menuitem id="menu_tracker_project_analysis" name="Análisis de Proyectos" parent="menu_tracker_reports" sequence="10" action="action_tracker_project_analysis"/>
+        
+        <menuitem id="menu_tracker_task_analysis" name="Análisis de Tareas" parent="menu_tracker_reports" sequence="20" action="action_tracker_task_analysis"/>
+        
+        <menuitem id="menu_tracker_timesheet_analysis" name="Análisis de Horas" parent="menu_tracker_reports" sequence="30" action="action_tracker_timesheet_analysis"/>
+
+    </data>
+</odoo>

@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_tracker_project_user,tracker.project.user,model_tracker_project,group_tracker_user,1,1,1,0
+access_tracker_project_manager,tracker.project.manager,model_tracker_project,group_tracker_manager,1,1,1,1
+access_tracker_task_user,tracker.task.user,model_tracker_task,group_tracker_user,1,1,1,0
+access_tracker_task_manager,tracker.task.manager,model_tracker_task,group_tracker_manager,1,1,1,1
+access_tracker_timesheet_user,tracker.timesheet.user,model_tracker_timesheet,group_tracker_user,1,1,1,1
+access_tracker_timesheet_manager,tracker.timesheet.manager,model_tracker_timesheet,group_tracker_manager,1,1,1,1
