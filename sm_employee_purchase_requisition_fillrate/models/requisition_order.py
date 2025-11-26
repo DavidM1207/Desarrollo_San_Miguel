@@ -63,6 +63,7 @@ class RequisitionOrderFillRate(models.Model):
             ('waiting', 'Esperando'),
             ('confirmed', 'Confirmado'),
             ('assigned', 'Asignado'),
+            ('partially_available', 'Parcialmente Disponible'),
             ('done', 'Hecho'),
             ('cancel', 'Cancelado')
         ],
