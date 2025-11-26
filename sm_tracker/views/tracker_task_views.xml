@@ -29,10 +29,10 @@
             <field name="arch" type="xml">
                 <form string="Tarea de Servicio">
                     <header>
-                        <button name="action_start_task" string="Iniciar Tarea" type="object" states="draft,ready" class="oe_highlight"/>
-                        <button name="action_complete_task" string="Completar" type="object" states="in_progress" class="oe_highlight"/>
-                        <button name="action_cancel_task" string="Cancelar" type="object" states="draft,ready,in_progress"/>
-                        <button name="action_reset_to_draft" string="Volver a Borrador" type="object" states="cancel"/>
+                        <button name="action_start_task" string="Iniciar Tarea" type="object" invisible="state not in ['draft', 'ready']" class="oe_highlight"/>
+                        <button name="action_complete_task" string="Completar" type="object" invisible="state != 'in_progress'" class="oe_highlight"/>
+                        <button name="action_cancel_task" string="Cancelar" type="object" invisible="state not in ['draft', 'ready', 'in_progress']"/>
+                        <button name="action_reset_to_draft" string="Volver a Borrador" type="object" invisible="state != 'cancel'"/>
                         <field name="state" widget="statusbar" statusbar_visible="draft,ready,in_progress,done"/>
                     </header>
                     <sheet>

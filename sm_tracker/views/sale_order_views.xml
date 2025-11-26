@@ -11,10 +11,10 @@
                 
                 <!-- Agregar botón de Tracker -->
                 <xpath expr="//div[@name='button_box']" position="inside">
-                    <button name="action_view_tracker_projects" type="object" class="oe_stat_button" icon="fa-list-alt" attrs="{'invisible': [('tracker_project_count', '=', 0)]}">
+                    <button name="action_view_tracker_projects" type="object" class="oe_stat_button" icon="fa-list-alt" invisible="tracker_project_count == 0">
                         <field name="tracker_project_count" widget="statinfo" string="Trackers"/>
                     </button>
-                    <button name="action_create_tracker_project" string="Crear Tracker" type="object" class="oe_stat_button" icon="fa-plus-square" attrs="{'invisible': ['|', ('state', 'not in', ['sale', 'done']), ('has_service_products', '=', False)]}" groups="tracker.group_tracker_manager"/>
+                    <button name="action_create_tracker_project" string="Crear Tracker" type="object" class="oe_stat_button" icon="fa-plus-square" invisible="state not in ['sale', 'done'] or not has_service_products" groups="tracker.group_tracker_manager"/>
                 </xpath>
 
                 <!-- Agregar campo invisible para computed -->

@@ -49,12 +49,12 @@
                                 <label for="start_time"/>
                                 <div class="o_row">
                                     <field name="start_time"/>
-                                    <button name="action_start_timer" string="Iniciar" type="object" class="btn-sm btn-primary" attrs="{'invisible': [('start_time','!=',False)]}"/>
+                                    <button name="action_start_timer" string="Iniciar" type="object" class="btn-sm btn-primary" invisible="start_time"/>
                                 </div>
                                 <label for="end_time"/>
                                 <div class="o_row">
                                     <field name="end_time"/>
-                                    <button name="action_stop_timer" string="Detener" type="object" class="btn-sm btn-warning" attrs="{'invisible': ['|',('start_time','=',False),('end_time','!=',False)]}"/>
+                                    <button name="action_stop_timer" string="Detener" type="object" class="btn-sm btn-warning" invisible="not start_time or end_time"/>
                                 </div>
                             </group>
                             <group>

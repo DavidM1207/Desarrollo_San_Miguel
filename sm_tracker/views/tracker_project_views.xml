@@ -30,9 +30,9 @@
             <field name="arch" type="xml">
                 <form string="Proyecto Tracker">
                     <header>
-                        <button name="action_start_processing" string="Iniciar Procesamiento" type="object" states="pending" class="oe_highlight"/>
-                        <button name="action_mark_delivered" string="Marcar Entregado" type="object" states="processing" class="oe_highlight"/>
-                        <button name="action_generate_tasks_from_sale" string="Generar Tareas desde Venta" type="object" states="pending,processing" class="btn-primary" groups="tracker.group_tracker_manager"/>
+                        <button name="action_start_processing" string="Iniciar Procesamiento" type="object" invisible="state != 'pending'" class="oe_highlight"/>
+                        <button name="action_mark_delivered" string="Marcar Entregado" type="object" invisible="state != 'processing'" class="oe_highlight"/>
+                        <button name="action_generate_tasks_from_sale" string="Generar Tareas desde Venta" type="object" invisible="state not in ['pending', 'processing']" class="btn-primary" groups="tracker.group_tracker_manager"/>
                         <field name="state" widget="statusbar" statusbar_visible="pending,processing,delivered"/>
                     </header>
                     <sheet>
@@ -56,7 +56,7 @@
                             <group>
                                 <field name="analytic_account_id" options="{'no_create': True}"/>
                                 <field name="promise_date"/>
-                                <field name="delivery_date" attrs="{'readonly': [('state', '!=', 'delivered')]}"/>
+                                <field name="delivery_date" readonly="state != 'delivered'"/>
                                 <field name="company_id" groups="base.group_multi_company"/>
                             </group>
                         </group>

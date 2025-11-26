@@ -11,7 +11,7 @@
                 
                 <!-- Agregar botón de Tracker en facturas de cliente -->
                 <xpath expr="//div[@name='button_box']" position="inside">
-                    <button name="action_view_tracker_projects" type="object" class="oe_stat_button" icon="fa-list-alt" attrs="{'invisible': ['|', ('move_type', '!=', 'out_invoice'), ('tracker_project_count', '=', 0)]}">
+                    <button name="action_view_tracker_projects" type="object" class="oe_stat_button" icon="fa-list-alt" invisible="move_type != 'out_invoice' or tracker_project_count == 0">
                         <field name="tracker_project_count" widget="statinfo" string="Trackers"/>
                     </button>
                 </xpath>

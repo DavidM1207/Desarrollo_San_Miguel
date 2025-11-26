@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Tracker - Seguimiento de Proyectos',
-    'version': '17.0.1.0.0',
+    'version': '17.0.1.0.1',
     'category': 'Project',
     'summary': 'Seguimiento de proyectos con control de tiempo y servicios',
     'description': """
@@ -13,7 +13,7 @@
         - KPIs de fecha prometida vs entregada
     """,
     'author': 'SAN MIGUEL MADERA, S.A.',
-    
+ 
     'license': 'LGPL-3',
     'depends': [
         'base',
