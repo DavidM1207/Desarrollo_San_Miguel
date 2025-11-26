@@ -1,7 +1,8 @@
+# tracker/__manifest__.py
 # -*- coding: utf-8 -*-
 {
     'name': 'Tracker - Seguimiento de Proyectos',
-    'version': '17.0.1.0.2',
+    'version': '17.0.1.0.3',
     'category': 'Project',
     'summary': 'Seguimiento de proyectos con control de tiempo y servicios',
     'description': """
@@ -13,7 +14,7 @@
         - KPIs de fecha prometida vs entregada
     """,
     'author': 'SAN MIGUEL MADERA, S.A.',
- 
+     
     'license': 'LGPL-3',
     'depends': [
         'base',
@@ -23,20 +24,19 @@
         'hr',
         'analytic',
     ],
-   'data': [
-    'security/tracker_security.xml',
-    'security/ir.model.access.csv',
-    'data/tracker_data.xml',
-    'views/tracker_project_views.xml',
-    'views/tracker_task_views.xml',
-    'views/tracker_timesheet_views.xml',
-    'views/tracker_employee_views.xml',
-    'views/tracker_menus.xml',          # ← Movido ANTES de sale/account
-    'views/tracker_reports.xml',
-    'views/sale_order_views.xml',       # ← AL FINAL
-    'views/account_move_views.xml',     # ← AL FINAL
-    'reports/tracker_reports.xml',
-],
+    'data': [
+        'security/tracker_security.xml',
+        'security/ir.model.access.csv',
+        'data/tracker_data.xml',
+        'views/tracker_project_views.xml',
+        'views/tracker_task_views.xml',
+        'views/tracker_timesheet_views.xml',
+        'views/tracker_employee_views.xml',
+        'views/tracker_menus.xml',
+        'views/tracker_reports.xml',
+        'views/sale_order_views.xml',
+        'views/account_move_views.xml',
+    ],
     'demo': [],
     'installable': True,
     'application': True,
