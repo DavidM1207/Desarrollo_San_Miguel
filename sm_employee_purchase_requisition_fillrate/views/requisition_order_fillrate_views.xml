@@ -17,11 +17,16 @@
                 <field name="quantity" string="Cantidad Solicitada"/>
                 <field name="qty_received" string="Cantidad Recepcionada"/>
                 <field name="fill_rate_percentage" string="Fill Rate (%)" widget="percentage"/>
-                <field name="state" string="Estado" widget="badge"
-                       decoration-success="state in ('approved','received')"
-                       decoration-warning="state in ('waiting_department_approval','waiting_head_approval')"
-                       decoration-info="state =='purchase_order_created'"
-                       decoration-danger="state =='cancelled'"/>
+                <field name="requisition_state" string="Estado Requisición" widget="badge"
+                       decoration-success="requisition_state in ('approved','received')"
+                       decoration-warning="requisition_state in ('waiting_department_approval','waiting_head_approval')"
+                       decoration-info="requisition_state =='purchase_order_created'"
+                       decoration-danger="requisition_state =='cancelled'"/>
+                <field name="picking_state" string="Estado Movimiento" widget="badge"
+                       decoration-success="picking_state == 'done'"
+                       decoration-info="picking_state in ('confirmed','assigned')"
+                       decoration-muted="picking_state == 'draft'"
+                       decoration-danger="picking_state == 'cancel'"/>
             </tree>
         </field>
     </record>
@@ -43,11 +48,21 @@
                 <!-- Separador -->
                 <separator/>
                 
-                <!-- Filtros por estado -->
-                <filter string="Estado: Recibido" name="state_received"
-                        domain="[('state', '=', 'received')]"/>
-                <filter string="Estado: Movimientos Creados" name="state_purchase_created"
-                        domain="[('state', '=', 'purchase_order_created')]"/>
+                <!-- Filtros por estado de requisición -->
+                <filter string="Recibido" name="state_received"
+                        domain="[('requisition_state', '=', 'received')]"/>
+                <filter string="Movimientos Creados" name="state_purchase_created"
+                        domain="[('requisition_state', '=', 'purchase_order_created')]"/>
+                <filter string="Aprobado" name="state_approved"
+                        domain="[('requisition_state', '=', 'approved')]"/>
+                
+                <separator/>
+                
+                <!-- Filtros por estado de movimiento -->
+                <filter string="Mov: Completado" name="picking_done"
+                        domain="[('picking_state', '=', 'done')]"/>
+                <filter string="Mov: En Proceso" name="picking_inprogress"
+                        domain="[('picking_state', 'in', ['confirmed','assigned'])]"/>
                 
                 <separator/>
                 
@@ -74,8 +89,8 @@
                             context="{'group_by':'requisition_name'}"/>
                     <filter string="Producto" name="group_product"
                             context="{'group_by':'product_id'}"/>
-                    <filter string="Estado" name="group_state"
-                            context="{'group_by':'state'}"/>
+                    <filter string="Estado Requisición" name="group_requisition_state"
+                            context="{'group_by':'requisition_state'}"/>
                     <filter string="Fecha de Creación" name="group_requisition_date"
                             context="{'group_by':'requisition_date'}"/>
                     <filter string="Fecha de Recepción" name="group_receive_date"
