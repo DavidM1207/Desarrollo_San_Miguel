@@ -81,7 +81,7 @@ class PosPaymentApprovalCreateWizard(models.TransientModel):
     
     change_reason = fields.Text(
         string='Razón del Cambio',
-        required=True,
+        required=False,
         help='Explique el motivo del cambio de método de pago'
     )
     

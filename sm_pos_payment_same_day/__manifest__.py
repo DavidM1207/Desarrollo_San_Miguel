@@ -37,6 +37,11 @@
         'views/pos_payment_approval_create_wizard_views.xml',
         'views/pos_order_views.xml',
     ],
+     'assets': {
+        'point_of_sale._assets_pos': [
+            'sm_pos_payment_same_day/static/src/app/request_wizard_override.js',
+        ],
+    },
     'installable': True,
     'application': False,
     'auto_install': False,
