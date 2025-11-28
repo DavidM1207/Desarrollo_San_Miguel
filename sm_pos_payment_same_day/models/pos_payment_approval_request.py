@@ -111,30 +111,42 @@ class PosPaymentApprovalRequest(models.Model):
                     _logger.info("✓ Duplicados eliminados")
         
         # PASO 6: Enviar notificación al POS para actualizar la pantalla
-        for record in self:
-            if old_payment_method_id:
-                _logger.info("Enviando notificación al POS")
-                _logger.info("  Usuario: %s", record.user_id.name)
-                _logger.info("  Orden: %s", record.pos_order_id.id)
-                _logger.info("  Método antiguo: %s", old_payment_method_id)
-                _logger.info("  Método nuevo: %s", record.payment_method_id.id)
+        
+        for record  in self:
+            _logger.info("=" * 80)
+            _logger.info("VERIFICANDO SI DEBE ENVIAR NOTIFICACIÓN")
+            _logger.info("old_payment_method_id: %s", old_payment_method_id)
+            _logger.info("=" * 80)
                 
+            if old_payment_method_id:
+                _logger.info("✓ Hay método antiguo, enviando notificación")
+                _logger.info("  Usuario: %s (ID: %s)", record.user_id.name, record.user_id.id)
+                _logger.info("  Partner: %s (ID: %s)", record.user_id.partner_id.name, record.user_id.partner_id.id)
+                _logger.info("  Orden: %s (ID: %s)", record.pos_order_id.name, record.pos_order_id.id)
+                _logger.info("  Método antiguo: %s", old_payment_method_id)
+                _logger.info("  Método nuevo: %s (ID: %s)", record.payment_method_id.name, record.payment_method_id.id)
                 # Preparar payload con los datos del cambio
                 payload = {
-                    'pos_order_id': record.pos_order_id.id,
-                    'old_payment_method_id': old_payment_method_id,
-                    'new_payment_method_id': record.payment_method_id.id,
-                    'amount': record.amount_requested,
+                        'pos_order_id': record.pos_order_id.id,
+                        'old_payment_method_id': old_payment_method_id,
+                        'new_payment_method_id': record.payment_method_id.id,
+                        'amount': record.amount_requested,
                 }
-                
-                # Enviar notificación al usuario del POS
-                self.env['bus.bus']._sendone(
-                    record.user_id.partner_id,
-                    'pos_payment_approved',
-                    payload
-                )
-                
-                _logger.info("✓ Notificación enviada al POS")
+
+                _logger.info("  Payload: %s", payload) 
+
+                try:
+                    self.env['bus.bus']._sendone(
+                        record.user_id.partner_id,
+                        'pos_payment_approved',
+                        payload
+                    )
+            
+                    _logger.info("✓✓✓ Notificación ENVIADA exitosamente")
+                except Exception as e:
+                    _logger.error("❌ Error al enviar notificación: %s", e)
+            else:
+                _logger.warning("✗ No hay old_payment_method_id - NO se envía notificación")
         
         # PASO 7: Agregar nota de aprobación
         for record in self:
