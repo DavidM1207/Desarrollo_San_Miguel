@@ -114,40 +114,74 @@ class PosPaymentApprovalRequest(models.Model):
         
         for record  in self:
             _logger.info("=" * 80)
-            _logger.info("VERIFICANDO SI DEBE ENVIAR NOTIFICACIÓN")
+            _logger.info("PREPARANDO NOTIFICACIÓN AL POS")
             _logger.info("old_payment_method_id: %s", old_payment_method_id)
-            _logger.info("=" * 80)
-                
-            if old_payment_method_id:
-                _logger.info("✓ Hay método antiguo, enviando notificación")
+            
+            # Determinar el método antiguo
+            # Si viene del backend, ya lo tenemos en old_payment_method_id
+            # Si viene del POS, buscamos pagos con el mismo método
+            final_old_method_id = old_payment_method_id
+
+            if not final_old_method_id:
+                _logger.info("No hay old_payment_method_id guardado")
+                _logger.info("Buscando pagos antiguos en la orden...")
+
+                all_payments = record.pos_order_id.payment_ids
+                _logger.info("Pagos totales en la orden: %s", len(all_payments))    
+
+                for payment in all_payments:
+                    _logger.info("  - Pago ID %s: Método %s (ID: %s), Monto: %s", 
+                        payment.id, 
+                        payment.payment_method_id.name,
+                        payment.payment_method_id.id,
+                        payment.amount)
+            
+            # Si hay un pago DIFERENTE al que acabamos de crear, ese es el antiguo
+                    if payment.id != record.payment_id.id:
+                        final_old_method_id = payment.payment_method_id.id
+                        _logger.info("✓ Encontrado método antiguo: %s (ID: %s)", 
+                           payment.payment_method_id.name,
+                           final_old_method_id)
+                        break
+    
+            _logger.info("final_old_method_id: %s", final_old_method_id)
+        
+            if final_old_method_id:
+                _logger.info("✓ Enviando notificación al POS")
                 _logger.info("  Usuario: %s (ID: %s)", record.user_id.name, record.user_id.id)
                 _logger.info("  Partner: %s (ID: %s)", record.user_id.partner_id.name, record.user_id.partner_id.id)
                 _logger.info("  Orden: %s (ID: %s)", record.pos_order_id.name, record.pos_order_id.id)
-                _logger.info("  Método antiguo: %s", old_payment_method_id)
+                _logger.info("  Método antiguo ID: %s", final_old_method_id)
                 _logger.info("  Método nuevo: %s (ID: %s)", record.payment_method_id.name, record.payment_method_id.id)
-                # Preparar payload con los datos del cambio
+        
+        # Preparar payload
                 payload = {
-                        'pos_order_id': record.pos_order_id.id,
-                        'old_payment_method_id': old_payment_method_id,
-                        'new_payment_method_id': record.payment_method_id.id,
-                        'amount': record.amount_requested,
+                    'pos_order_id': record.pos_order_id.id,
+                    'old_payment_method_id': final_old_method_id,
+                    'new_payment_method_id': record.payment_method_id.id,
+                    'amount': record.amount_requested,
                 }
-
-                _logger.info("  Payload: %s", payload) 
-
+        
+                _logger.info("  Payload: %s", payload)
+        
                 try:
+                    # Enviar notificación
                     self.env['bus.bus']._sendone(
                         record.user_id.partner_id,
                         'pos_payment_approved',
                         payload
                     )
             
-                    _logger.info("✓✓✓ Notificación ENVIADA exitosamente")
+                    _logger.info("✓✓✓ NOTIFICACIÓN ENVIADA EXITOSAMENTE ✓✓✓")
                 except Exception as e:
                     _logger.error("❌ Error al enviar notificación: %s", e)
+                    _logger.exception("Stack trace completo:")
             else:
-                _logger.warning("✗ No hay old_payment_method_id - NO se envía notificación")
-        
+                _logger.warning("✗ No se puede determinar el método antiguo - NO se envía notificación")
+    
+            _logger.info("=" * 80)
+
+
         # PASO 7: Agregar nota de aprobación
         for record in self:
             from datetime import datetime
