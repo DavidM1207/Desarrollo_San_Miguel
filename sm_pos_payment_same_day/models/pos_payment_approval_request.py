@@ -156,11 +156,14 @@ class PosPaymentApprovalRequest(models.Model):
         
         # Preparar payload
                 payload = {
-                    'pos_order_id': record.pos_order_id.id,
+                    'pos_order_id': record.pos_order_id.id,  # Para referencia
+                    'pos_reference': record.pos_order_id.pos_reference,  # ← AGREGAR ESTO
                     'old_payment_method_id': final_old_method_id,
                     'new_payment_method_id': record.payment_method_id.id,
                     'amount': record.amount_requested,
                 }
+
+                _logger.info("  Payload con pos_reference: %s", payload)
         
                 _logger.info("  Payload: %s", payload)
         
