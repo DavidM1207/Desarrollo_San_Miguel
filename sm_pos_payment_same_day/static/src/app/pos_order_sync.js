@@ -1,7 +1,6 @@
 /** @odoo-module */
 
 import { PosStore } from "@point_of_sale/app/store/pos_store";
-import { Order } from "@point_of_sale/app/store/models";
 import { patch } from "@web/core/utils/patch";
 
 // Patch del PosStore para escuchar notificaciones de aprobación
@@ -9,13 +8,29 @@ patch(PosStore.prototype, {
     async setup() {
         await super.setup(...arguments);
         
+        console.log("POS Order Sync - Configurando escucha de notificaciones");
+        
+        // Acceder al bus service correctamente
+        const busService = this.env.services.bus_service;
+        
+        if (!busService) {
+            console.error("Bus service no disponible");
+            return;
+        }
+        
         // Escuchar notificaciones de pagos aprobados
-        this.busService.subscribe("pos_payment_approved", (payload) => {
-            console.log("═══════════════════════════════════════");
-            console.log("NOTIFICACIÓN: Pago aprobado recibida");
-            console.log("Payload:", payload);
-            this.handlePaymentApproved(payload);
+        busService.addEventListener("notification", ({ detail: notifications }) => {
+            for (const notification of notifications) {
+                if (notification.type === "pos_payment_approved") {
+                    console.log("═══════════════════════════════════════");
+                    console.log("NOTIFICACIÓN: Pago aprobado recibida");
+                    console.log("Payload:", notification.payload);
+                    this.handlePaymentApproved(notification.payload);
+                }
+            }
         });
+        
+        console.log("✓ Escucha de notificaciones configurada");
     },
     
     /**
@@ -27,24 +42,18 @@ patch(PosStore.prototype, {
         
         console.log("Buscando orden en POS:", pos_order_id);
         
-        // Buscar la orden en las órdenes cargadas
-        const order = this.models["pos.order"].find((o) => o.id === pos_order_id);
+        // Buscar la orden actual
+        const currentOrder = this.get_order();
         
-        if (!order) {
-            console.log("Orden no encontrada en POS, puede estar en otra sesión");
+        if (!currentOrder || currentOrder.id !== pos_order_id) {
+            console.log("No es la orden actual, ignorando notificación");
             return;
         }
         
-        console.log("✓ Orden encontrada:", order.pos_reference);
+        console.log("✓ Es la orden actual:", currentOrder.name);
         
-        // Si es la orden actual, actualizarla
-        if (this.selectedOrder && this.selectedOrder.id === pos_order_id) {
-            console.log("Es la orden actual - actualizando paymentlines");
-            this.updateOrderPayments(this.selectedOrder, old_payment_method_id, new_payment_method_id, amount);
-        } else {
-            console.log("No es la orden actual, pero está cargada");
-            // También podríamos actualizar órdenes no seleccionadas si es necesario
-        }
+        // Actualizar los pagos de la orden
+        this.updateOrderPayments(currentOrder, old_payment_method_id, new_payment_method_id, amount);
         
         console.log("═══════════════════════════════════════");
     },
@@ -54,14 +63,13 @@ patch(PosStore.prototype, {
      */
     updateOrderPayments(order, oldMethodId, newMethodId, amount) {
         console.log("Actualizando pagos de la orden");
-        console.log("  Método antiguo:", oldMethodId);
-        console.log("  Método nuevo:", newMethodId);
+        console.log("  Método antiguo ID:", oldMethodId);
+        console.log("  Método nuevo ID:", newMethodId);
         console.log("  Monto:", amount);
         
-        // Buscar el método de pago nuevo
-        const newPaymentMethod = this.models["pos.payment.method"].find(
-            (pm) => pm.id === newMethodId
-        );
+        // Buscar el método de pago nuevo en los métodos disponibles
+        const paymentMethods = this.payment_methods;
+        const newPaymentMethod = paymentMethods.find((pm) => pm.id === newMethodId);
         
         if (!newPaymentMethod) {
             console.error("Método de pago nuevo no encontrado:", newMethodId);
@@ -70,30 +78,33 @@ patch(PosStore.prototype, {
         
         console.log("✓ Método de pago nuevo encontrado:", newPaymentMethod.name);
         
+        // Obtener las líneas de pago actuales
+        const paymentlines = order.get_paymentlines();
+        
+        console.log("Paymentlines actuales:", paymentlines.length);
+        
         // Eliminar paymentlines del método antiguo
-        const paymentlinesToRemove = order.payment_ids.filter(
-            (pl) => pl.payment_method_id && pl.payment_method_id.id === oldMethodId
+        const paymentlinesToRemove = paymentlines.filter(
+            (pl) => pl.payment_method && pl.payment_method.id === oldMethodId
         );
         
         console.log("Paymentlines a eliminar:", paymentlinesToRemove.length);
         
         for (const pl of paymentlinesToRemove) {
-            console.log("  Eliminando:", pl.payment_method_id.name, pl.amount);
-            order.removePaymentline(pl);
+            console.log("  Eliminando:", pl.payment_method.name, pl.amount);
+            order.remove_paymentline(pl);
         }
         
         // Agregar el nuevo paymentline
         console.log("Agregando nuevo paymentline:", newPaymentMethod.name, amount);
-        order.addPaymentline(newPaymentMethod);
         
-        // Buscar el paymentline recién agregado y ajustar el monto
-        const newPaymentline = order.payment_ids.find(
-            (pl) => pl.payment_method_id && pl.payment_method_id.id === newMethodId
-        );
+        const newPaymentline = order.add_paymentline(newPaymentMethod);
         
         if (newPaymentline) {
             newPaymentline.set_amount(amount);
-            console.log("✓ Monto ajustado:", newPaymentline.amount);
+            console.log("✓ Paymentline agregado con monto:", newPaymentline.amount);
+        } else {
+            console.error("No se pudo agregar el paymentline");
         }
         
         // Mostrar notificación al usuario
