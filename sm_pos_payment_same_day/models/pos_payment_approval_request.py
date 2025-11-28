@@ -12,14 +12,17 @@ class PosPaymentApprovalRequest(models.Model):
     def action_approve_request(self):
         """
         Al aprobar:
-        1. Eliminar pagos antiguos (si vienen del backend)
+        1. Eliminar pagos antiguos
         2. Crear nuevo pago
-        3. Eliminar duplicados
+        3. Enviar notificación al POS para actualizar
         """
         for record in self:
             _logger.info("=" * 80)
             _logger.info("APROBANDO SOLICITUD: %s", record.name)
             _logger.info("Orden: %s", record.pos_order_id.name)
+            
+            # Guardar datos ANTES de eliminar para la notificación
+            old_payment_method_id = None
             
             # PASO 1: Si viene del backend, eliminar pagos antiguos
             if record.edit_detail and 'OLD_PAYMENTS:' in record.edit_detail:
@@ -36,6 +39,8 @@ class PosPaymentApprovalRequest(models.Model):
                         
                         existing_old_payments = old_payments.exists()
                         if existing_old_payments:
+                            # Guardar el método del primer pago antiguo
+                            old_payment_method_id = existing_old_payments[0].payment_method_id.id
                             existing_old_payments.sudo().unlink()
                             _logger.info("✓ Pagos antiguos eliminados")
                         
@@ -53,6 +58,8 @@ class PosPaymentApprovalRequest(models.Model):
                     
                     if same_method_payments:
                         _logger.info("Encontrados pagos del mismo método: %s", same_method_payments.ids)
+                        # Guardar el método antes de eliminar
+                        old_payment_method_id = same_method_payments[0].payment_method_id.id
                         same_method_payments.sudo().unlink()
                         _logger.info("✓ Pagos del mismo método eliminados")
                     
@@ -103,13 +110,39 @@ class PosPaymentApprovalRequest(models.Model):
                         p.sudo().unlink()
                     _logger.info("✓ Duplicados eliminados")
         
-        # PASO 6: Agregar nota de aprobación
+        # PASO 6: Enviar notificación al POS para actualizar la pantalla
+        for record in self:
+            if old_payment_method_id:
+                _logger.info("Enviando notificación al POS")
+                _logger.info("  Usuario: %s", record.user_id.name)
+                _logger.info("  Orden: %s", record.pos_order_id.id)
+                _logger.info("  Método antiguo: %s", old_payment_method_id)
+                _logger.info("  Método nuevo: %s", record.payment_method_id.id)
+                
+                # Preparar payload con los datos del cambio
+                payload = {
+                    'pos_order_id': record.pos_order_id.id,
+                    'old_payment_method_id': old_payment_method_id,
+                    'new_payment_method_id': record.payment_method_id.id,
+                    'amount': record.amount_requested,
+                }
+                
+                # Enviar notificación al usuario del POS
+                self.env['bus.bus']._sendone(
+                    record.user_id.partner_id,
+                    'pos_payment_approved',
+                    payload
+                )
+                
+                _logger.info("✓ Notificación enviada al POS")
+        
+        # PASO 7: Agregar nota de aprobación
         for record in self:
             from datetime import datetime
             approver_name = self.env.user.name
             
             approval_note = _(
-              
+               
                 "SOLICITUD APROBADA"
                
                 "Fecha de aprobación: %(date)s"
@@ -117,7 +150,7 @@ class PosPaymentApprovalRequest(models.Model):
                 "Solicitud: %(request)s"
                 "Método de pago aplicado: %(method)s"
                 "Monto: %(amount)s"
-              
+             
             ) % {
                 'date': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
                 'approver': approver_name,
@@ -136,11 +169,18 @@ class PosPaymentApprovalRequest(models.Model):
         return result
     
     def action_reject_request(self, reason):
-        """Agregar nota de rechazo"""
-        _logger.info("RECHAZANDO SOLICITUD - Pagos permanecen intactos")
+        """
+        Sobrescribir para agregar nota de rechazo
+        Los pagos antiguos NO se tocan (se quedan como estaban)
+        """
+        _logger.info("=" * 80)
+        _logger.info("RECHAZANDO SOLICITUD")
+        _logger.info("Los pagos antiguos permanecen intactos")
         
+        # Llamar al método original para rechazar
         result = super().action_reject_request(reason)
         
+        # Agregar nota de rechazo a la orden
         for record in self:
             from datetime import datetime
             rejecter_name = self.env.user.name
@@ -148,7 +188,7 @@ class PosPaymentApprovalRequest(models.Model):
             rejection_note = _(
                 
                 "SOLICITUD RECHAZADA"
-            
+              
                 "Fecha de rechazo: %(date)s"
                 "Rechazado por: %(rejecter)s"
                 "Solicitud: %(request)s"
@@ -156,7 +196,7 @@ class PosPaymentApprovalRequest(models.Model):
                 "Monto solicitado: %(amount)s"
                 "Motivo del rechazo: %(reason)s"
                 "Los pagos originales permanecen sin cambios."
-               
+        
             ) % {
                 'date': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
                 'rejecter': rejecter_name,
@@ -170,5 +210,38 @@ class PosPaymentApprovalRequest(models.Model):
             record.pos_order_id.sudo().write({
                 'note': f"{current_note}\n{rejection_note}"
             })
+            
+            _logger.info("✓ Nota de rechazo agregada")
+            _logger.info("=" * 80)
         
+        return result
+    
+    def action_generate_payment_manual(self):
+        """
+        Este método NO debería ser necesario nunca
+        Pero por seguridad, también eliminamos duplicados aquí
+        """
+        _logger.info("=" * 80)
+        _logger.info("GENERANDO PAGO MANUAL - Este botón no debería aparecer")
+        
+        result = super().action_generate_payment_manual()
+        
+        # Eliminar duplicados si los hay
+        for record in self:
+            order_payments = record.pos_order_id.payment_ids
+            payment_methods = {}
+            for payment in order_payments:
+                method_id = payment.payment_method_id.id
+                if method_id not in payment_methods:
+                    payment_methods[method_id] = []
+                payment_methods[method_id].append(payment)
+            
+            for method_id, payments in payment_methods.items():
+                if len(payments) > 1:
+                    payments_sorted = sorted(payments, key=lambda p: p.id, reverse=True)
+                    payments_to_delete = payments_sorted[1:]
+                    for p in payments_to_delete:
+                        p.sudo().unlink()
+        
+        _logger.info("=" * 80)
         return result
