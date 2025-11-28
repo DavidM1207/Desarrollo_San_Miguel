@@ -83,7 +83,10 @@ patch(PosStore.prototype, {
     /**
      * Manejar la aprobación de un pago
      */
-    _handlePaymentApproved(payload) {
+    /**
+ * Manejar la aprobación de un pago
+ */
+_handlePaymentApproved(payload) {
     console.log("\n╔═══════════════════════════════════════╗");
     console.log("║  🎯 PROCESANDO PAGO APROBADO          ║");
     console.log("╚═══════════════════════════════════════╝");
@@ -97,27 +100,52 @@ patch(PosStore.prototype, {
     console.log("  new_payment_method_id:", new_payment_method_id);
     console.log("  amount:", amount);
     
+    // ✅ BUSCAR LA ORDEN CORRECTA EN TODAS LAS ÓRDENES DEL POS
+    console.log("\n🔍 BUSCANDO LA ORDEN CORRECTA...");
+    
+    const allOrders = this.get_order_list();
+    console.log("Total órdenes en el POS:", allOrders.length);
+    
+    let targetOrder = null;
+    
+    // Buscar por pos_reference O por id (backend)
+    for (const order of allOrders) {
+        console.log(`  Orden: ${order.name}, pos_ref: ${order.pos_reference}, id: ${order.id}`);
+        
+        if (order.pos_reference === pos_reference || order.id === pos_order_id) {
+            targetOrder = order;
+            console.log("  ✅ ENCONTRADA!");
+            break;
+        }
+    }
+    
+    if (!targetOrder) {
+        console.error("❌ ORDEN NO ENCONTRADA EN EL POS");
+        console.log("Buscando:", pos_reference);
+        return;
+    }
+    
+    console.log("\n📦 ORDEN ENCONTRADA:");
+    console.log("  Nombre:", targetOrder.name);
+    console.log("  pos_reference:", targetOrder.pos_reference);
+    console.log("  ID:", targetOrder.id);
+    
+    // Verificar si es la orden actual
     const currentOrder = this.get_order();
+    const isCurrentOrder = (currentOrder && 
+        (currentOrder.pos_reference === pos_reference || currentOrder.id === pos_order_id));
     
-    if (!currentOrder) {
-        console.error("❌ NO HAY ORDEN ACTUAL");
-        return;
+    if (isCurrentOrder) {
+        console.log("✅ ES LA ORDEN ACTUALMENTE ABIERTA");
+    } else {
+        console.log("⚠️ NO ES LA ORDEN ACTUAL - Cambiando a esta orden...");
+        try {
+            this.set_order(targetOrder);
+            console.log("✅ Orden cambiada exitosamente");
+        } catch (error) {
+            console.error("❌ Error al cambiar orden:", error);
+        }
     }
-    
-    console.log("\n📦 ORDEN ACTUAL:");
-    console.log("  ID:", currentOrder.id);
-    console.log("  pos_reference:", currentOrder.pos_reference);
-    console.log("  Nombre:", currentOrder.name);
-    
-    // ✅ COMPARAR POR pos_reference en lugar de id
-    if (currentOrder.pos_reference !== pos_reference) {
-        console.warn("⚠️ NO ES LA ORDEN CORRECTA");
-        console.log("   Orden actual:", currentOrder.pos_reference);
-        console.log("   Orden notificada:", pos_reference);
-        return;
-    }
-    
-    console.log("✅✅✅ ES LA ORDEN CORRECTA (por pos_reference)");
     
     // Buscar método nuevo
     const newPaymentMethod = this.payment_methods.find(pm => pm.id === new_payment_method_id);
@@ -133,8 +161,8 @@ patch(PosStore.prototype, {
     
     console.log("✅ Método nuevo:", newPaymentMethod.name);
     
-    // Obtener paymentlines actuales
-    const paymentlines = currentOrder.get_paymentlines();
+    // Obtener paymentlines actuales de la orden objetivo
+    const paymentlines = targetOrder.get_paymentlines();
     console.log("\n💳 PAYMENTLINES ANTES:", paymentlines.length);
     paymentlines.forEach((pl, i) => {
         console.log(`  [${i}] ${pl.payment_method?.name} (ID: ${pl.payment_method?.id}) - ${pl.amount}`);
@@ -148,7 +176,7 @@ patch(PosStore.prototype, {
         if (pl.payment_method && pl.payment_method.id === old_payment_method_id) {
             console.log("  Eliminando:", pl.payment_method.name, pl.amount);
             try {
-                currentOrder.remove_paymentline(pl);
+                targetOrder.remove_paymentline(pl);
                 removed++;
                 console.log("  ✅ Eliminado");
             } catch (error) {
@@ -160,7 +188,7 @@ patch(PosStore.prototype, {
     console.log("✅ Total eliminados:", removed);
     
     // Verificar después de eliminar
-    const afterRemove = currentOrder.get_paymentlines();
+    const afterRemove = targetOrder.get_paymentlines();
     console.log("\n💳 DESPUÉS DE ELIMINAR:", afterRemove.length);
     afterRemove.forEach((pl, i) => {
         console.log(`  [${i}] ${pl.payment_method?.name} - ${pl.amount}`);
@@ -172,7 +200,7 @@ patch(PosStore.prototype, {
     console.log("  Monto:", amount);
     
     try {
-        const newPl = currentOrder.add_paymentline(newPaymentMethod);
+        const newPl = targetOrder.add_paymentline(newPaymentMethod);
         
         if (newPl) {
             newPl.set_amount(amount);
@@ -189,7 +217,7 @@ patch(PosStore.prototype, {
     }
     
     // Estado final
-    const finalPaymentlines = currentOrder.get_paymentlines();
+    const finalPaymentlines = targetOrder.get_paymentlines();
     console.log("\n📊 PAYMENTLINES FINALES:", finalPaymentlines.length);
     finalPaymentlines.forEach((pl, i) => {
         console.log(`  [${i}] ${pl.payment_method?.name} (ID: ${pl.payment_method?.id}) - ${pl.amount}`);
@@ -197,7 +225,7 @@ patch(PosStore.prototype, {
     
     // Notificación visual
     this.env.services.notification.add(
-        "✅ Pago aprobado: " + newPaymentMethod.name,
+        "✅ Pago aprobado para orden: " + targetOrder.name + " → " + newPaymentMethod.name,
         {
             type: "success",
             title: "Pago Aprobado",
