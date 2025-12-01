@@ -1,12 +1,13 @@
+<!-- tracker/views/tracker_menus.xml -->
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
         
-        <menuitem id="menu_tracker_root" name="Tracker" sequence="60"/>
+        <menuitem id="menu_tracker_root" name="Tracker" sequence="60" action="action_tracker_task"/>
 
-        <menuitem id="menu_tracker_projects" name="Proyectos" parent="menu_tracker_root" sequence="10" action="action_tracker_project"/>
+        <menuitem id="menu_tracker_tasks" name="Tareas" parent="menu_tracker_root" sequence="10" action="action_tracker_task"/>
 
-        <menuitem id="menu_tracker_tasks" name="Tareas" parent="menu_tracker_root" sequence="20" action="action_tracker_task"/>
+        <menuitem id="menu_tracker_projects" name="Proyectos" parent="menu_tracker_root" sequence="20" action="action_tracker_project"/>
 
         <menuitem id="menu_tracker_timesheets" name="Registros de Tiempo" parent="menu_tracker_root" sequence="30" action="action_tracker_timesheet"/>
 

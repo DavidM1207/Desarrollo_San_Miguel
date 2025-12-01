@@ -1,3 +1,4 @@
+# tracker/models/tracker_task.py
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api, _
@@ -31,13 +32,8 @@ class TrackerTask(models.Model):
         string='Servicio',
         required=True,
         domain=[('type', '=', 'service')],
-        tracking=True
-    )
-    
-    quantity = fields.Float(
-        string='Cantidad',
-        default=1.0,
-        required=True
+        tracking=True,
+        readonly=True
     )
     
     employee_id = fields.Many2one(
@@ -80,19 +76,8 @@ class TrackerTask(models.Model):
         help='Horas estimadas para completar la tarea'
     )
     
-    start_date = fields.Datetime(
-        string='Fecha Inicio',
-        tracking=True
-    )
-    
-    end_date = fields.Datetime(
-        string='Fecha Fin',
-        tracking=True
-    )
-    
     notes = fields.Text(string='Notas')
     
-    # Campos relacionados del proyecto
     promise_date = fields.Date(
         related='project_id.promise_date',
         string='Fecha Prometida',
@@ -120,7 +105,6 @@ class TrackerTask(models.Model):
         default=lambda self: self.env.company
     )
     
-    # Campos de auditoría
     state_changed_by = fields.Many2one(
         'res.users',
         string='Estado Cambiado Por',
@@ -138,18 +122,9 @@ class TrackerTask(models.Model):
             record.total_hours = sum(record.timesheet_ids.mapped('hours'))
     
     def write(self, vals):
-        # Rastrear cambios de estado
         if 'state' in vals:
             vals['state_changed_by'] = self.env.user.id
             vals['state_changed_date'] = fields.Datetime.now()
-            
-            # Si cambia a in_progress, asignar fecha de inicio
-            if vals['state'] == 'in_progress' and not self.start_date:
-                vals['start_date'] = fields.Datetime.now()
-            
-            # Si cambia a done, asignar fecha de fin
-            if vals['state'] == 'done' and not self.end_date:
-                vals['end_date'] = fields.Datetime.now()
         
         return super(TrackerTask, self).write(vals)
     
@@ -159,7 +134,6 @@ class TrackerTask(models.Model):
             self.name = self.product_id.name
     
     def action_start_task(self):
-        """Iniciar tarea"""
         for record in self:
             if record.state not in ['ready', 'draft']:
                 raise UserError(_('Solo se puede iniciar una tarea en estado Listo o Borrador.'))
@@ -167,32 +141,23 @@ class TrackerTask(models.Model):
             if not record.employee_id:
                 raise UserError(_('Debe asignar un operario antes de iniciar la tarea.'))
             
-            record.write({
-                'state': 'in_progress',
-                'start_date': fields.Datetime.now()
-            })
+            record.write({'state': 'in_progress'})
             
-            # Actualizar proyecto a procesando si está pendiente
             if record.project_id.state == 'pending':
                 record.project_id.write({'state': 'processing'})
         
         return True
     
     def action_complete_task(self):
-        """Completar tarea"""
         for record in self:
             if record.state != 'in_progress':
                 raise UserError(_('Solo se puede completar una tarea en progreso.'))
             
-            record.write({
-                'state': 'done',
-                'end_date': fields.Datetime.now()
-            })
+            record.write({'state': 'done'})
         
         return True
     
     def action_cancel_task(self):
-        """Cancelar tarea"""
         for record in self:
             if record.state == 'done':
                 raise UserError(_('No se puede cancelar una tarea terminada.'))
@@ -200,13 +165,11 @@ class TrackerTask(models.Model):
         return True
     
     def action_reset_to_draft(self):
-        """Volver a borrador"""
         for record in self:
             record.write({'state': 'draft'})
         return True
     
     def action_view_timesheets(self):
-        """Abrir vista de registros de tiempo"""
         self.ensure_one()
         return {
             'name': _('Registros de Tiempo - %s') % self.name,

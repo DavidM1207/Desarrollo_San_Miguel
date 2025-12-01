@@ -1,3 +1,4 @@
+# tracker/models/tracker_project.py
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api, _
@@ -24,6 +25,7 @@ class TrackerProject(models.Model):
         'sale.order',
         string='Orden de Venta',
         tracking=True,
+        readonly=True,
         help='Orden de venta origen del proyecto'
     )
     
@@ -49,7 +51,8 @@ class TrackerProject(models.Model):
         'res.partner',
         string='Cliente',
         required=True,
-        tracking=True
+        tracking=True,
+        readonly=True
     )
     
     promise_date = fields.Date(
@@ -62,6 +65,7 @@ class TrackerProject(models.Model):
     delivery_date = fields.Date(
         string='Fecha de Entrega',
         tracking=True,
+        readonly=True,
         help='Fecha real de entrega del proyecto'
     )
     
@@ -118,7 +122,6 @@ class TrackerProject(models.Model):
         default=lambda self: self.env.company
     )
     
-    # Campos de auditoría
     state_changed_by = fields.Many2one(
         'res.users',
         string='Estado Cambiado Por',
@@ -153,7 +156,6 @@ class TrackerProject(models.Model):
                 delta = record.delivery_date - record.promise_date
                 record.delay_days = delta.days
             elif record.state != 'delivered' and record.promise_date:
-                # Si aún no está entregado, calcular contra hoy
                 today = fields.Date.today()
                 if today > record.promise_date:
                     delta = today - record.promise_date
@@ -174,19 +176,16 @@ class TrackerProject(models.Model):
                 record.progress = 0
     
     def write(self, vals):
-        # Rastrear cambios de estado
         if 'state' in vals:
             vals['state_changed_by'] = self.env.user.id
             vals['state_changed_date'] = fields.Datetime.now()
             
-            # Si cambia a entregado, asignar fecha de entrega si no existe
             if vals['state'] == 'delivered' and not self.delivery_date:
                 vals['delivery_date'] = fields.Date.today()
         
         return super(TrackerProject, self).write(vals)
     
     def action_start_processing(self):
-        """Cambiar estado a procesando"""
         self.ensure_one()
         if self.state != 'pending':
             raise UserError(_('Solo se puede procesar un proyecto pendiente.'))
@@ -194,12 +193,10 @@ class TrackerProject(models.Model):
         return True
     
     def action_mark_delivered(self):
-        """Marcar como entregado"""
         self.ensure_one()
         if self.state != 'processing':
             raise UserError(_('Solo se puede entregar un proyecto en procesamiento.'))
         
-        # Verificar que todas las tareas estén completadas
         pending_tasks = self.task_ids.filtered(lambda t: t.state != 'done')
         if pending_tasks:
             raise UserError(_(
@@ -214,7 +211,6 @@ class TrackerProject(models.Model):
         return True
     
     def action_view_tasks(self):
-        """Abrir vista de tareas del proyecto"""
         self.ensure_one()
         return {
             'name': _('Tareas de %s') % self.name,
@@ -225,76 +221,34 @@ class TrackerProject(models.Model):
             'context': {'default_project_id': self.id},
         }
     
-    def action_generate_tasks_from_sale(self):
-        """Generar tareas desde la orden de venta y sus BoMs"""
-        self.ensure_one()
-        if not self.sale_order_id:
-            raise UserError(_('No hay orden de venta asociada.'))
-        
-        task_obj = self.env['tracker.task']
-        service_products = self._get_service_products_from_sale()
-        
-        if not service_products:
-            raise UserError(_('No se encontraron productos de servicio en la orden de venta.'))
-        
-        created_tasks = task_obj
-        for product, qty in service_products.items():
-            task_vals = {
-                'project_id': self.id,
-                'product_id': product.id,
-                'name': product.name,
-                'quantity': qty,
-                'analytic_account_id': self.analytic_account_id.id,
-            }
-            created_tasks |= task_obj.create(task_vals)
-        
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': _('Tareas Generadas'),
-                'message': _('Se crearon %d tarea(s) de servicio.') % len(created_tasks),
-                'type': 'success',
-                'sticky': False,
-            }
-        }
-    
     def _get_service_products_from_sale(self):
-        """Obtener productos de servicio de la venta y sus BoMs recursivamente"""
         self.ensure_one()
         service_products = {}
         
         def process_bom_recursive(product, qty):
-            """Función recursiva para procesar BoMs"""
-            # Buscar BoM del producto
             bom = self.env['mrp.bom'].search([
                 ('product_tmpl_id', '=', product.product_tmpl_id.id),
             ], limit=1)
             
             if bom:
-                # Tiene BoM, procesar sus componentes
                 for line in bom.bom_line_ids:
                     component = line.product_id
                     component_qty = qty * line.product_qty
                     
                     if component.type == 'service':
-                        # Es un servicio, agregarlo
                         if component in service_products:
                             service_products[component] += component_qty
                         else:
                             service_products[component] = component_qty
                     else:
-                        # No es servicio, verificar si tiene BoM
                         process_bom_recursive(component, component_qty)
             else:
-                # No tiene BoM, si es servicio agregarlo
                 if product.type == 'service':
                     if product in service_products:
                         service_products[product] += qty
                     else:
                         service_products[product] = qty
         
-        # Procesar todas las líneas de la orden de venta
         for line in self.sale_order_id.order_line:
             if line.product_id:
                 process_bom_recursive(line.product_id, line.product_uom_qty)

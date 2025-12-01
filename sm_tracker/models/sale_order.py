@@ -1,3 +1,4 @@
+# tracker/models/sale_order.py
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api, _
@@ -38,7 +39,6 @@ class SaleOrder(models.Model):
                     has_service = True
                     break
                 
-                # Verificar si tiene BoM con servicios
                 if line.product_id:
                     bom = self.env['mrp.bom'].search([
                         ('product_tmpl_id', '=', line.product_id.product_tmpl_id.id)
@@ -54,34 +54,32 @@ class SaleOrder(models.Model):
             
             order.has_service_products = has_service
     
-    def action_create_tracker_project(self):
-        """Crear proyecto tracker desde la orden de venta"""
+    def action_confirm(self):
+        res = super(SaleOrder, self).action_confirm()
+        
+        for order in self:
+            if order.has_service_products and not order.tracker_project_ids:
+                order._auto_create_tracker_project()
+        
+        return res
+    
+    def _auto_create_tracker_project(self):
         self.ensure_one()
         
-        if self.state not in ['sale', 'done']:
-            raise UserError(_('La orden de venta debe estar confirmada para crear un tracker.'))
-        
-        if not self.has_service_products:
-            raise UserError(_('La orden de venta no tiene productos de servicio.'))
-        
-        # Obtener cuenta analítica de la orden
         analytic_account = False
         if self.analytic_account_id:
             analytic_account = self.analytic_account_id
         else:
-            # Buscar en las líneas
             for line in self.order_line:
                 if line.analytic_distribution:
-                    # analytic_distribution es un diccionario {account_id: percentage}
                     account_ids = [int(k) for k in line.analytic_distribution.keys()]
                     if account_ids:
                         analytic_account = self.env['account.analytic.account'].browse(account_ids[0])
                         break
         
         if not analytic_account:
-            raise UserError(_('Debe configurar una cuenta analítica (tienda) en la orden de venta.'))
+            return False
         
-        # Crear proyecto tracker
         project_vals = {
             'sale_order_id': self.id,
             'partner_id': self.partner_id.id,
@@ -92,20 +90,22 @@ class SaleOrder(models.Model):
         
         project = self.env['tracker.project'].create(project_vals)
         
-        # Generar tareas automáticamente
-        project.action_generate_tasks_from_sale()
+        service_products = project._get_service_products_from_sale()
         
-        return {
-            'name': _('Proyecto Tracker'),
-            'type': 'ir.actions.act_window',
-            'res_model': 'tracker.project',
-            'view_mode': 'form',
-            'res_id': project.id,
-            'target': 'current',
-        }
+        if service_products:
+            task_obj = self.env['tracker.task']
+            for product, qty in service_products.items():
+                task_vals = {
+                    'project_id': project.id,
+                    'product_id': product.id,
+                    'name': product.name,
+                    'analytic_account_id': analytic_account.id,
+                }
+                task_obj.create(task_vals)
+        
+        return project
     
     def action_view_tracker_projects(self):
-        """Ver proyectos tracker de la orden"""
         self.ensure_one()
         return {
             'name': _('Proyectos Tracker'),
