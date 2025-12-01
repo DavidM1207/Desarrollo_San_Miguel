@@ -1,8 +1,8 @@
+
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
         
-        <!-- Vista Tree de Proyectos -->
         <record id="view_tracker_project_tree" model="ir.ui.view">
             <field name="name">tracker.project.tree</field>
             <field name="model">tracker.project</field>
@@ -23,7 +23,6 @@
             </field>
         </record>
 
-        <!-- Vista Form de Proyectos -->
         <record id="view_tracker_project_form" model="ir.ui.view">
             <field name="name">tracker.project.form</field>
             <field name="model">tracker.project</field>
@@ -32,7 +31,6 @@
                     <header>
                         <button name="action_start_processing" string="Iniciar Procesamiento" type="object" invisible="state != 'pending'" class="oe_highlight"/>
                         <button name="action_mark_delivered" string="Marcar Entregado" type="object" invisible="state != 'processing'" class="oe_highlight"/>
-                        <button name="action_generate_tasks_from_sale" string="Generar Tareas desde Venta" type="object" invisible="state not in ['pending', 'processing']" class="btn-primary" groups="tracker.group_tracker_manager"/>
                         <field name="state" widget="statusbar" statusbar_visible="pending,processing,delivered"/>
                     </header>
                     <sheet>
@@ -48,13 +46,13 @@
                         </div>
                         <group>
                             <group>
-                                <field name="partner_id"/>
-                                <field name="sale_order_id"/>
+                                <field name="partner_id" readonly="1"/>
+                                <field name="sale_order_id" readonly="1"/>
                                 <field name="invoice_ids" widget="many2many_tags"/>
                                 <field name="user_id"/>
                             </group>
                             <group>
-                                <field name="analytic_account_id" options="{'no_create': True}"/>
+                                <field name="analytic_account_id" options="{'no_create': True}" readonly="1"/>
                                 <field name="promise_date"/>
                                 <field name="delivery_date" readonly="state != 'delivered'"/>
                                 <field name="company_id" groups="base.group_multi_company"/>
@@ -79,7 +77,6 @@
                                         <field name="name"/>
                                         <field name="product_id"/>
                                         <field name="employee_id"/>
-                                        <field name="quantity"/>
                                         <field name="state" widget="badge"/>
                                         <field name="total_hours" widget="float_time"/>
                                     </tree>
@@ -99,7 +96,6 @@
             </field>
         </record>
 
-        <!-- Vista Kanban de Proyectos -->
         <record id="view_tracker_project_kanban" model="ir.ui.view">
             <field name="name">tracker.project.kanban</field>
             <field name="model">tracker.project</field>
@@ -145,7 +141,6 @@
             </field>
         </record>
 
-        <!-- Vista Search de Proyectos -->
         <record id="view_tracker_project_search" model="ir.ui.view">
             <field name="name">tracker.project.search</field>
             <field name="model">tracker.project</field>
@@ -170,7 +165,6 @@
             </field>
         </record>
 
-        <!-- Action de Proyectos -->
         <record id="action_tracker_project" model="ir.actions.act_window">
             <field name="name">Proyectos Tracker</field>
             <field name="res_model">tracker.project</field>
@@ -179,10 +173,10 @@
             <field name="context">{}</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
-                    Crea tu primer Proyecto Tracker
+                    No hay proyectos tracker
                 </p>
                 <p>
-                    Los proyectos tracker te permiten hacer seguimiento de servicios y tiempos de trabajo.
+                    Los proyectos se crean automáticamente cuando confirmas una orden de venta con servicios.
                 </p>
             </field>
         </record>
