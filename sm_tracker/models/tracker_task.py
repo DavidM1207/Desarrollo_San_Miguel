@@ -1,4 +1,3 @@
-# tracker/models/tracker_task.py
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api, _
@@ -9,15 +8,13 @@ class TrackerTask(models.Model):
     _name = 'tracker.task'
     _description = 'Tarea de Servicio'
     _inherit = ['mail.thread', 'mail.activity.mixin']
-    _order = 'sequence, id'
+    _order = 'id'
 
     name = fields.Char(
         string='Descripción',
         required=True,
         tracking=True
     )
-    
-    sequence = fields.Integer(string='Secuencia', default=10)
     
     project_id = fields.Many2one(
         'tracker.project',
@@ -34,6 +31,13 @@ class TrackerTask(models.Model):
         domain=[('type', '=', 'service')],
         tracking=True,
         readonly=True
+    )
+    
+    quantity = fields.Float(
+        string='Cantidad',
+        default=1.0,
+        tracking=True,
+        help='Cantidad de servicios a realizar'
     )
     
     employee_id = fields.Many2one(
@@ -54,6 +58,7 @@ class TrackerTask(models.Model):
         ('draft', 'Borrador'),
         ('ready', 'Listo'),
         ('in_progress', 'En Progreso'),
+        ('paused', 'Pausado'),
         ('done', 'Terminado'),
         ('cancel', 'Cancelado'),
     ], string='Estado', default='draft', required=True, tracking=True)
@@ -69,11 +74,6 @@ class TrackerTask(models.Model):
         compute='_compute_total_hours',
         store=True,
         help='Total de horas trabajadas en esta tarea'
-    )
-    
-    planned_hours = fields.Float(
-        string='Horas Planificadas',
-        help='Horas estimadas para completar la tarea'
     )
     
     notes = fields.Text(string='Notas')
@@ -116,6 +116,12 @@ class TrackerTask(models.Model):
         readonly=True
     )
     
+    active_timesheet_id = fields.Many2one(
+        'tracker.timesheet',
+        string='Registro Activo',
+        help='Registro de tiempo actualmente en progreso'
+    )
+    
     @api.depends('timesheet_ids.hours')
     def _compute_total_hours(self):
         for record in self:
@@ -135,25 +141,59 @@ class TrackerTask(models.Model):
     
     def action_start_task(self):
         for record in self:
-            if record.state not in ['ready', 'draft']:
-                raise UserError(_('Solo se puede iniciar una tarea en estado Listo o Borrador.'))
+            if record.state not in ['ready', 'draft', 'paused']:
+                raise UserError(_('Solo se puede iniciar una tarea en estado Listo, Borrador o Pausado.'))
             
             if not record.employee_id:
                 raise UserError(_('Debe asignar un operario antes de iniciar la tarea.'))
             
-            record.write({'state': 'in_progress'})
+            timesheet_vals = {
+                'task_id': record.id,
+                'employee_id': record.employee_id.id,
+                'analytic_account_id': record.analytic_account_id.id,
+                'name': record.name,
+                'date': fields.Date.today(),
+            }
+            timesheet = self.env['tracker.timesheet'].create(timesheet_vals)
+            timesheet.action_start_timer()
+            
+            record.write({
+                'state': 'in_progress',
+                'active_timesheet_id': timesheet.id
+            })
             
             if record.project_id.state == 'pending':
                 record.project_id.write({'state': 'processing'})
         
         return True
     
-    def action_complete_task(self):
+    def action_pause_task(self):
         for record in self:
             if record.state != 'in_progress':
-                raise UserError(_('Solo se puede completar una tarea en progreso.'))
+                raise UserError(_('Solo se puede pausar una tarea en progreso.'))
             
-            record.write({'state': 'done'})
+            if record.active_timesheet_id:
+                record.active_timesheet_id.action_stop_timer()
+            
+            record.write({
+                'state': 'paused',
+                'active_timesheet_id': False
+            })
+        
+        return True
+    
+    def action_complete_task(self):
+        for record in self:
+            if record.state not in ['in_progress', 'paused']:
+                raise UserError(_('Solo se puede completar una tarea en progreso o pausada.'))
+            
+            if record.active_timesheet_id:
+                record.active_timesheet_id.action_stop_timer()
+            
+            record.write({
+                'state': 'done',
+                'active_timesheet_id': False
+            })
         
         return True
     
@@ -161,7 +201,14 @@ class TrackerTask(models.Model):
         for record in self:
             if record.state == 'done':
                 raise UserError(_('No se puede cancelar una tarea terminada.'))
-            record.write({'state': 'cancel'})
+            
+            if record.active_timesheet_id:
+                record.active_timesheet_id.action_stop_timer()
+            
+            record.write({
+                'state': 'cancel',
+                'active_timesheet_id': False
+            })
         return True
     
     def action_reset_to_draft(self):

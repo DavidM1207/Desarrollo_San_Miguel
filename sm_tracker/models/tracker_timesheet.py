@@ -2,11 +2,12 @@
 
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
+from datetime import datetime
 
 
 class TrackerTimesheet(models.Model):
     _name = 'tracker.timesheet'
-    _description = 'Registro de Tiempo de Tarea'
+    _description = 'Registro de Tiempo de Trabajo'
     _order = 'date desc, id desc'
 
     name = fields.Char(
@@ -22,6 +23,7 @@ class TrackerTimesheet(models.Model):
     )
     
     project_id = fields.Many2one(
+        'tracker.project',
         related='task_id.project_id',
         string='Proyecto',
         store=True,
@@ -43,32 +45,31 @@ class TrackerTimesheet(models.Model):
         readonly=True
     )
     
-    date = fields.Date(
-        string='Fecha',
-        required=True,
-        default=fields.Date.today
-    )
-    
-    start_time = fields.Datetime(
-        string='Hora Inicio',
-        help='Hora de inicio del trabajo'
-    )
-    
-    end_time = fields.Datetime(
-        string='Hora Fin',
-        help='Hora de fin del trabajo'
-    )
-    
-    hours = fields.Float(
-        string='Horas',
-        required=True,
-        help='Horas trabajadas'
-    )
-    
     analytic_account_id = fields.Many2one(
         'account.analytic.account',
         string='Tienda',
         required=True
+    )
+    
+    date = fields.Date(
+        string='Fecha',
+        required=True,
+        default=fields.Date.context_today
+    )
+    
+    start_time = fields.Datetime(
+        string='Hora Inicio'
+    )
+    
+    end_time = fields.Datetime(
+        string='Hora Fin'
+    )
+    
+    hours = fields.Float(
+        string='Horas',
+        compute='_compute_hours',
+        store=True,
+        readonly=True
     )
     
     notes = fields.Text(string='Notas')
@@ -79,62 +80,53 @@ class TrackerTimesheet(models.Model):
         default=lambda self: self.env.company
     )
     
-    @api.onchange('start_time', 'end_time')
-    def _onchange_times(self):
-        """Calcular horas automáticamente si se ingresan hora inicio y fin"""
-        if self.start_time and self.end_time:
-            if self.end_time < self.start_time:
-                raise ValidationError(_('La hora de fin no puede ser menor a la hora de inicio.'))
-            
-            delta = self.end_time - self.start_time
-            self.hours = delta.total_seconds() / 3600.0
+    state = fields.Selection([
+        ('draft', 'Borrador'),
+        ('running', 'En Progreso'),
+        ('stopped', 'Detenido'),
+    ], string='Estado', default='draft')
+    
+    @api.depends('start_time', 'end_time')
+    def _compute_hours(self):
+        for record in self:
+            if record.start_time and record.end_time:
+                delta = record.end_time - record.start_time
+                record.hours = delta.total_seconds() / 3600.0
+            elif record.start_time and not record.end_time:
+                delta = fields.Datetime.now() - record.start_time
+                record.hours = delta.total_seconds() / 3600.0
+            else:
+                record.hours = 0.0
     
     @api.constrains('hours')
     def _check_hours(self):
         for record in self:
-            if record.hours <= 0:
-                raise ValidationError(_('Las horas deben ser mayor a 0.'))
+            if record.hours < 0:
+                raise ValidationError(_('Las horas no pueden ser negativas.'))
             if record.hours > 24:
-                raise ValidationError(_('No se pueden registrar más de 24 horas por día.'))
-    
-    @api.constrains('start_time', 'end_time')
-    def _check_times(self):
-        for record in self:
-            if record.start_time and record.end_time:
-                if record.end_time < record.start_time:
-                    raise ValidationError(_('La hora de fin no puede ser menor a la hora de inicio.'))
-    
-    @api.onchange('task_id')
-    def _onchange_task_id(self):
-        if self.task_id:
-            self.name = self.task_id.name
-            self.analytic_account_id = self.task_id.analytic_account_id
-            if self.task_id.employee_id:
-                self.employee_id = self.task_id.employee_id
+                raise ValidationError(_('Las horas no pueden ser mayores a 24.'))
     
     def action_start_timer(self):
-        """Iniciar temporizador"""
-        self.ensure_one()
-        if not self.start_time:
-            self.write({'start_time': fields.Datetime.now()})
+        for record in self:
+            if record.start_time:
+                raise UserError(_('El temporizador ya está en marcha.'))
+            
+            record.write({
+                'start_time': fields.Datetime.now(),
+                'state': 'running'
+            })
         return True
     
     def action_stop_timer(self):
-        """Detener temporizador y calcular horas"""
-        self.ensure_one()
-        if not self.start_time:
-            raise UserError(_('Debe iniciar el temporizador primero.'))
-        
-        if self.end_time:
-            raise UserError(_('El temporizador ya fue detenido.'))
-        
-        end_time = fields.Datetime.now()
-        delta = end_time - self.start_time
-        hours = delta.total_seconds() / 3600.0
-        
-        self.write({
-            'end_time': end_time,
-            'hours': hours
-        })
-        
+        for record in self:
+            if not record.start_time:
+                raise UserError(_('El temporizador no ha sido iniciado.'))
+            
+            if record.end_time:
+                raise UserError(_('El temporizador ya ha sido detenido.'))
+            
+            record.write({
+                'end_time': fields.Datetime.now(),
+                'state': 'stopped'
+            })
         return True

@@ -72,9 +72,9 @@
                             <page string="Tareas de Servicio">
                                 <field name="task_ids">
                                     <tree decoration-muted="state=='cancel'" decoration-success="state=='done'">
-                                        <field name="sequence" widget="handle"/>
                                         <field name="name"/>
                                         <field name="product_id"/>
+                                        <field name="quantity"/>
                                         <field name="employee_id"/>
                                         <field name="state" widget="badge"/>
                                         <field name="total_hours" widget="float_time"/>
