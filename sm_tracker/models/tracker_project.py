@@ -1,4 +1,3 @@
-# tracker/models/tracker_project.py
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api, _
@@ -220,37 +219,3 @@ class TrackerProject(models.Model):
             'domain': [('project_id', '=', self.id)],
             'context': {'default_project_id': self.id},
         }
-    
-    def _get_service_products_from_sale(self):
-        self.ensure_one()
-        service_products = {}
-        
-        def process_bom_recursive(product, qty):
-            bom = self.env['mrp.bom'].search([
-                ('product_tmpl_id', '=', product.product_tmpl_id.id),
-            ], limit=1)
-            
-            if bom:
-                for line in bom.bom_line_ids:
-                    component = line.product_id
-                    component_qty = qty * line.product_qty
-                    
-                    if component.type == 'service':
-                        if component in service_products:
-                            service_products[component] += component_qty
-                        else:
-                            service_products[component] = component_qty
-                    else:
-                        process_bom_recursive(component, component_qty)
-            else:
-                if product.type == 'service':
-                    if product in service_products:
-                        service_products[product] += qty
-                    else:
-                        service_products[product] = qty
-        
-        for line in self.sale_order_id.order_line:
-            if line.product_id:
-                process_bom_recursive(line.product_id, line.product_uom_qty)
-        
-        return service_products

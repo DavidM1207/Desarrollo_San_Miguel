@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Tracker - Seguimiento de Proyectos',
-    'version': '17.0.1.0.3',
+    'version': '17.0.1.0.5',
     'category': 'Project',
     'summary': 'Seguimiento de proyectos con control de tiempo y servicios',
     'description': """
@@ -24,7 +24,7 @@
         'hr',
         'analytic',
     ],
-    'data': [
+     'data': [
         'security/tracker_security.xml',
         'security/ir.model.access.csv',
         'data/tracker_data.xml',
