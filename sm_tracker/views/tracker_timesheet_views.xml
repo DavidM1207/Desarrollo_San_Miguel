@@ -2,7 +2,6 @@
 <odoo>
     <data>
         
-        <!-- Vista Tree de Timesheet -->
         <record id="view_tracker_timesheet_tree" model="ir.ui.view">
             <field name="name">tracker.timesheet.tree</field>
             <field name="model">tracker.timesheet</field>
@@ -21,7 +20,6 @@
             </field>
         </record>
 
-        <!-- Vista Form de Timesheet -->
         <record id="view_tracker_timesheet_form" model="ir.ui.view">
             <field name="name">tracker.timesheet.form</field>
             <field name="model">tracker.timesheet</field>
@@ -69,7 +67,6 @@
             </field>
         </record>
 
-        <!-- Vista Search de Timesheet -->
         <record id="view_tracker_timesheet_search" model="ir.ui.view">
             <field name="name">tracker.timesheet.search</field>
             <field name="model">tracker.timesheet</field>
@@ -95,7 +92,6 @@
             </field>
         </record>
 
-        <!-- Action de Timesheet -->
         <record id="action_tracker_timesheet" model="ir.actions.act_window">
             <field name="name">Registros de Tiempo</field>
             <field name="res_model">tracker.timesheet</field>
