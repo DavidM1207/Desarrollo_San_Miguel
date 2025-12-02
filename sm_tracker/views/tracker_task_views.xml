@@ -10,17 +10,12 @@
                     <field name="name"/>
                     <field name="project_id"/>
                     <field name="product_id"/>
+                    <field name="quantity"/>
                     <field name="analytic_account_id" optional="show"/>
                     <field name="employee_id"/>
-                    <field name="quantity"/>
-                    <field name="quantity_done" optional="hide"/>
-                    <field name="quantity_remaining"/>
-                    <field name="expected_hours" widget="float_time" optional="hide"/>
                     <field name="total_hours" widget="float_time" sum="total"/>
+                    <field name="promise_date"/>
                     <field name="state" widget="badge" decoration-muted="state=='cancel'" decoration-success="state=='done'" decoration-warning="state=='in_progress'" decoration-info="state=='paused'"/>
-                    <button name="action_start_task" type="object" string="Iniciar" class="btn-success" icon="fa-play" invisible="state not in ['draft', 'ready', 'paused']"/>
-                    <button name="action_pause_task" type="object" string="Pausar" class="btn-warning" icon="fa-pause" invisible="state != 'in_progress'"/>
-                    <button name="action_complete_task" type="object" string="Finalizar" class="btn-primary" icon="fa-check" invisible="state not in ['in_progress', 'paused']"/>
                 </tree>
             </field>
         </record>
@@ -31,11 +26,6 @@
             <field name="arch" type="xml">
                 <form string="Tarea de Servicio">
                     <header>
-                        <button name="action_start_task" string="Iniciar" type="object" invisible="state not in ['draft', 'ready', 'paused']" class="oe_highlight"/>
-                        <button name="action_pause_task" string="Pausar" type="object" invisible="state != 'in_progress'" class="btn-warning"/>
-                        <button name="action_complete_task" string="Finalizar" type="object" invisible="state not in ['in_progress', 'paused']" class="oe_highlight"/>
-                        <button name="action_cancel_task" string="Cancelar" type="object" invisible="state not in ['draft', 'ready', 'in_progress', 'paused']"/>
-                        <button name="action_reset_to_draft" string="Volver a Borrador" type="object" invisible="state != 'cancel'"/>
                         <field name="state" widget="statusbar" statusbar_visible="draft,ready,in_progress,done"/>
                     </header>
                     <sheet>
@@ -58,41 +48,51 @@
                             <group>
                                 <field name="project_id" options="{'no_create': True}" readonly="1"/>
                                 <field name="product_id" options="{'no_create': True}" readonly="1"/>
+                                <field name="quantity"/>
                                 <field name="employee_id" options="{'no_create': True}"/>
                             </group>
                             <group>
                                 <field name="analytic_account_id" options="{'no_create': True}" readonly="1"/>
-                                <field name="quantity"/>
-                                <field name="quantity_done"/>
-                                <field name="quantity_remaining"/>
+                                <field name="promise_date" readonly="1"/>
+                                <field name="partner_id" readonly="1"/>
                                 <field name="company_id" groups="base.group_multi_company"/>
                             </group>
                         </group>
                         <group>
                             <group>
-                                <field name="expected_hours" widget="float_time"/>
-                                <field name="promise_date" readonly="1"/>
-                                <field name="partner_id" readonly="1"/>
+                                <field name="current_start_time" readonly="1" invisible="not current_start_time"/>
                             </group>
                             <group>
-                                <field name="current_start_time" readonly="1" invisible="not current_start_time"/>
                                 <field name="state_changed_by" readonly="1"/>
                                 <field name="state_changed_date" readonly="1"/>
                             </group>
                         </group>
                         <notebook>
                             <page string="Registros de Tiempo">
-                                <field name="timesheet_ids">
-                                    <tree decoration-success="state=='stopped'" decoration-warning="state=='running'">
+                                <field name="timesheet_ids" nolabel="1">
+                                    <tree decoration-success="state=='stopped'" decoration-warning="state=='running'" create="0">
                                         <field name="date"/>
                                         <field name="name"/>
                                         <field name="employee_id"/>
                                         <field name="start_time"/>
                                         <field name="end_time"/>
-                                        <field name="state" invisible="1"/>
+                                        <field name="state" widget="badge"/>
                                         <field name="hours" widget="float_time" sum="total_hours"/>
                                     </tree>
                                 </field>
+                                <group class="oe_subtotal_footer oe_right" style="margin-top: 20px;">
+                                    <div class="oe_subtotal_footer_separator">
+                                        <label for="total_hours"/>
+                                        <field name="total_hours" widget="float_time" class="oe_subtotal_footer_separator"/>
+                                    </div>
+                                </group>
+                                <div class="o_row" style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 5px;">
+                                    <button name="action_start_task" string="Iniciar" type="object" invisible="state not in ['draft', 'ready', 'paused']" class="btn-success btn-lg" icon="fa-play" style="margin-right: 10px;"/>
+                                    <button name="action_pause_task" string="Pausar" type="object" invisible="state != 'in_progress'" class="btn-warning btn-lg" icon="fa-pause" style="margin-right: 10px;"/>
+                                    <button name="action_complete_task" string="Finalizar" type="object" invisible="state not in ['in_progress', 'paused']" class="btn-primary btn-lg" icon="fa-check" style="margin-right: 10px;"/>
+                                    <button name="action_cancel_task" string="Cancelar" type="object" invisible="state not in ['draft', 'ready', 'in_progress', 'paused']" class="btn-secondary btn-lg" icon="fa-times" style="margin-right: 10px;"/>
+                                    <button name="action_reset_to_draft" string="Volver a Borrador" type="object" invisible="state != 'cancel'" class="btn-secondary btn-lg" icon="fa-undo"/>
+                                </div>
                             </page>
                             <page string="Notas">
                                 <field name="notes" placeholder="Notas adicionales..."/>
@@ -116,7 +116,6 @@
                     <field name="name"/>
                     <field name="product_id"/>
                     <field name="quantity"/>
-                    <field name="quantity_remaining"/>
                     <field name="employee_id"/>
                     <field name="state"/>
                     <field name="total_hours"/>
@@ -131,7 +130,7 @@
                                 <div class="o_kanban_record_body">
                                     <field name="product_id"/>
                                     <br/>
-                                    Cantidad: <field name="quantity"/> | Restante: <field name="quantity_remaining"/>
+                                    Cantidad: <field name="quantity"/>
                                     <br/>
                                     <field name="employee_id" widget="many2one_avatar_employee"/>
                                 </div>
