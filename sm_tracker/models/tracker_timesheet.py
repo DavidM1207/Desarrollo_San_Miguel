@@ -40,8 +40,7 @@ class TrackerTimesheet(models.Model):
     user_id = fields.Many2one(
         'res.users',
         string='Usuario',
-        related='employee_id.user_id',
-        store=True,
+        default=lambda self: self.env.user,
         readonly=True
     )
     
@@ -103,8 +102,6 @@ class TrackerTimesheet(models.Model):
         for record in self:
             if record.hours < 0:
                 raise ValidationError(_('Las horas no pueden ser negativas.'))
-            if record.hours > 24:
-                raise ValidationError(_('Las horas no pueden ser mayores a 24.'))
     
     def action_start_timer(self):
         for record in self:
@@ -113,7 +110,8 @@ class TrackerTimesheet(models.Model):
             
             record.write({
                 'start_time': fields.Datetime.now(),
-                'state': 'running'
+                'state': 'running',
+                'user_id': self.env.user.id
             })
         return True
     
@@ -127,6 +125,7 @@ class TrackerTimesheet(models.Model):
             
             record.write({
                 'end_time': fields.Datetime.now(),
-                'state': 'stopped'
+                'state': 'stopped',
+                'user_id': self.env.user.id
             })
         return True
