@@ -92,22 +92,24 @@ class MrpCustomFabric(models.TransientModel):
         
         # Validar que no se supere el 100% de pie tablar disponible
         if self.total_percent > 100:
-            raise UserError(_(
-                'El total de Pie Tablar asignado (%.2f%%) supera el 100%% disponible.\n\n'
-                'Pie Tablar total disponible: %.2f\n'
-                'Pie Tablar usado: %.2f\n'
-                'Pie Tablar excedente: %.2f\n\n'
-                'Por favor ajuste las cantidades antes de crear las órdenes de fabricación.'
-            ) % (
-                self.total_percent,
-                self.pie_tablar_mp,
-                self.total_pie_tablar_usado,
-                self.total_pie_tablar_usado - self.pie_tablar_mp
-            ))
+            raise UserError(_('Sin Pie Tablar Disponible\n\nNo hay suficiente Pie Tablar. Ya se ha consumido todo el material disponible.'))
         
         productions = []
+        
+        # Calcular el total de trozas usadas (antes del prorrateo)
+        total_trozas_usadas = sum(self.fabric_lines.mapped('consu_quan'))
+        
+        # Si no se usa el 100%, hacer prorrateo
+        if total_trozas_usadas > 0 and total_trozas_usadas < self.quantity:
+            factor_prorrateo = self.quantity / total_trozas_usadas
+        else:
+            factor_prorrateo = 1.0
+        
         for line in self.fabric_lines:
             if line.product_id and line.quantity_to_produce > 0:
+                # Calcular la cantidad prorrateada: (Total_Trozas / Total_Usado) * Consumo_Linea
+                cantidad_prorrateada = factor_prorrateo * line.consu_quan
+                
                 # Buscar una BoM existente para el producto (opcional)
                 bom = self.env['mrp.bom'].search([
                     '|',
@@ -133,17 +135,25 @@ class MrpCustomFabric(models.TransientModel):
                 production = self.env['mrp.production'].create(production_vals)
                 
                 # Si no hay BoM, agregamos manualmente el componente (materia prima)
+                # Usar la cantidad PRORRATEADA en lugar de consu_quan
                 if not bom:
                     production.write({
                         'move_raw_ids': [(0, 0, {
                             'name': self.product_id.name,
                             'product_id': self.product_id.id,
-                            'product_uom_qty': line.consu_quan,
+                            'product_uom_qty': cantidad_prorrateada,  # Cantidad prorrateada
                             'product_uom': self.product_id.uom_id.id,
                             'location_id': production.location_src_id.id,
                             'location_dest_id': production.product_id.property_stock_production.id,
                         })]
                     })
+                else:
+                    # Si hay BoM, buscar el componente de materia prima y ajustar su cantidad
+                    move_mp = production.move_raw_ids.filtered(
+                        lambda m: m.product_id.id == self.product_id.id
+                    )
+                    if move_mp:
+                        move_mp.write({'product_uom_qty': cantidad_prorrateada})
                 
                 productions.append(production.id)
         
