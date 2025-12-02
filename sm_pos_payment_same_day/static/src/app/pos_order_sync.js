@@ -7,7 +7,7 @@ patch(PosStore.prototype, {
     async setup() {
         await super.setup(...arguments);
         
-        console.log("🔵 POS Order Sync - Configurando");
+        console.log("🔵 POS Order Sync - Modo: Solo notificación");
         
         try {
             const partnerId = this.user?.partner_id;
@@ -24,7 +24,7 @@ patch(PosStore.prototype, {
             console.log("✅ Listener registrado");
             
         } catch (error) {
-            console.error("❌ ERROR en setup:", error);
+            console.error("❌ ERROR:", error);
         }
     },
     
@@ -33,7 +33,7 @@ patch(PosStore.prototype, {
         
         for (const { type, payload } of event.detail) {
             if (type === "pos_payment_approved") {
-                console.log("🎯 PAGO APROBADO - Payload:", payload);
+                console.log("🎯 PAGO APROBADO");
                 this._handlePaymentApproved(payload);
             }
         }
@@ -41,109 +41,49 @@ patch(PosStore.prototype, {
     
     _handlePaymentApproved(payload) {
         console.log("\n╔═══════════════════════════════════════╗");
-        console.log("║  🎯 ACTUALIZANDO MÉTODO DE PAGO       ║");
+        console.log("║  🎯 PAGO APROBADO - NOTIFICACIÓN      ║");
         console.log("╚═══════════════════════════════════════╝");
         
-        const { pos_reference, old_payment_method_id, new_payment_method_id, amount } = payload;
+        const { pos_reference, new_payment_method_id, amount } = payload;
         
-        console.log("Buscando orden:", pos_reference);
-        console.log("Cambiar de método ID", old_payment_method_id, "→", new_payment_method_id);
+        console.log("Orden:", pos_reference);
         
-        // ✅ BUSCAR POR NAME (que sí está disponible)
+        // Buscar orden
         const allOrders = this.get_order_list();
-        console.log("Total órdenes:", allOrders.length);
-        
         let targetOrder = null;
         
         for (const order of allOrders) {
-            console.log(`  Comparando: "${order.name}" === "${pos_reference}"`);
-            
-            // Buscar por name (que contiene la referencia)
             if (order.name === pos_reference) {
                 targetOrder = order;
-                console.log("  ✅ ENCONTRADA!");
                 break;
             }
         }
         
         if (!targetOrder) {
-            console.error("❌ ORDEN NO ENCONTRADA");
+            console.log("❌ Orden no encontrada en el POS");
             return;
         }
         
         console.log("✅ Orden encontrada:", targetOrder.name);
         
-        // Cambiar a esta orden si no es la actual
-        const currentOrder = this.get_order();
-        if (currentOrder?.name !== targetOrder.name) {
-            console.log("Cambiando a la orden...");
-            this.set_order(targetOrder);
-        }
-        
-        // Buscar método nuevo
+        // Buscar método nuevo (solo para mostrar nombre)
         const newMethod = this.payment_methods.find(pm => pm.id === new_payment_method_id);
+        const methodName = newMethod ? newMethod.name : "Método desconocido";
         
-        if (!newMethod) {
-            console.error("❌ Método nuevo no encontrado");
-            return;
-        }
-        
-        console.log("✅ Método nuevo:", newMethod.name);
-        
-        // OBTENER PAYMENTLINES ANTES
-        const before = targetOrder.get_paymentlines();
-        console.log("\n💳 ANTES:", before.length, "líneas");
-        before.forEach((pl, i) => {
-            console.log(`  [${i}] ${pl.payment_method?.name} - ${pl.amount}`);
-        });
-        
-        // ELIMINAR MÉTODO ANTIGUO
-        console.log("\n🗑️ Eliminando método antiguo (ID:", old_payment_method_id + ")");
-        let removed = 0;
-        
-        for (const pl of before) {
-            if (pl.payment_method?.id === old_payment_method_id) {
-                console.log("  Eliminando:", pl.payment_method.name);
-                targetOrder.remove_paymentline(pl);
-                removed++;
-            }
-        }
-        
-        console.log("✅ Eliminados:", removed);
-        
-        // VERIFICAR DESPUÉS DE ELIMINAR
-        const after = targetOrder.get_paymentlines();
-        console.log("\n💳 DESPUÉS DE ELIMINAR:", after.length, "líneas");
-        after.forEach((pl, i) => {
-            console.log(`  [${i}] ${pl.payment_method?.name} - ${pl.amount}`);
-        });
-        
-        // AGREGAR MÉTODO NUEVO
-        console.log("\n➕ Agregando:", newMethod.name, "Monto:", amount);
-        
-        const newPl = targetOrder.add_paymentline(newMethod);
-        
-        if (newPl) {
-            newPl.set_amount(amount);
-            console.log("✅ AGREGADO");
-        } else {
-            console.error("❌ ERROR al agregar");
-            return;
-        }
-        
-        // ESTADO FINAL
-        const final = targetOrder.get_paymentlines();
-        console.log("\n📊 FINAL:", final.length, "líneas");
-        final.forEach((pl, i) => {
-            console.log(`  [${i}] ${pl.payment_method?.name} - ${pl.amount}`);
-        });
-        
-        // Notificación
+        // SOLO NOTIFICACIÓN - El backend ya hizo el cambio
         this.env.services.notification.add(
-            `✅ ${targetOrder.name}: ${newMethod.name}`,
-            { type: "success", title: "Pago Aprobado" }
+            `✅ Pago aprobado para "${targetOrder.name}"\n\n` +
+            `Método: ${methodName}\n` +
+            `Monto: ${amount}\n\n` +
+            `💡 Cierra y vuelve a abrir la orden para ver los cambios.`,
+            { 
+                type: "success", 
+                title: "Solicitud Aprobada",
+                sticky: true  // Queda visible
+            }
         );
         
-        console.log("\n✅ COMPLETADO\n");
+        console.log("✅ Notificación mostrada");
+        console.log("ℹ️ El usuario debe refrescar la orden para ver los cambios\n");
     },
 });

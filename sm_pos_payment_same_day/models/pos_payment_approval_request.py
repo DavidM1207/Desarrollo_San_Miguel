@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, _
+from odoo.exceptions import UserError
+from odoo.tools import float_compare
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -11,20 +13,30 @@ class PosPaymentApprovalRequest(models.Model):
     
     def action_approve_request(self):
         """
-        Al aprobar:
-        1. Eliminar pagos antiguos
-        2. Crear nuevo pago
-        3. Enviar notificación al POS para actualizar
+        Lógica inteligente mejorada:
+        1. Si total pagos == total orden Y existe pago similar → REEMPLAZAR
+        2. Si hay espacio para el nuevo pago → SOLO AGREGAR
+        3. Si excede → AGREGAR con advertencia
         """
         for record in self:
             _logger.info("=" * 80)
             _logger.info("APROBANDO SOLICITUD: %s", record.name)
             _logger.info("Orden: %s", record.pos_order_id.name)
+            _logger.info("Total orden: %s", record.pos_order_id.amount_total)
+            _logger.info("Monto solicitado: %s", record.amount_requested)
             
-            # Guardar datos ANTES de eliminar para la notificación
+            # Calcular total de pagos ANTES de agregar el nuevo
+            current_payments = record.pos_order_id.payment_ids
+            total_current_payments = sum(current_payments.mapped('amount'))
+            
+            _logger.info("Total pagos actuales: %s", total_current_payments)
+            _logger.info("Pagos actuales (%s):", len(current_payments))
+            for p in current_payments:
+                _logger.info("  - %s: %s (ID: %s)", p.payment_method_id.name, p.amount, p.id)
+            
+            # Guardar método antiguo (si viene del backend con OLD_PAYMENTS)
             old_payment_method_id = None
             
-            # PASO 1: Si viene del backend, eliminar pagos antiguos
             if record.edit_detail and 'OLD_PAYMENTS:' in record.edit_detail:
                 try:
                     detail_parts = record.edit_detail.split('|')
@@ -35,45 +47,22 @@ class PosPaymentApprovalRequest(models.Model):
                         old_payment_ids = [int(x) for x in old_payment_ids_str.split(',') if x]
                         old_payments = self.env['pos.payment'].browse(old_payment_ids)
                         
-                        _logger.info("Eliminando pagos antiguos: %s", old_payment_ids)
-                        
                         existing_old_payments = old_payments.exists()
                         if existing_old_payments:
-                            # Guardar el método del primer pago antiguo
                             old_payment_method_id = existing_old_payments[0].payment_method_id.id
-                            existing_old_payments.sudo().unlink()
-                            _logger.info("✓ Pagos antiguos eliminados")
+                            _logger.info("Método antiguo (backend): %s", existing_old_payments[0].payment_method_id.name)
                         
                 except Exception as e:
-                    _logger.error("Error al eliminar pagos antiguos: %s", e)
-            
-            # PASO 2: Si NO viene del backend (viene del POS), eliminar pagos del mismo método
-            else:
-                _logger.info("Solicitud desde POS - eliminando pagos del mismo método")
-                try:
-                    # Buscar pagos existentes con el MISMO método de pago
-                    same_method_payments = record.pos_order_id.payment_ids.filtered(
-                        lambda p: p.payment_method_id.id == record.payment_method_id.id
-                    )
-                    
-                    if same_method_payments:
-                        _logger.info("Encontrados pagos del mismo método: %s", same_method_payments.ids)
-                        # Guardar el método antes de eliminar
-                        old_payment_method_id = same_method_payments[0].payment_method_id.id
-                        same_method_payments.sudo().unlink()
-                        _logger.info("✓ Pagos del mismo método eliminados")
-                    
-                except Exception as e:
-                    _logger.error("Error al eliminar pagos del mismo método: %s", e)
+                    _logger.error("Error al parsear OLD_PAYMENTS: %s", e)
         
-        # PASO 3: Llamar a super para crear el nuevo pago
-        _logger.info("Creando nuevo pago (super)")
+        # Llamar a super para crear el nuevo pago
+        _logger.info("Creando nuevo pago...")
         result = super().action_approve_request()
         
-        # PASO 4: Verificar que se creó el payment_id (evita botón manual)
+        # Verificar que se creó el payment_id
         for record in self:
             if record.state == 'approved' and not record.payment_id:
-                _logger.warning("Solicitud aprobada sin payment_id - creando manualmente")
+                _logger.warning("Solicitud sin payment_id - creando manualmente")
                 try:
                     payment_vals = {
                         'payment_date': self.env['ir.fields'].Datetime.now(),
@@ -85,121 +74,136 @@ class PosPaymentApprovalRequest(models.Model):
                     payment = self.env['pos.payment'].create(payment_vals)
                     record.payment_id = payment.id
                     record.pos_order_id.write({'payment_ids': [(4, payment.id)]})
-                    _logger.info("✓ Payment creado manualmente: %s", payment.id)
+                    _logger.info("✓ Payment creado manualmente")
                 except Exception as e:
                     _logger.error("Error al crear payment: %s", e)
             
-            # PASO 5: Eliminar duplicados por si acaso
-            order_payments = record.pos_order_id.payment_ids
-            _logger.info("Pagos finales en la orden: %s", order_payments.ids)
+            # LÓGICA INTELIGENTE
+            order_total = record.pos_order_id.amount_total
+            precision = record.pos_order_id.currency_id.rounding
             
-            payment_methods = {}
-            for payment in order_payments:
-                method_id = payment.payment_method_id.id
-                if method_id not in payment_methods:
-                    payment_methods[method_id] = []
-                payment_methods[method_id].append(payment)
+            # Recalcular sin incluir el nuevo pago
+            payments_before_new = [p for p in record.pos_order_id.payment_ids if p.id != record.payment_id.id]
+            total_before_new = sum(p.amount for p in payments_before_new)
             
-            for method_id, payments in payment_methods.items():
-                if len(payments) > 1:
-                    _logger.warning("Duplicados encontrados para método %s", method_id)
-                    payments_sorted = sorted(payments, key=lambda p: p.id, reverse=True)
-                    payments_to_delete = payments_sorted[1:]
-                    _logger.info("Eliminando duplicados: %s", [p.id for p in payments_to_delete])
-                    for p in payments_to_delete:
-                        p.sudo().unlink()
-                    _logger.info("✓ Duplicados eliminados")
-        
-        # PASO 6: Enviar notificación al POS para actualizar la pantalla
-        
-        for record  in self:
-            _logger.info("=" * 80)
-            _logger.info("PREPARANDO NOTIFICACIÓN AL POS")
-            _logger.info("old_payment_method_id: %s", old_payment_method_id)
+            _logger.info("\n🤔 ANÁLISIS DE DECISIÓN:")
+            _logger.info("Total orden: %s", order_total)
+            _logger.info("Total pagos antes del nuevo: %s", total_before_new)
+            _logger.info("Monto del nuevo pago: %s", record.amount_requested)
             
-            # Determinar el método antiguo
-            # Si viene del backend, ya lo tenemos en old_payment_method_id
-            # Si viene del POS, buscamos pagos con el mismo método
-            final_old_method_id = old_payment_method_id
-
-            if not final_old_method_id:
-                _logger.info("No hay old_payment_method_id guardado")
-                _logger.info("Buscando pagos antiguos en la orden...")
-
-                all_payments = record.pos_order_id.payment_ids
-                _logger.info("Pagos totales en la orden: %s", len(all_payments))    
-
-                for payment in all_payments:
-                    _logger.info("  - Pago ID %s: Método %s (ID: %s), Monto: %s", 
-                        payment.id, 
-                        payment.payment_method_id.name,
-                        payment.payment_method_id.id,
-                        payment.amount)
+            # Calcular espacio disponible
+            remaining_space = order_total - total_before_new
+            _logger.info("Espacio disponible: %s", remaining_space)
             
-            # Si hay un pago DIFERENTE al que acabamos de crear, ese es el antiguo
-                    if payment.id != record.payment_id.id:
-                        final_old_method_id = payment.payment_method_id.id
-                        _logger.info("✓ Encontrado método antiguo: %s (ID: %s)", 
-                           payment.payment_method_id.name,
-                           final_old_method_id)
-                        break
-    
-            _logger.info("final_old_method_id: %s", final_old_method_id)
-        
-            if final_old_method_id:
-                _logger.info("✓ Enviando notificación al POS")
-                _logger.info("  Usuario: %s (ID: %s)", record.user_id.name, record.user_id.id)
-                _logger.info("  Partner: %s (ID: %s)", record.user_id.partner_id.name, record.user_id.partner_id.id)
-                _logger.info("  Orden: %s (ID: %s)", record.pos_order_id.name, record.pos_order_id.id)
-                _logger.info("  Método antiguo ID: %s", final_old_method_id)
-                _logger.info("  Método nuevo: %s (ID: %s)", record.payment_method_id.name, record.payment_method_id.id)
-        
-        # Preparar payload
-                payload = {
-                    'pos_order_id': record.pos_order_id.id,  # Para referencia
-                    'pos_reference': record.pos_order_id.pos_reference,  # ← AGREGAR ESTO
-                    'old_payment_method_id': final_old_method_id,
-                    'new_payment_method_id': record.payment_method_id.id,
-                    'amount': record.amount_requested,
-                }
-
-                _logger.info("  Payload con pos_reference: %s", payload)
-        
-                _logger.info("  Payload: %s", payload)
-        
-                try:
-                    # Enviar notificación
-                    self.env['bus.bus']._sendone(
-                        record.user_id.partner_id,
-                        'pos_payment_approved',
-                        payload
-                    )
+            # Decisión: ¿Reemplazar o Agregar?
+            should_replace = False
             
-                    _logger.info("✓✓✓ NOTIFICACIÓN ENVIADA EXITOSAMENTE ✓✓✓")
-                except Exception as e:
-                    _logger.error("❌ Error al enviar notificación: %s", e)
-                    _logger.exception("Stack trace completo:")
+            # CONDICIÓN 1: Pagos completos Y existe pago similar
+            payments_complete = float_compare(total_before_new, order_total, precision_rounding=precision) >= 0
+            
+            if payments_complete:
+                _logger.info("✓ Los pagos ya están completos")
+                
+                # Buscar si existe un pago con el mismo método y monto
+                # (excluyendo el que acabamos de crear)
+                similar_payments = []
+                
+                for payment in payments_before_new:
+                    # Buscar por método (si lo tenemos) o por monto
+                    matches_method = (old_payment_method_id and 
+                                    payment.payment_method_id.id == old_payment_method_id)
+                    
+                    matches_amount = float_compare(
+                        payment.amount,
+                        record.amount_requested,
+                        precision_rounding=precision
+                    ) == 0
+                    
+                    if matches_amount and (matches_method or not old_payment_method_id):
+                        similar_payments.append(payment)
+                        _logger.info("  Pago similar encontrado: %s - %s (ID: %s)", 
+                                   payment.payment_method_id.name,
+                                   payment.amount,
+                                   payment.id)
+                
+                if similar_payments:
+                    should_replace = True
+                    _logger.info("✓ DECISIÓN: REEMPLAZAR (hay %s pagos similares)", len(similar_payments))
+                else:
+                    _logger.info("✗ No hay pagos similares para reemplazar")
             else:
-                _logger.warning("✗ No se puede determinar el método antiguo - NO se envía notificación")
-    
-            _logger.info("=" * 80)
-
-
-        # PASO 7: Agregar nota de aprobación
+                _logger.info("✓ Los pagos aún no están completos (espacio: %s)", remaining_space)
+            
+            # EJECUTAR DECISIÓN
+            if should_replace:
+                _logger.info("\n🔄 EJECUTANDO REEMPLAZO:")
+                
+                # Eliminar UNO de los pagos similares (el más reciente)
+                payment_to_remove = max(similar_payments, key=lambda p: p.id)
+                
+                _logger.info("Eliminando: %s - %s (ID: %s)", 
+                           payment_to_remove.payment_method_id.name,
+                           payment_to_remove.amount,
+                           payment_to_remove.id)
+                
+                if len(similar_payments) > 1:
+                    _logger.info("⚠️ Había %s pagos similares, eliminando el más reciente", 
+                               len(similar_payments))
+                
+                payment_to_remove.sudo().unlink()
+                _logger.info("✓ Pago reemplazado exitosamente")
+            else:
+                _logger.info("\n➕ SOLO AGREGAR (sin reemplazar)")
+            
+            # VALIDACIÓN FINAL
+            final_payments = record.pos_order_id.payment_ids
+            final_total = sum(final_payments.mapped('amount'))
+            
+            _logger.info("\n📊 ESTADO FINAL:")
+            _logger.info("Total orden: %s", order_total)
+            _logger.info("Total pagos: %s", final_total)
+            _logger.info("Diferencia: %s", final_total - order_total)
+            _logger.info("Pagos finales (%s):", len(final_payments))
+            for p in final_payments:
+                _logger.info("  - %s: %s (ID: %s)", p.payment_method_id.name, p.amount, p.id)
+            
+            # Advertencia si excede
+            if float_compare(final_total, order_total, precision_rounding=precision) > 0:
+                excess = final_total - order_total
+                _logger.warning("⚠️ ADVERTENCIA: Total de pagos excede por %s", excess)
+                
+                warning_msg = _(
+                    "\n⚠️ ADVERTENCIA: Pagos exceden el total de la orden\n"
+                    "Total orden: %(order_total)s\n"
+                    "Total pagos: %(payment_total)s\n"
+                    "Exceso: %(excess)s\n"
+                    "Revisa y elimina pagos manualmente si es necesario."
+                ) % {
+                    'order_total': order_total,
+                    'payment_total': final_total,
+                    'excess': excess,
+                }
+                
+                current_note = record.pos_order_id.note or ""
+                record.pos_order_id.sudo().write({
+                    'note': f"{current_note}\n{warning_msg}"
+                })
+        
+        # Agregar nota de aprobación
         for record in self:
             from datetime import datetime
             approver_name = self.env.user.name
             
             approval_note = _(
-               
-                "SOLICITUD APROBADA"
-               
-                "Fecha de aprobación: %(date)s"
-                "Aprobador: %(approver)s"
-                "Solicitud: %(request)s"
-                "Método de pago aplicado: %(method)s"
-                "Monto: %(amount)s"
-             
+                "\n═══════════════════════════════════════\n"
+                "SOLICITUD APROBADA\n"
+                "═══════════════════════════════════════\n"
+                "Fecha: %(date)s\n"
+                "Aprobador: %(approver)s\n"
+                "Solicitud: %(request)s\n"
+                "Método: %(method)s\n"
+                "Monto: %(amount)s\n"
+                "═══════════════════════════════════════"
             ) % {
                 'date': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
                 'approver': approver_name,
@@ -212,46 +216,32 @@ class PosPaymentApprovalRequest(models.Model):
             record.pos_order_id.sudo().write({
                 'note': f"{current_note}\n{approval_note}"
             })
-            
-            _logger.info("=" * 80)
+        
+        _logger.info("=" * 80)
         
         return result
     
     def action_reject_request(self, reason):
-        """
-        Sobrescribir para agregar nota de rechazo
-        Los pagos antiguos NO se tocan (se quedan como estaban)
-        """
-        _logger.info("=" * 80)
-        _logger.info("RECHAZANDO SOLICITUD")
-        _logger.info("Los pagos antiguos permanecen intactos")
-        
-        # Llamar al método original para rechazar
+        """Agregar nota de rechazo"""
         result = super().action_reject_request(reason)
         
-        # Agregar nota de rechazo a la orden
         for record in self:
             from datetime import datetime
             rejecter_name = self.env.user.name
             
             rejection_note = _(
-                
-                "SOLICITUD RECHAZADA"
-              
-                "Fecha de rechazo: %(date)s"
-                "Rechazado por: %(rejecter)s"
-                "Solicitud: %(request)s"
-                "Método solicitado: %(method)s"
-                "Monto solicitado: %(amount)s"
-                "Motivo del rechazo: %(reason)s"
-                "Los pagos originales permanecen sin cambios."
-        
+                "\n═══════════════════════════════════════\n"
+                "SOLICITUD RECHAZADA\n"
+                "═══════════════════════════════════════\n"
+                "Fecha: %(date)s\n"
+                "Rechazado por: %(rejecter)s\n"
+                "Solicitud: %(request)s\n"
+                "Motivo: %(reason)s\n"
+                "═══════════════════════════════════════"
             ) % {
                 'date': datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
                 'rejecter': rejecter_name,
                 'request': record.name,
-                'method': record.payment_method_id.name,
-                'amount': record.amount_requested,
                 'reason': reason,
             }
             
@@ -259,38 +249,5 @@ class PosPaymentApprovalRequest(models.Model):
             record.pos_order_id.sudo().write({
                 'note': f"{current_note}\n{rejection_note}"
             })
-            
-            _logger.info("✓ Nota de rechazo agregada")
-            _logger.info("=" * 80)
         
-        return result
-    
-    def action_generate_payment_manual(self):
-        """
-        Este método NO debería ser necesario nunca
-        Pero por seguridad, también eliminamos duplicados aquí
-        """
-        _logger.info("=" * 80)
-        _logger.info("GENERANDO PAGO MANUAL - Este botón no debería aparecer")
-        
-        result = super().action_generate_payment_manual()
-        
-        # Eliminar duplicados si los hay
-        for record in self:
-            order_payments = record.pos_order_id.payment_ids
-            payment_methods = {}
-            for payment in order_payments:
-                method_id = payment.payment_method_id.id
-                if method_id not in payment_methods:
-                    payment_methods[method_id] = []
-                payment_methods[method_id].append(payment)
-            
-            for method_id, payments in payment_methods.items():
-                if len(payments) > 1:
-                    payments_sorted = sorted(payments, key=lambda p: p.id, reverse=True)
-                    payments_to_delete = payments_sorted[1:]
-                    for p in payments_to_delete:
-                        p.sudo().unlink()
-        
-        _logger.info("=" * 80)
         return result
