@@ -69,30 +69,55 @@
                         </group>
                         <notebook>
                             <page string="Registros de Tiempo">
-                                <field name="timesheet_ids" nolabel="1">
-                                    <tree decoration-success="state=='stopped'" decoration-warning="state=='running'" create="0">
-                                        <field name="date"/>
-                                        <field name="name"/>
-                                        <field name="employee_id"/>
-                                        <field name="start_time"/>
-                                        <field name="end_time"/>
-                                        <field name="state" widget="badge"/>
-                                        <field name="hours" widget="float_time" sum="total_hours"/>
-                                    </tree>
-                                </field>
-                                <group class="oe_subtotal_footer oe_right" style="margin-top: 20px;">
-                                    <div class="oe_subtotal_footer_separator">
-                                        <label for="total_hours"/>
-                                        <field name="total_hours" widget="float_time" class="oe_subtotal_footer_separator"/>
+                                <group class="oe_subtotal_footer_separator" style="margin-bottom: 20px;">
+                                    <field name="timesheet_ids" nolabel="1" readonly="1">
+                                        <tree decoration-success="state=='stopped'" decoration-warning="state=='running'" create="0" delete="0" edit="0">
+                                            <field name="date"/>
+                                            <field name="name"/>
+                                            <field name="employee_id"/>
+                                            <field name="start_time" widget="datetime"/>
+                                            <field name="end_time" widget="datetime"/>
+                                            <field name="state" widget="badge"/>
+                                            <field name="hours" widget="float_time" sum="total_hours"/>
+                                        </tree>
+                                    </field>
+                                    <div class="oe_subtotal_footer oe_right">
+                                        <table class="oe_subtotal_footer_separator" style="width: 100%">
+                                            <tr>
+                                                <td style="padding: 8px;"><strong>Tiempo Total:</strong></td>
+                                                <td class="text-end" style="padding: 8px;"><field name="total_hours" widget="float_time" readonly="1" nolabel="1"/></td>
+                                            </tr>
+                                        </table>
                                     </div>
                                 </group>
-                                <div class="o_row" style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 5px;">
-                                    <button name="action_start_task" string="Iniciar" type="object" invisible="state not in ['draft', 'ready', 'paused']" class="btn-success btn-lg" icon="fa-play" style="margin-right: 10px;"/>
-                                    <button name="action_pause_task" string="Pausar" type="object" invisible="state != 'in_progress'" class="btn-warning btn-lg" icon="fa-pause" style="margin-right: 10px;"/>
-                                    <button name="action_complete_task" string="Finalizar" type="object" invisible="state not in ['in_progress', 'paused']" class="btn-primary btn-lg" icon="fa-check" style="margin-right: 10px;"/>
-                                    <button name="action_cancel_task" string="Cancelar" type="object" invisible="state not in ['draft', 'ready', 'in_progress', 'paused']" class="btn-secondary btn-lg" icon="fa-times" style="margin-right: 10px;"/>
-                                    <button name="action_reset_to_draft" string="Volver a Borrador" type="object" invisible="state != 'cancel'" class="btn-secondary btn-lg" icon="fa-undo"/>
-                                </div>
+                                <group>
+                                    <div class="row mt32">
+                                        <div class="col-lg-6 o_group o_inner_group">
+                                            <div class="d-grid gap-2">
+                                                <button name="action_start_task" string="Iniciar" type="object" 
+                                                        invisible="state not in ['draft', 'ready', 'paused']" 
+                                                        class="btn btn-success btn-lg" 
+                                                        icon="fa-play"/>
+                                                <button name="action_pause_task" string="Pausar" type="object" 
+                                                        invisible="state != 'in_progress'" 
+                                                        class="btn btn-warning btn-lg" 
+                                                        icon="fa-pause"/>
+                                            </div>
+                                        </div>
+                                        <div class="col-lg-6 o_group o_inner_group">
+                                            <div class="d-grid gap-2">
+                                                <button name="action_complete_task" string="Finalizar" type="object" 
+                                                        invisible="state not in ['in_progress', 'paused']" 
+                                                        class="btn btn-primary btn-lg" 
+                                                        icon="fa-check"/>
+                                                <button name="action_cancel_task" string="Cancelar" type="object" 
+                                                        invisible="state not in ['draft', 'ready', 'in_progress', 'paused']" 
+                                                        class="btn btn-secondary btn-lg" 
+                                                        icon="fa-times"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </group>
                             </page>
                             <page string="Notas">
                                 <field name="notes" placeholder="Notas adicionales..."/>
