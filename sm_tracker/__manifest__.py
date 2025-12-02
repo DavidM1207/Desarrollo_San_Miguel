@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Tracker - Seguimiento de Proyectos',
-    'version': '17.0.1.0.5',
+    'version': '17.0.1.0.9',
     'category': 'Project',
     'summary': 'Seguimiento de proyectos con control de tiempo y servicios',
     'description': """
@@ -23,6 +23,7 @@
         'mrp',
         'hr',
         'analytic',
+        'point_of_sale',
     ],
      'data': [
         'security/tracker_security.xml',
