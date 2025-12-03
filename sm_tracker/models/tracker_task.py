@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api, _
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 
 class TrackerTask(models.Model):
@@ -162,8 +162,7 @@ class TrackerTask(models.Model):
                 'name': record.name,
                 'date': fields.Date.today(),
                 'start_time': current_time,
-                'state': 'running',
-                'user_id': self.env.user.id
+                'state': 'running'
             }
             timesheet = self.env['tracker.timesheet'].create(timesheet_vals)
             
@@ -186,8 +185,7 @@ class TrackerTask(models.Model):
             if record.active_timesheet_id:
                 record.active_timesheet_id.write({
                     'end_time': fields.Datetime.now(),
-                    'state': 'stopped',
-                    'user_id': self.env.user.id
+                    'state': 'stopped'
                 })
             
             record.write({
@@ -206,8 +204,7 @@ class TrackerTask(models.Model):
             if record.active_timesheet_id:
                 record.active_timesheet_id.write({
                     'end_time': fields.Datetime.now(),
-                    'state': 'stopped',
-                    'user_id': self.env.user.id
+                    'state': 'stopped'
                 })
             
             record.write({
