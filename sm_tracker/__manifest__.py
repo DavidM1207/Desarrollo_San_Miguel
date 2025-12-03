@@ -23,7 +23,6 @@
         'mrp',
         'hr',
         'analytic',
-        'point_of_sale',
     ],
      'data': [
         'security/tracker_security.xml',
