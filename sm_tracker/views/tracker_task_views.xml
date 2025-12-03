@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        
+        <record id="view_tracker_task_tree" model="ir.ui.view">
+            <field name="name">tracker.task.tree</field>
+            <field name="model">tracker.task</field>
+            <field name="arch" type="xml">
+                <tree string="Tareas" decoration-success="state=='done'" decoration-warning="state=='in_progress'" decoration-info="state=='paused'">
+                    <field name="name"/>
+                    <field name="project_id"/>
+                    <field name="product_id"/>
+                    <field name="quantity"/>
+                    <field name="employee_id"/>
+                    <field name="total_hours" widget="float_time"/>
+                    <field name="state" widget="badge" decoration-success="state=='done'" decoration-warning="state=='in_progress'" decoration-info="state=='paused'"/>
+                </tree>
+            </field>
+        </record>
+
+        <record id="view_tracker_task_form" model="ir.ui.view">
+            <field name="name">tracker.task.form</field>
+            <field name="model">tracker.task</field>
+            <field name="arch" type="xml">
+                <form string="Tarea">
+                    <header>
+                        <field name="state" widget="statusbar" statusbar_visible="draft,ready,in_progress,done"/>
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name" readonly="1"/>
+                            </h1>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="project_id" readonly="1"/>
+                                <field name="product_id" readonly="1"/>
+                                <field name="quantity"/>
+                                <field name="employee_id"/>
+                            </group>
+                            <group>
+                                <field name="analytic_account_id" readonly="1"/>
+                                <field name="company_id" groups="base.group_multi_company"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Registros de Tiempo">
+                                <field name="timesheet_ids" nolabel="1" readonly="1">
+                                    <tree create="0" delete="0" edit="0" decoration-success="state=='stopped'" decoration-warning="state=='running'">
+                                        <field name="date" force_save="1"/>
+                                        <field name="start_time" widget="datetime" force_save="1"/>
+                                        <field name="end_time" widget="datetime" force_save="1"/>
+                                        <field name="user_id" force_save="1"/>
+                                        <field name="hours" widget="float_time" force_save="1"/>
+                                        <field name="state" column_invisible="1"/>
+                                    </tree>
+                                </field>
+                                <group class="oe_subtotal_footer_separator">
+                                    <field name="total_hours" widget="float_time"/>
+                                </group>
+                                <div class="clearfix"/>
+                                <group>
+                                    <div class="o_row">
+                                        <button name="action_start_task" string="Iniciar" type="object" 
+                                                invisible="state not in ['draft', 'ready', 'paused']" 
+                                                class="btn btn-success me-2"
+                                                icon="fa-play"/>
+                                        <button name="action_pause_task" string="Pausar" type="object" 
+                                                invisible="state != 'in_progress'" 
+                                                class="btn btn-warning me-2"
+                                                icon="fa-pause"/>
+                                        <button name="action_complete_task" string="Finalizar" type="object" 
+                                                invisible="state not in ['in_progress', 'paused']" 
+                                                class="btn btn-primary me-2"
+                                                icon="fa-check"/>
+                                    </div>
+                                </group>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="view_tracker_task_search" model="ir.ui.view">
+            <field name="name">tracker.task.search</field>
+            <field name="model">tracker.task</field>
+            <field name="arch" type="xml">
+                <search string="Buscar Tareas">
+                    <field name="name"/>
+                    <field name="project_id"/>
+                    <field name="product_id"/>
+                    <field name="employee_id"/>
+                    <separator/>
+                    <filter string="Mis Tareas" name="my_tasks" domain="[('employee_id.user_id','=',uid)]"/>
+                    <separator/>
+                    <filter string="Borrador" name="draft" domain="[('state','=','draft')]"/>
+                    <filter string="En Progreso" name="in_progress" domain="[('state','=','in_progress')]"/>
+                    <filter string="Pausado" name="paused" domain="[('state','=','paused')]"/>
+                    <filter string="Terminadas" name="done" domain="[('state','=','done')]"/>
+                </search>
+            </field>
+        </record>
+
+        <record id="action_tracker_task" model="ir.actions.act_window">
+            <field name="name">Tareas</field>
+            <field name="res_model">tracker.task</field>
+            <field name="view_mode">tree,form</field>
+            <field name="search_view_id" ref="view_tracker_task_search"/>
+            <field name="context">{'search_default_my_tasks': 1}</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    No hay tareas
+                </p>
+            </field>
+        </record>
+
+    </data>
+</odoo>

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        
+        <record id="view_tracker_timesheet_tree" model="ir.ui.view">
+            <field name="name">tracker.timesheet.tree</field>
+            <field name="model">tracker.timesheet</field>
+            <field name="arch" type="xml">
+                <tree string="Registros de Tiempo" decoration-success="state=='stopped'" decoration-warning="state=='running'">
+                    <field name="date"/>
+                    <field name="task_id"/>
+                    <field name="employee_id"/>
+                    <field name="start_time" widget="datetime"/>
+                    <field name="end_time" widget="datetime"/>
+                    <field name="hours" widget="float_time" sum="total"/>
+                    <field name="state" widget="badge"/>
+                </tree>
+            </field>
+        </record>
+
+        <record id="view_tracker_timesheet_form" model="ir.ui.view">
+            <field name="name">tracker.timesheet.form</field>
+            <field name="model">tracker.timesheet</field>
+            <field name="arch" type="xml">
+                <form string="Registro de Tiempo">
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="task_id"/>
+                                <field name="employee_id"/>
+                                <field name="user_id"/>
+                            </group>
+                            <group>
+                                <field name="analytic_account_id"/>
+                                <field name="date"/>
+                                <field name="state"/>
+                            </group>
+                        </group>
+                        <group>
+                            <group>
+                                <field name="start_time" widget="datetime"/>
+                                <field name="end_time" widget="datetime"/>
+                            </group>
+                            <group>
+                                <field name="hours" widget="float_time"/>
+                            </group>
+                        </group>
+                        <group>
+                            <field name="name"/>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+    </data>
+</odoo>
