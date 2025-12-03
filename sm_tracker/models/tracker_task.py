@@ -41,20 +41,6 @@ class TrackerTask(models.Model):
         help='Cantidad de servicios a realizar'
     )
     
-    quantity_done = fields.Float(
-        string='Cantidad Realizada',
-        default=0.0,
-        tracking=True,
-        help='Cantidad de servicios ya completados'
-    )
-    
-    quantity_remaining = fields.Float(
-        string='Cantidad Restante',
-        compute='_compute_quantity_remaining',
-        store=True,
-        help='Cantidad pendiente de realizar'
-    )
-    
     employee_id = fields.Many2one(
         'hr.employee',
         string='Operario Asignado',
@@ -89,11 +75,6 @@ class TrackerTask(models.Model):
         compute='_compute_total_hours',
         store=True,
         help='Total de horas trabajadas en esta tarea'
-    )
-    
-    expected_hours = fields.Float(
-        string='Duración Esperada',
-        help='Horas estimadas para completar la tarea'
     )
     
     notes = fields.Text(string='Notas')
@@ -147,11 +128,6 @@ class TrackerTask(models.Model):
         help='Hora de inicio del registro actual'
     )
     
-    @api.depends('quantity', 'quantity_done')
-    def _compute_quantity_remaining(self):
-        for record in self:
-            record.quantity_remaining = record.quantity - record.quantity_done
-    
     @api.depends('timesheet_ids.hours')
     def _compute_total_hours(self):
         for record in self:
@@ -186,7 +162,8 @@ class TrackerTask(models.Model):
                 'name': record.name,
                 'date': fields.Date.today(),
                 'start_time': current_time,
-                'state': 'running'
+                'state': 'running',
+                'user_id': self.env.user.id
             }
             timesheet = self.env['tracker.timesheet'].create(timesheet_vals)
             
@@ -209,7 +186,8 @@ class TrackerTask(models.Model):
             if record.active_timesheet_id:
                 record.active_timesheet_id.write({
                     'end_time': fields.Datetime.now(),
-                    'state': 'stopped'
+                    'state': 'stopped',
+                    'user_id': self.env.user.id
                 })
             
             record.write({
@@ -228,14 +206,14 @@ class TrackerTask(models.Model):
             if record.active_timesheet_id:
                 record.active_timesheet_id.write({
                     'end_time': fields.Datetime.now(),
-                    'state': 'stopped'
+                    'state': 'stopped',
+                    'user_id': self.env.user.id
                 })
             
             record.write({
                 'state': 'done',
                 'active_timesheet_id': False,
-                'current_start_time': False,
-                'quantity_done': record.quantity
+                'current_start_time': False
             })
         
         return True

@@ -28,20 +28,6 @@ class TrackerProject(models.Model):
         copy=False
     )
     
-    # pos_order_id = fields.Many2one(
-    #     'pos.order',
-    #     string='Orden POS',
-    #     readonly=True,
-    #     copy=False
-    # )
-    
-    # order_reference = fields.Char(
-    #     string='Referencia de Orden',
-    #     compute='_compute_order_reference',
-    #     store=True,
-    #     readonly=True
-    # )
-    
     partner_id = fields.Many2one(
         'res.partner',
         string='Cliente',
@@ -135,23 +121,11 @@ class TrackerProject(models.Model):
         readonly=True
     )
     
-    # @api.depends('sale_order_id', 'pos_order_id')
-    # def _compute_order_reference(self):
-    #     for record in self:
-    #         if record.sale_order_id:
-    #             record.order_reference = record.sale_order_id.name
-    #         elif record.pos_order_id:
-    #             record.order_reference = record.pos_order_id.pos_reference
-    #         else:
-    #             record.order_reference = False
-    
     @api.depends('sale_order_id')
     def _compute_invoice_ids(self):
         for record in self:
             if record.sale_order_id:
                 record.invoice_ids = record.sale_order_id.invoice_ids
-            # elif record.pos_order_id:
-            #     record.invoice_ids = record.pos_order_id.account_move
             else:
                 record.invoice_ids = False
     

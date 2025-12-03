@@ -10,7 +10,7 @@
                     <field name="name"/>
                     <field name="partner_id"/>
                     <field name="analytic_account_id"/>
-                    <field name="order_reference"/>
+                    <field name="sale_order_id"/>
                     <field name="promise_date"/>
                     <field name="delivery_date"/>
                     <field name="state" widget="badge" decoration-info="state=='pending'" decoration-warning="state=='processing'" decoration-success="state=='delivered'"/>
@@ -46,9 +46,7 @@
                         <group>
                             <group>
                                 <field name="partner_id" readonly="1"/>
-                                <field name="order_reference" readonly="1"/>
-                                <field name="sale_order_id" invisible="1"/>
-                                <field name="pos_order_id" invisible="1"/>
+                                <field name="sale_order_id" readonly="1"/>
                                 <field name="invoice_ids" widget="many2many_tags"/>
                                 <field name="user_id"/>
                             </group>
@@ -150,7 +148,7 @@
                     <field name="name"/>
                     <field name="partner_id"/>
                     <field name="analytic_account_id"/>
-                    <field name="order_reference"/>
+                    <field name="sale_order_id"/>
                     <separator/>
                     <filter string="Pendientes" name="pending" domain="[('state','=','pending')]"/>
                     <filter string="En Proceso" name="processing" domain="[('state','=','processing')]"/>
@@ -177,7 +175,7 @@
                     No hay proyectos tracker
                 </p>
                 <p>
-                    Los proyectos se crean automáticamente cuando confirmas una orden de venta o POS con servicios.
+                    Los proyectos se crean automáticamente cuando confirmas una orden de venta con servicios.
                 </p>
             </field>
         </record>

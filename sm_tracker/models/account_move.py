@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api, _
+from odoo import models, fields, api
 
 
 class AccountMove(models.Model):
@@ -8,29 +8,15 @@ class AccountMove(models.Model):
 
     tracker_project_ids = fields.Many2many(
         'tracker.project',
-        'tracker_project_invoice_rel',
-        'invoice_id',
-        'project_id',
-        string='Proyectos Tracker'
+        string='Proyectos Tracker',
+        compute='_compute_tracker_project_ids'
     )
     
-    tracker_project_count = fields.Integer(
-        string='Trackers',
-        compute='_compute_tracker_project_count'
-    )
-    
-    @api.depends('tracker_project_ids')
-    def _compute_tracker_project_count(self):
+    @api.depends('invoice_line_ids.sale_line_ids.order_id.tracker_project_ids')
+    def _compute_tracker_project_ids(self):
         for move in self:
-            move.tracker_project_count = len(move.tracker_project_ids)
-    
-    def action_view_tracker_projects(self):
-        """Ver proyectos tracker de la factura"""
-        self.ensure_one()
-        return {
-            'name': _('Proyectos Tracker'),
-            'type': 'ir.actions.act_window',
-            'res_model': 'tracker.project',
-            'view_mode': 'tree,form,kanban',
-            'domain': [('invoice_ids', 'in', self.id)],
-        }
+            projects = self.env['tracker.project']
+            for line in move.invoice_line_ids:
+                for sale_line in line.sale_line_ids:
+                    projects |= sale_line.order_id.tracker_project_ids
+            move.tracker_project_ids = projects

@@ -69,13 +69,13 @@
                         </group>
                         <notebook>
                             <page string="Registros de Tiempo">
-                                <field name="timesheet_ids" nolabel="1">
+                                <field name="timesheet_ids" nolabel="1" readonly="1">
                                     <tree create="0" delete="0" edit="0" decoration-success="state=='stopped'" decoration-warning="state=='running'">
-                                        <field name="date" readonly="1" force_save="1"/>
-                                        <field name="start_time" widget="datetime" readonly="1" force_save="1"/>
-                                        <field name="end_time" widget="datetime" readonly="1" force_save="1"/>
-                                        <field name="user_id" readonly="1" force_save="1"/>
-                                        <field name="hours" widget="float_time" readonly="1" force_save="1"/>
+                                        <field name="date" force_save="1"/>
+                                        <field name="start_time" widget="datetime" force_save="1"/>
+                                        <field name="end_time" widget="datetime" force_save="1"/>
+                                        <field name="user_id" force_save="1"/>
+                                        <field name="hours" widget="float_time" force_save="1"/>
                                         <field name="state" column_invisible="1"/>
                                     </tree>
                                 </field>
@@ -196,7 +196,7 @@
                     No hay tareas asignadas
                 </p>
                 <p>
-                    Las tareas se generan automáticamente desde las órdenes de venta y punto de venta confirmadas.
+                    Las tareas se generan automáticamente desde las órdenes de venta confirmadas.
                 </p>
             </field>
         </record>

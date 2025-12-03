@@ -2,39 +2,19 @@
 <odoo>
     <data>
         
-        <record id="view_hr_employee_form_tracker" model="ir.ui.view">
-            <field name="name">hr.employee.form.tracker</field>
+        <record id="view_tracker_employee_form_inherit" model="ir.ui.view">
+            <field name="name">hr.employee.form.inherit.tracker</field>
             <field name="model">hr.employee</field>
             <field name="inherit_id" ref="hr.view_employee_form"/>
             <field name="arch" type="xml">
-                
                 <xpath expr="//div[@name='button_box']" position="inside">
-                    <button name="action_view_tracker_tasks" type="object" class="oe_stat_button" icon="fa-tasks">
-                        <field name="tracker_task_count" widget="statinfo" string="Tareas Tracker"/>
-                    </button>
-                    <button name="action_view_tracker_timesheets" type="object" class="oe_stat_button" icon="fa-clock-o">
-                        <div class="o_field_widget o_stat_info">
-                            <span class="o_stat_value">
-                                <field name="tracker_total_hours" widget="float_time"/>
-                            </span>
-                            <span class="o_stat_text">Horas Tracker</span>
-                        </div>
+                    <button name="action_view_tracker_tasks" 
+                            type="object" 
+                            class="oe_stat_button" 
+                            icon="fa-tasks">
+                        <field name="tracker_task_count" widget="statinfo" string="Tareas"/>
                     </button>
                 </xpath>
-
-                <xpath expr="//notebook" position="inside">
-                    <page string="Tracker" name="tracker">
-                        <group>
-                            <group>
-                                <field name="is_tracker_manager"/>
-                            </group>
-                        </group>
-                        <group string="Tiendas Asignadas">
-                            <field name="tracker_analytic_account_ids" widget="many2many_tags" nolabel="1"/>
-                        </group>
-                    </page>
-                </xpath>
-
             </field>
         </record>
 

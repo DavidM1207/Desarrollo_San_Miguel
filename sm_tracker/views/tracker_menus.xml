@@ -2,17 +2,31 @@
 <odoo>
     <data>
         
-        <menuitem id="menu_tracker_root" name="Tracker" sequence="60" action="action_tracker_task"/>
+        <menuitem id="menu_tracker_root"
+                  name="Tracker"
+                  sequence="10"/>
 
-        <menuitem id="menu_tracker_tasks" name="Tareas" parent="menu_tracker_root" sequence="10" action="action_tracker_task"/>
+        <menuitem id="menu_tracker_operations"
+                  name="Operaciones"
+                  parent="menu_tracker_root"
+                  sequence="10"/>
 
-        <menuitem id="menu_tracker_projects" name="Proyectos" parent="menu_tracker_root" sequence="20" action="action_tracker_project"/>
+        <menuitem id="menu_tracker_task"
+                  name="Tareas"
+                  parent="menu_tracker_operations"
+                  action="action_tracker_task"
+                  sequence="10"/>
 
-        <menuitem id="menu_tracker_timesheets" name="Registros de Tiempo" parent="menu_tracker_root" sequence="30" action="action_tracker_timesheet"/>
+        <menuitem id="menu_tracker_project"
+                  name="Proyectos"
+                  parent="menu_tracker_operations"
+                  action="action_tracker_project"
+                  sequence="20"/>
 
-        <menuitem id="menu_tracker_config" name="Configuración" parent="menu_tracker_root" sequence="100"/>
-
-        <menuitem id="menu_tracker_employees" name="Empleados" parent="menu_tracker_config" sequence="10" action="hr.open_view_employee_list_my"/>
+        <menuitem id="menu_tracker_configuration"
+                  name="Configuración"
+                  parent="menu_tracker_root"
+                  sequence="100"/>
 
     </data>
 </odoo>
