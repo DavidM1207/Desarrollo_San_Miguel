@@ -2,7 +2,6 @@
 
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
-from datetime import datetime
 
 
 class TrackerTimesheet(models.Model):
@@ -102,30 +101,3 @@ class TrackerTimesheet(models.Model):
         for record in self:
             if record.hours < 0:
                 raise ValidationError(_('Las horas no pueden ser negativas.'))
-    
-    def action_start_timer(self):
-        for record in self:
-            if record.start_time:
-                raise UserError(_('El temporizador ya está en marcha.'))
-            
-            record.write({
-                'start_time': fields.Datetime.now(),
-                'state': 'running',
-                'user_id': self.env.user.id
-            })
-        return True
-    
-    def action_stop_timer(self):
-        for record in self:
-            if not record.start_time:
-                raise UserError(_('El temporizador no ha sido iniciado.'))
-            
-            if record.end_time:
-                raise UserError(_('El temporizador ya ha sido detenido.'))
-            
-            record.write({
-                'end_time': fields.Datetime.now(),
-                'state': 'stopped',
-                'user_id': self.env.user.id
-            })
-        return True

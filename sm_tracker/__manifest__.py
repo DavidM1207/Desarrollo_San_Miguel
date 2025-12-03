@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Tracker - Gestión de Servicios',
-    'version': '17.0.1.0.9',
+    'version': '17.0.1.0.8',
     'category': 'Services',
     'summary': 'Gestión de proyectos y tareas de servicios',
     'description': """
