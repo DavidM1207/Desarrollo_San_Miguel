@@ -12,7 +12,8 @@ class SaleOrder(models.Model):
         'tracker.project',
         string='Proyecto Tracker',
         readonly=True,
-        copy=False
+        copy=False,
+        ondelete='set null'
     )
     
     tracker_project_count = fields.Integer(
@@ -23,11 +24,20 @@ class SaleOrder(models.Model):
     @api.depends('tracker_project_id')
     def _compute_tracker_project_count(self):
         for order in self:
-            order.tracker_project_count = 1 if order.tracker_project_id else 0
+            # Verificar si el modelo tracker.project existe (importante para desinstalación)
+            if 'tracker.project' in self.env:
+                order.tracker_project_count = 1 if order.tracker_project_id else 0
+            else:
+                order.tracker_project_count = 0
     
     def action_view_tracker_project(self):
         """Acción para ver el proyecto tracker"""
         self.ensure_one()
+        
+        # Verificar si el modelo existe (importante para desinstalación)
+        if 'tracker.project' not in self.env:
+            raise UserError(_('El módulo Tracker no está instalado o está siendo desinstalado.'))
+        
         if not self.tracker_project_id:
             raise UserError(_('No hay proyecto tracker asociado a esta orden de venta.'))
         
@@ -43,6 +53,10 @@ class SaleOrder(models.Model):
     def action_confirm(self):
         """Override para generar proyecto tracker automáticamente"""
         res = super(SaleOrder, self).action_confirm()
+        
+        # Verificar que el modelo tracker.project exista
+        if 'tracker.project' not in self.env:
+            return res
         
         for order in self:
             # Solo generar si hay cuenta analítica y no existe ya un proyecto
