@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <!-- Menú principal Tracker -->
+    <menuitem id="menu_tracker_root"
+              name="Tracker"
+              sequence="10"
+              web_icon="tracker,static/description/icon.png"/>
+    
+    <!-- Submenú Proyectos -->
+    <menuitem id="menu_tracker_projects"
+              name="Proyectos"
+              parent="menu_tracker_root"
+              sequence="10"/>
+    
+    <menuitem id="menu_tracker_project_all"
+              name="Todos los Proyectos"
+              parent="menu_tracker_projects"
+              action="action_tracker_project"
+              sequence="10"/>
+    
+    <!-- Submenú Tareas -->
+    <menuitem id="menu_tracker_tasks"
+              name="Tareas"
+              parent="menu_tracker_root"
+              sequence="20"/>
+    
+    <menuitem id="menu_tracker_task_all"
+              name="Todas las Tareas"
+              parent="menu_tracker_tasks"
+              action="action_tracker_task"
+              sequence="10"/>
+    
+    <menuitem id="menu_tracker_task_my"
+              name="Mis Tareas"
+              parent="menu_tracker_tasks"
+              action="action_my_tracker_tasks"
+              sequence="20"/>
+    
+    <!-- Submenú Registros de Tiempo -->
+    <menuitem id="menu_tracker_timesheets"
+              name="Registros de Tiempo"
+              parent="menu_tracker_root"
+              sequence="30"/>
+    
+    <menuitem id="menu_tracker_timesheet_all"
+              name="Todos los Registros"
+              parent="menu_tracker_timesheets"
+              action="action_tracker_timesheet"
+              sequence="10"/>
+    
+    <menuitem id="menu_tracker_timesheet_my"
+              name="Mis Registros"
+              parent="menu_tracker_timesheets"
+              action="action_my_tracker_timesheet"
+              sequence="20"/>
+    
+    <!-- Submenú Reportes (para futura expansión) -->
+    <menuitem id="menu_tracker_reports"
+              name="Reportes"
+              parent="menu_tracker_root"
+              sequence="100"/>
+
+</odoo>
