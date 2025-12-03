@@ -1,108 +1,131 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api, _
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
+from datetime import datetime
 
 
 class TrackerTimesheet(models.Model):
     _name = 'tracker.timesheet'
-    _description = 'Registro de Tiempo Tracker'
-    _order = 'start_time desc'
+    _description = 'Registro de Tiempo de Trabajo'
+    _order = 'date desc, id desc'
 
+    name = fields.Char(
+        string='Descripción',
+        required=True
+    )
+    
     task_id = fields.Many2one(
         'tracker.task',
         string='Tarea',
         required=True,
-        ondelete='cascade',
-        readonly=True
+        ondelete='cascade'
     )
     
     project_id = fields.Many2one(
         'tracker.project',
-        string='Proyecto',
         related='task_id.project_id',
+        string='Proyecto',
         store=True,
         readonly=True
     )
     
-    operator_id = fields.Many2one(
-        'res.users',
-        string='Operario',
+    employee_id = fields.Many2one(
+        'hr.employee',
+        string='Empleado',
         required=True,
-        readonly=True
-    )
-    
-    start_time = fields.Datetime(
-        string='Hora de Inicio',
-        required=True,
-        readonly=True,
-        default=fields.Datetime.now
-    )
-    
-    end_time = fields.Datetime(
-        string='Hora de Fin',
-        readonly=True
-    )
-    
-    duration = fields.Float(
-        string='Duración (Horas)',
-        compute='_compute_duration',
-        store=True,
-        readonly=True
+        default=lambda self: self.env.user.employee_id
     )
     
     user_id = fields.Many2one(
         'res.users',
-        string='Registrado por',
+        string='Usuario',
+        default=lambda self: self.env.user,
+        readonly=True
+    )
+    
+    analytic_account_id = fields.Many2one(
+        'account.analytic.account',
+        string='Tienda',
+        required=True
+    )
+    
+    date = fields.Date(
+        string='Fecha',
         required=True,
-        readonly=True,
-        default=lambda self: self.env.user
+        default=fields.Date.context_today
+    )
+    
+    start_time = fields.Datetime(
+        string='Hora Inicio'
+    )
+    
+    end_time = fields.Datetime(
+        string='Hora Fin'
+    )
+    
+    hours = fields.Float(
+        string='Horas',
+        compute='_compute_hours',
+        store=True,
+        readonly=True
+    )
+    
+    notes = fields.Text(string='Notas')
+    
+    company_id = fields.Many2one(
+        'res.company',
+        string='Compañía',
+        default=lambda self: self.env.company
     )
     
     state = fields.Selection([
-        ('running', 'En Ejecución'),
+        ('draft', 'Borrador'),
+        ('running', 'En Progreso'),
         ('stopped', 'Detenido'),
-    ], string='Estado', compute='_compute_state', store=True, readonly=True)
-    
-    notes = fields.Text(string='Notas', readonly=True)
-    
-    @api.depends('end_time')
-    def _compute_state(self):
-        for record in self:
-            record.state = 'stopped' if record.end_time else 'running'
+    ], string='Estado', default='draft')
     
     @api.depends('start_time', 'end_time')
-    def _compute_duration(self):
-        """Calcular duración en horas"""
+    def _compute_hours(self):
         for record in self:
             if record.start_time and record.end_time:
                 delta = record.end_time - record.start_time
-                record.duration = delta.total_seconds() / 3600.0
-            elif record.start_time:
-                # Si está en ejecución, calcular tiempo transcurrido hasta ahora
+                record.hours = delta.total_seconds() / 3600.0
+            elif record.start_time and not record.end_time:
                 delta = fields.Datetime.now() - record.start_time
-                record.duration = delta.total_seconds() / 3600.0
+                record.hours = delta.total_seconds() / 3600.0
             else:
-                record.duration = 0.0
+                record.hours = 0.0
     
-    @api.constrains('start_time', 'end_time')
-    def _check_times(self):
-        """Validar que end_time sea posterior a start_time"""
+    @api.constrains('hours')
+    def _check_hours(self):
         for record in self:
-            if record.end_time and record.start_time:
-                if record.end_time < record.start_time:
-                    raise ValidationError(_(
-                        'La hora de fin no puede ser anterior a la hora de inicio.'
-                    ))
+            if record.hours < 0:
+                raise ValidationError(_('Las horas no pueden ser negativas.'))
     
-    def name_get(self):
-        """Personalizar nombre mostrado"""
-        result = []
+    def action_start_timer(self):
         for record in self:
-            name = '%s - %s (%s)' % (
-                record.task_id.name,
-                record.operator_id.name,
-                record.start_time.strftime('%Y-%m-%d %H:%M') if record.start_time else ''
-            )
-            result.append((record.id, name))
-        return result
+            if record.start_time:
+                raise UserError(_('El temporizador ya está en marcha.'))
+            
+            record.write({
+                'start_time': fields.Datetime.now(),
+                'state': 'running',
+                'user_id': self.env.user.id
+            })
+        return True
+    
+    def action_stop_timer(self):
+        for record in self:
+            if not record.start_time:
+                raise UserError(_('El temporizador no ha sido iniciado.'))
+            
+            if record.end_time:
+                raise UserError(_('El temporizador ya ha sido detenido.'))
+            
+            record.write({
+                'end_time': fields.Datetime.now(),
+                'state': 'stopped',
+                'user_id': self.env.user.id
+            })
+        return True

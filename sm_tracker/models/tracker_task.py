@@ -41,6 +41,18 @@ class TrackerTask(models.Model):
         readonly=True
     )
     
+    pos_order_line_id = fields.Many2one(
+        'pos.order.line',
+        string='Línea de POS',
+        readonly=True
+    )
+    
+    invoice_line_id = fields.Many2one(
+        'account.move.line',
+        string='Línea de Factura',
+        readonly=True
+    )
+    
     quantity = fields.Float(
         string='Cantidad',
         required=True,

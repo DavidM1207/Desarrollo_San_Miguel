@@ -22,15 +22,35 @@ class TrackerProject(models.Model):
     sale_order_id = fields.Many2one(
         'sale.order',
         string='Orden de Venta',
-        required=True,
         readonly=True,
         ondelete='cascade'
+    )
+    
+    pos_order_id = fields.Many2one(
+        'pos.order',
+        string='Orden de Punto de Venta',
+        readonly=True,
+        ondelete='cascade'
+    )
+    
+    invoice_id = fields.Many2one(
+        'account.move',
+        string='Factura de Cliente',
+        readonly=True,
+        ondelete='cascade',
+        domain=[('move_type', '=', 'out_invoice')]
+    )
+    
+    order_reference = fields.Char(
+        string='Referencia de Orden',
+        compute='_compute_order_reference',
+        store=True
     )
     
     partner_id = fields.Many2one(
         'res.partner',
         string='Cliente',
-        related='sale_order_id.partner_id',
+        compute='_compute_partner_id',
         store=True,
         readonly=True
     )
@@ -84,6 +104,32 @@ class TrackerProject(models.Model):
     )
     
     notes = fields.Text(string='Notas')
+    
+    @api.depends('sale_order_id', 'pos_order_id', 'invoice_id')
+    def _compute_order_reference(self):
+        """Obtener referencia de la orden (venta, POS o factura)"""
+        for project in self:
+            if project.sale_order_id:
+                project.order_reference = project.sale_order_id.name
+            elif project.pos_order_id:
+                project.order_reference = project.pos_order_id.name
+            elif project.invoice_id:
+                project.order_reference = project.invoice_id.name
+            else:
+                project.order_reference = False
+    
+    @api.depends('sale_order_id', 'pos_order_id', 'invoice_id')
+    def _compute_partner_id(self):
+        """Obtener cliente de la orden (venta, POS o factura)"""
+        for project in self:
+            if project.sale_order_id:
+                project.partner_id = project.sale_order_id.partner_id
+            elif project.pos_order_id:
+                project.partner_id = project.pos_order_id.partner_id
+            elif project.invoice_id:
+                project.partner_id = project.invoice_id.partner_id
+            else:
+                project.partner_id = False
     
     @api.depends('task_ids')
     def _compute_task_count(self):

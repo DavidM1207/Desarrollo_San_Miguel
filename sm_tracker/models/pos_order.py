@@ -5,41 +5,44 @@ from odoo.exceptions import UserError
 from collections import defaultdict
 
 
-class SaleOrder(models.Model):
-    _inherit = 'sale.order'
+class PosOrder(models.Model):
+    _inherit = 'pos.order'
     
-    def action_confirm(self):
-        """Override para generar proyecto tracker automáticamente"""
-        res = super(SaleOrder, self).action_confirm()
+    def _process_order(self, order, draft, existing_order):
+        """Override para generar proyecto tracker automáticamente después de procesar la orden"""
+        # Llamar al método original
+        pos_order = super(PosOrder, self)._process_order(order, draft, existing_order)
         
         # Verificar que el módulo tracker esté instalado
         if 'tracker.project' not in self.env:
-            return res
+            return pos_order
         
-        for order in self:
-            # Solo generar si hay cuenta analítica y no existe ya un proyecto
+        # Generar proyecto tracker si aplica
+        if pos_order and not draft:
             # Buscar si ya existe un proyecto para esta orden
             existing_project = self.env['tracker.project'].search([
-                ('sale_order_id', '=', order.id)
+                ('pos_order_id', '=', pos_order.id)
             ], limit=1)
             
-            if order.analytic_account_id and not existing_project:
-                order._generate_tracker_project()
+            # Solo generar si hay cuenta analítica y no existe ya un proyecto
+            if pos_order.session_id.config_id.analytic_account_id and not existing_project:
+                pos_order._generate_tracker_project_pos()
         
-        return res
+        return pos_order
     
-    def _generate_tracker_project(self):
-        """Generar proyecto tracker con sus tareas desde BoMs"""
+    def _generate_tracker_project_pos(self):
+        """Generar proyecto tracker con sus tareas desde BoMs para órdenes POS"""
         self.ensure_one()
         
-        # Validar cuenta analítica
-        if not self.analytic_account_id:
-            raise UserError(_(
-                'La orden de venta debe tener una cuenta analítica (Tienda) asignada.'
-            ))
+        # Obtener cuenta analítica de la configuración del POS
+        analytic_account = self.session_id.config_id.analytic_account_id
         
-        # Extraer servicios de las líneas de venta y sus BoMs
-        services_data = self._extract_services_from_boms()
+        if not analytic_account:
+            # No hay cuenta analítica, no generar proyecto
+            return
+        
+        # Extraer servicios de las líneas de POS y sus BoMs
+        services_data = self._extract_services_from_boms_pos()
         
         if not services_data:
             # No hay servicios para procesar
@@ -47,8 +50,8 @@ class SaleOrder(models.Model):
         
         # Crear proyecto tracker
         project_vals = {
-            'sale_order_id': self.id,
-            'analytic_account_id': self.analytic_account_id.id,
+            'pos_order_id': self.id,
+            'analytic_account_id': analytic_account.id,
             'user_id': self.user_id.id if self.user_id else self.env.user.id,
             'state': 'pending',
         }
@@ -61,29 +64,29 @@ class SaleOrder(models.Model):
                 'project_id': tracker_project.id,
                 'product_id': service_id,
                 'quantity': data['quantity'],
-                'sale_order_line_id': data.get('sale_line_id'),
+                'pos_order_line_id': data.get('pos_line_id'),
                 'state': 'draft',
             }
             self.env['tracker.task'].create(task_vals)
         
         return tracker_project
     
-    def _extract_services_from_boms(self):
+    def _extract_services_from_boms_pos(self):
         """
-        Extraer servicios desde BoMs recursivamente y acumular cantidades
-        Retorna: dict {product_id: {'quantity': float, 'sale_line_id': int}}
+        Extraer servicios desde BoMs recursivamente y acumular cantidades para POS
+        Retorna: dict {product_id: {'quantity': float, 'pos_line_id': int}}
         """
-        services_dict = defaultdict(lambda: {'quantity': 0.0, 'sale_line_id': False})
+        services_dict = defaultdict(lambda: {'quantity': 0.0, 'pos_line_id': False})
         
-        for line in self.order_line:
+        for line in self.lines:
             product = line.product_id
-            qty_sold = line.product_uom_qty
+            qty_sold = line.qty
             
             # Si el producto mismo es un servicio, agregarlo
             if product.type == 'service':
                 services_dict[product.id]['quantity'] += qty_sold
-                if not services_dict[product.id]['sale_line_id']:
-                    services_dict[product.id]['sale_line_id'] = line.id
+                if not services_dict[product.id]['pos_line_id']:
+                    services_dict[product.id]['pos_line_id'] = line.id
             
             # Buscar BoM del producto
             bom = self.env['mrp.bom']._bom_find(
@@ -94,31 +97,31 @@ class SaleOrder(models.Model):
             
             if bom:
                 # Extraer servicios de la BoM recursivamente
-                services_from_bom = self._extract_services_from_bom(
+                services_from_bom = self._extract_services_from_bom_pos(
                     bom, qty_sold, line.id
                 )
                 
                 # Acumular cantidades
                 for service_id, data in services_from_bom.items():
                     services_dict[service_id]['quantity'] += data['quantity']
-                    if not services_dict[service_id]['sale_line_id']:
-                        services_dict[service_id]['sale_line_id'] = data['sale_line_id']
+                    if not services_dict[service_id]['pos_line_id']:
+                        services_dict[service_id]['pos_line_id'] = data['pos_line_id']
         
         return dict(services_dict)
     
-    def _extract_services_from_bom(self, bom, multiplier, sale_line_id):
+    def _extract_services_from_bom_pos(self, bom, multiplier, pos_line_id):
         """
-        Extraer servicios de una BoM recursivamente
+        Extraer servicios de una BoM recursivamente para POS
         
         Args:
             bom: mrp.bom record
             multiplier: cantidad a multiplicar (cantidad vendida)
-            sale_line_id: ID de la línea de venta
+            pos_line_id: ID de la línea de POS
         
         Returns:
-            dict {product_id: {'quantity': float, 'sale_line_id': int}}
+            dict {product_id: {'quantity': float, 'pos_line_id': int}}
         """
-        services_dict = defaultdict(lambda: {'quantity': 0.0, 'sale_line_id': sale_line_id})
+        services_dict = defaultdict(lambda: {'quantity': 0.0, 'pos_line_id': pos_line_id})
         
         for bom_line in bom.bom_line_ids:
             component = bom_line.product_id
@@ -140,8 +143,8 @@ class SaleOrder(models.Model):
             
             if sub_bom:
                 # Llamada recursiva con el nuevo multiplicador
-                sub_services = self._extract_services_from_bom(
-                    sub_bom, total_qty, sale_line_id
+                sub_services = self._extract_services_from_bom_pos(
+                    sub_bom, total_qty, pos_line_id
                 )
                 
                 # Acumular servicios de la sub-BoM
