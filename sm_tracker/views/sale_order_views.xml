@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Las órdenes de venta crean trackers automáticamente en segundo plano -->
+        <!-- No se muestra ningún botón para mantener el módulo de ventas independiente -->
+    </data>
+</odoo>

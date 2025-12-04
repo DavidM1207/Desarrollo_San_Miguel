@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Las facturas se relacionan con trackers en segundo plano -->
+        <!-- No se muestra ningún botón para mantener el módulo de contabilidad independiente -->
+    </data>
+</odoo>
