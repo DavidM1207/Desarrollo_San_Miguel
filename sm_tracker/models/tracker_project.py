@@ -36,6 +36,12 @@ class TrackerProject(models.Model):
         help='Orden del punto de venta origen del proyecto'
     )
     
+    origen_type = fields.Char(
+        string='Tipo de Origen',
+        compute='_compute_origen_type',
+        store=True
+    )
+    
     invoice_ids = fields.Many2many(
         'account.move',
         'tracker_project_invoice_rel',
@@ -150,6 +156,16 @@ class TrackerProject(models.Model):
     def _compute_task_count(self):
         for record in self:
             record.task_count = len(record.task_ids)
+    
+    @api.depends('sale_order_id', 'pos_order_id')
+    def _compute_origen_type(self):
+        for record in self:
+            if record.sale_order_id:
+                record.origen_type = 'Venta'
+            elif record.pos_order_id:
+                record.origen_type = 'POS'
+            else:
+                record.origen_type = 'Manual'
     
     @api.depends('task_ids.total_hours')
     def _compute_total_hours(self):
