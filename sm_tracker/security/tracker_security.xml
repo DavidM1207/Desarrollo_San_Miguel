@@ -104,13 +104,11 @@
             <field name="perm_unlink" eval="True"/>
         </record>
 
-        <record id="tracker_stock_shortage_rule_user" model="ir.rule">
-            <field name="name">Tracker Stock Shortage: User - Own Store</field>
+        <record id="tracker_stock_shortage_rule_all" model="ir.rule">
+            <field name="name">Tracker Stock Shortage: All Users - Read Only</field>
             <field name="model_id" ref="model_tracker_stock_shortage"/>
-            <field name="domain_force">[
-                ('analytic_account_id', 'in', user.employee_id.tracker_analytic_account_ids.ids)
-            ]</field>
-            <field name="groups" eval="[(4, ref('group_tracker_user'))]"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('base.group_user'))]"/>
             <field name="perm_read" eval="True"/>
             <field name="perm_write" eval="False"/>
             <field name="perm_create" eval="False"/>
@@ -118,7 +116,7 @@
         </record>
 
         <record id="tracker_stock_shortage_rule_manager" model="ir.rule">
-            <field name="name">Tracker Stock Shortage: Manager - All</field>
+            <field name="name">Tracker Stock Shortage: Manager - Full Access</field>
             <field name="model_id" ref="model_tracker_stock_shortage"/>
             <field name="domain_force">[(1, '=', 1)]</field>
             <field name="groups" eval="[(4, ref('group_tracker_manager'))]"/>
