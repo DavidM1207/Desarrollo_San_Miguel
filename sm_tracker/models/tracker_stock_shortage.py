@@ -7,18 +7,21 @@ class TrackerStockShortage(models.Model):
     _name = 'tracker.stock.shortage'
     _description = 'Productos sin Abasto'
     _order = 'id'
+    _check_company_auto = True  # No aplicar reglas automáticas de compañía
 
     project_id = fields.Many2one(
         'tracker.project',
         string='Proyecto',
         required=True,
-        ondelete='cascade'
+        ondelete='cascade',
+        check_company=False
     )
     
     product_id = fields.Many2one(
         'product.product',
         string='Producto',
-        required=True
+        required=True,
+        check_company=False
     )
     
     demand_qty = fields.Float(
@@ -38,12 +41,19 @@ class TrackerStockShortage(models.Model):
     
     warehouse_id = fields.Many2one(
         'stock.warehouse',
-        string='Bodega'
+        string='Bodega',
+        check_company=False
     )
     
     analytic_account_id = fields.Many2one(
-        related='project_id.analytic_account_id',
+        'account.analytic.account',
         string='Tienda',
-        store=True,
-        readonly=True
+        check_company=False
+    )
+    
+    company_id = fields.Many2one(
+        'res.company',
+        string='Compañía',
+        default=lambda self: self.env.company,
+        required=False
     )
