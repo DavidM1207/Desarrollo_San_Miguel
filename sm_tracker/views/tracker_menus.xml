@@ -8,18 +8,18 @@
                   action="action_tracker_task"
                   groups="group_tracker_user,group_tracker_manager"/>
 
-        <menuitem id="menu_tracker_tasks" 
-                  name="Tareas" 
-                  parent="menu_tracker_root" 
-                  sequence="10" 
-                  action="action_tracker_task"
-                  groups="group_tracker_user,group_tracker_manager"/>
-
         <menuitem id="menu_tracker_projects" 
                   name="Proyectos" 
                   parent="menu_tracker_root" 
-                  sequence="20" 
+                  sequence="10" 
                   action="action_tracker_project"
+                  groups="group_tracker_user,group_tracker_manager"/>
+
+        <menuitem id="menu_tracker_tasks" 
+                  name="Tareas" 
+                  parent="menu_tracker_root" 
+                  sequence="20" 
+                  action="action_tracker_task"
                   groups="group_tracker_user,group_tracker_manager"/>
 
         <menuitem id="menu_tracker_timesheets" 

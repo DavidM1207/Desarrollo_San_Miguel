@@ -10,7 +10,8 @@
                     <field name="name"/>
                     <field name="partner_id"/>
                     <field name="analytic_account_id"/>
-                    <field name="sale_order_id"/>
+                    <field name="order_reference" string="Orden"/>
+                    <field name="origen_type"/>
                     <field name="promise_date"/>
                     <field name="delivery_date"/>
                     <field name="state" widget="badge" decoration-info="state=='pending'" decoration-warning="state=='processing'" decoration-success="state=='delivered'"/>
@@ -47,7 +48,10 @@
                         <group>
                             <group>
                                 <field name="partner_id" readonly="1"/>
-                                <field name="sale_order_id" readonly="1"/>
+                                <field name="order_reference" readonly="1"/>
+                                <field name="origen_type" readonly="1"/>
+                                <field name="sale_order_id" readonly="1" invisible="not sale_order_id"/>
+                                <field name="pos_order_id" readonly="1" invisible="not pos_order_id"/>
                                 <field name="invoice_ids" widget="many2many_tags"/>
                                 <field name="user_id"/>
                             </group>
@@ -79,6 +83,16 @@
                                         <field name="employee_id"/>
                                         <field name="state" widget="badge" decoration-muted="state=='cancel'" decoration-success="state=='done'" decoration-warning="state=='in_progress'" decoration-info="state=='paused'"/>
                                         <field name="total_hours" widget="float_time"/>
+                                    </tree>
+                                </field>
+                            </page>
+                            <page string="Abasto">
+                                <field name="shortage_ids" nolabel="1">
+                                    <tree create="0" delete="0" edit="0" decoration-danger="state=='sin_abasto'" decoration-success="state=='con_abasto'">
+                                        <field name="product_id"/>
+                                        <field name="demand_qty" string="Demanda"/>
+                                        <field name="available_qty" string="Cantidad"/>
+                                        <field name="state" widget="badge" decoration-danger="state=='sin_abasto'" decoration-success="state=='con_abasto'"/>
                                     </tree>
                                 </field>
                             </page>

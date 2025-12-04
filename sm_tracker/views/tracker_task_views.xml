@@ -100,8 +100,9 @@
                                                 class="btn-primary btn-block mb-2" 
                                                 style="width: 100%; text-align: left;"
                                                 icon="fa-check"/>
+                                        <!-- Botón Cancelar oculto -->
                                         <button name="action_cancel_task" string="Cancelar" type="object" 
-                                                invisible="state not in ['draft', 'ready', 'in_progress', 'paused']" 
+                                                invisible="1" 
                                                 class="btn-secondary btn-block mb-2" 
                                                 style="width: 100%; text-align: left;"
                                                 icon="fa-times"/>

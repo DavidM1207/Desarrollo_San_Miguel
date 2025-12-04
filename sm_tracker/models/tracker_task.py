@@ -160,13 +160,15 @@ class TrackerTask(models.Model):
     def write(self, vals):
         # Validar cambio de empleado en tareas iniciadas
         if 'employee_id' in vals:
-            for record in self:
-                # Si la tarea ya está en progreso, done o pausado, no permitir cambio sin permiso
-                if record.state in ['in_progress', 'done', 'paused']:
-                    # Verificar si tiene el permiso especial
-                    has_permission = self.env.user.has_group('sm_tracker.group_tracker_change_employee')
-                    
-                    if not has_permission:
+            # Permitir el cambio si viene con otros campos (edición desde formulario)
+            # o si tiene el permiso especial
+            is_form_edit = len(vals) > 1  # Si viene con más campos, es edición de formulario
+            has_permission = self.env.user.has_group('sm_tracker.group_tracker_change_employee')
+            
+            if not is_form_edit and not has_permission:
+                for record in self:
+                    # Si la tarea ya está en progreso, done o pausado, no permitir cambio sin permiso
+                    if record.state in ['in_progress', 'done', 'paused']:
                         raise UserError(_(
                             'No puede cambiar el operario de una tarea que ya está en progreso, '
                             'pausada o terminada. Contacte a un supervisor si necesita hacer este cambio.'
