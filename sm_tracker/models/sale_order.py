@@ -101,7 +101,6 @@ class SaleOrder(models.Model):
             'sale_order_id': self.id,
             'partner_id': self.partner_id.id,
             'analytic_account_id': analytic_account.id,
-            'promise_date': self.commitment_date or self.date_order.date(),
             'user_id': self.user_id.id,
         }
         

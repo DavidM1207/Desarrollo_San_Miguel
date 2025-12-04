@@ -28,27 +28,6 @@ class TrackerProject(models.Model):
         help='Orden de venta origen del proyecto'
     )
     
-    pos_order_id = fields.Many2one(
-        'pos.order',
-        string='Orden POS',
-        tracking=True,
-        readonly=True,
-        help='Orden del punto de venta origen del proyecto'
-    )
-    
-    order_reference = fields.Char(
-        string='Ref. Orden',
-        compute='_compute_order_reference',
-        store=True,
-        help='Referencia de la orden de origen (Venta o POS)'
-    )
-    
-    origen_type = fields.Char(
-        string='Origen',
-        compute='_compute_origen_type',
-        store=True
-    )
-    
     invoice_ids = fields.Many2many(
         'account.move',
         'tracker_project_invoice_rel',
@@ -75,18 +54,18 @@ class TrackerProject(models.Model):
         readonly=True
     )
     
-    promise_date = fields.Date(
+    promise_date = fields.Datetime(
         string='Fecha Prometida',
-        required=True,
+        required=False,
         tracking=True,
-        help='Fecha en que se prometió la entrega al cliente'
+        help='Fecha y hora en que se prometió la entrega al cliente'
     )
     
-    delivery_date = fields.Date(
+    delivery_date = fields.Datetime(
         string='Fecha de Entrega',
         tracking=True,
         readonly=True,
-        help='Fecha real de entrega del proyecto'
+        help='Fecha y hora real de entrega del proyecto'
     )
     
     state = fields.Selection([
@@ -127,6 +106,12 @@ class TrackerProject(models.Model):
         store=True
     )
     
+    all_tasks_done = fields.Boolean(
+        string='Todas las Tareas Completadas',
+        compute='_compute_all_tasks_done',
+        help='Indica si todas las tareas están en estado Done'
+    )
+    
     user_id = fields.Many2one(
         'res.users',
         string='Responsable',
@@ -158,32 +143,6 @@ class TrackerProject(models.Model):
         if vals.get('name', 'Nuevo') == 'Nuevo':
             vals['name'] = self.env['ir.sequence'].next_by_code('tracker.project') or 'Nuevo'
         return super(TrackerProject, self).create(vals)
-    
-    @api.depends('sale_order_id', 'pos_order_id')
-    def _compute_order_reference(self):
-        """Obtener referencia de la orden origen (Venta o POS)"""
-        for record in self:
-            if record.pos_order_id:
-                # Intentar obtener pos_reference, si no existe usar name
-                if hasattr(record.pos_order_id, 'pos_reference') and record.pos_order_id.pos_reference:
-                    record.order_reference = record.pos_order_id.pos_reference
-                else:
-                    record.order_reference = record.pos_order_id.name
-            elif record.sale_order_id:
-                record.order_reference = record.sale_order_id.name
-            else:
-                record.order_reference = 'Manual'
-    
-    @api.depends('sale_order_id', 'pos_order_id')
-    def _compute_origen_type(self):
-        """Determinar el tipo de origen del proyecto"""
-        for record in self:
-            if record.sale_order_id:
-                record.origen_type = 'Venta'
-            elif record.pos_order_id:
-                record.origen_type = 'POS'
-            else:
-                record.origen_type = 'Manual'
     
     @api.depends('task_ids')
     def _compute_task_count(self):
@@ -221,13 +180,23 @@ class TrackerProject(models.Model):
             else:
                 record.progress = 0
     
+    @api.depends('task_ids.state')
+    def _compute_all_tasks_done(self):
+        """Verificar si todas las tareas están completadas"""
+        for record in self:
+            if not record.task_ids:
+                record.all_tasks_done = False
+            else:
+                pending_tasks = record.task_ids.filtered(lambda t: t.state != 'done')
+                record.all_tasks_done = len(pending_tasks) == 0
+    
     def write(self, vals):
         if 'state' in vals:
             vals['state_changed_by'] = self.env.user.id
             vals['state_changed_date'] = fields.Datetime.now()
             
             if vals['state'] == 'delivered' and not self.delivery_date:
-                vals['delivery_date'] = fields.Date.today()
+                vals['delivery_date'] = fields.Datetime.now()
         
         return super(TrackerProject, self).write(vals)
     
@@ -235,6 +204,11 @@ class TrackerProject(models.Model):
         self.ensure_one()
         if self.state != 'pending':
             raise UserError(_('Solo se puede procesar un proyecto pendiente.'))
+        
+        # Validar que tenga fecha prometida antes de iniciar
+        if not self.promise_date:
+            raise UserError(_('No se puede iniciar el proyecto sin una Fecha Prometida asignada.'))
+        
         self.write({'state': 'processing'})
         return True
     
@@ -249,6 +223,12 @@ class TrackerProject(models.Model):
                 'No se puede marcar como entregado. '
                 'Aún hay %d tarea(s) pendiente(s).'
             ) % len(pending_tasks))
+        
+        self.write({
+            'state': 'delivered',
+            'delivery_date': fields.Datetime.now()
+        })
+        return True
         
         self.write({
             'state': 'delivered',

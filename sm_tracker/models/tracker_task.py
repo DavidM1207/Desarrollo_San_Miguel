@@ -98,7 +98,7 @@ class TrackerTask(models.Model):
     
     notes = fields.Text(string='Notas')
     
-    promise_date = fields.Date(
+    promise_date = fields.Datetime(
         related='project_id.promise_date',
         string='Fecha Prometida',
         store=True,
@@ -158,6 +158,20 @@ class TrackerTask(models.Model):
             record.total_hours = sum(record.timesheet_ids.mapped('hours'))
     
     def write(self, vals):
+        # Validar cambio de empleado en tareas iniciadas
+        if 'employee_id' in vals:
+            for record in self:
+                # Si la tarea ya está en progreso, done o pausado, no permitir cambio sin permiso
+                if record.state in ['in_progress', 'done', 'paused']:
+                    # Verificar si tiene el permiso especial
+                    has_permission = self.env.user.has_group('sm_tracker.group_tracker_change_employee')
+                    
+                    if not has_permission:
+                        raise UserError(_(
+                            'No puede cambiar el operario de una tarea que ya está en progreso, '
+                            'pausada o terminada. Contacte a un supervisor si necesita hacer este cambio.'
+                        ))
+        
         if 'state' in vals:
             vals['state_changed_by'] = self.env.user.id
             vals['state_changed_date'] = fields.Datetime.now()
@@ -173,6 +187,13 @@ class TrackerTask(models.Model):
         for record in self:
             if record.state not in ['ready', 'draft', 'paused']:
                 raise UserError(_('Solo se puede iniciar una tarea en estado Listo, Borrador o Pausado.'))
+            
+            # Validar que el proyecto tenga fecha prometida
+            if not record.project_id.promise_date:
+                raise UserError(_(
+                    'No se puede iniciar la tarea porque el proyecto no tiene una Fecha Prometida asignada. '
+                    'Por favor, asigne una fecha prometida al proyecto antes de iniciar las tareas.'
+                ))
             
             if not record.employee_id:
                 raise UserError(_('Debe asignar un operario antes de iniciar la tarea.'))

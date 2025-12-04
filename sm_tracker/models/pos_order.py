@@ -164,18 +164,17 @@ class PosOrder(models.Model):
         pos_reference = self.pos_reference if hasattr(self, 'pos_reference') and self.pos_reference else self.name
         _logger.info('✓ Referencia POS: %s', pos_reference)
         
-        # Crear proyecto
+        # Crear proyecto SIN fecha prometida
         project_vals = {
             'pos_order_id': self.id,
             'partner_id': partner.id,
             'analytic_account_id': analytic_account.id,
-            'promise_date': self.date_order.date() if self.date_order else fields.Date.today(),
             'user_id': user_id,
         }
         
         _logger.info('Valores del proyecto: %s', project_vals)
         project = self.env['tracker.project'].create(project_vals)
-        _logger.info('✓✓✓ Proyecto tracker %s CREADO para POS %s', project.name, pos_reference)
+        _logger.info('✓✓✓ Proyecto tracker %s CREADO para POS %s (sin fecha prometida)', project.name, pos_reference)
         
         # Obtener servicios
         service_products = self._get_service_products_from_bom()
