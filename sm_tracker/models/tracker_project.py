@@ -28,6 +28,14 @@ class TrackerProject(models.Model):
         help='Orden de venta origen del proyecto'
     )
     
+    pos_order_id = fields.Many2one(
+        'pos.order',
+        string='Orden POS',
+        tracking=True,
+        readonly=True,
+        help='Orden del punto de venta origen del proyecto'
+    )
+    
     invoice_ids = fields.Many2many(
         'account.move',
         'tracker_project_invoice_rel',
