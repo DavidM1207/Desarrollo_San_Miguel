@@ -36,8 +36,15 @@ class TrackerProject(models.Model):
         help='Orden del punto de venta origen del proyecto'
     )
     
+    order_reference = fields.Char(
+        string='Ref. Orden',
+        compute='_compute_order_reference',
+        store=True,
+        help='Referencia de la orden de origen (Venta o POS)'
+    )
+    
     origen_type = fields.Char(
-        string='Tipo de Origen',
+        string='Origen',
         compute='_compute_origen_type',
         store=True
     )
@@ -152,13 +159,24 @@ class TrackerProject(models.Model):
             vals['name'] = self.env['ir.sequence'].next_by_code('tracker.project') or 'Nuevo'
         return super(TrackerProject, self).create(vals)
     
-    @api.depends('task_ids')
-    def _compute_task_count(self):
+    @api.depends('sale_order_id', 'pos_order_id')
+    def _compute_order_reference(self):
+        """Obtener referencia de la orden origen (Venta o POS)"""
         for record in self:
-            record.task_count = len(record.task_ids)
+            if record.pos_order_id:
+                # Intentar obtener pos_reference, si no existe usar name
+                if hasattr(record.pos_order_id, 'pos_reference') and record.pos_order_id.pos_reference:
+                    record.order_reference = record.pos_order_id.pos_reference
+                else:
+                    record.order_reference = record.pos_order_id.name
+            elif record.sale_order_id:
+                record.order_reference = record.sale_order_id.name
+            else:
+                record.order_reference = 'Manual'
     
     @api.depends('sale_order_id', 'pos_order_id')
     def _compute_origen_type(self):
+        """Determinar el tipo de origen del proyecto"""
         for record in self:
             if record.sale_order_id:
                 record.origen_type = 'Venta'
@@ -166,6 +184,11 @@ class TrackerProject(models.Model):
                 record.origen_type = 'POS'
             else:
                 record.origen_type = 'Manual'
+    
+    @api.depends('task_ids')
+    def _compute_task_count(self):
+        for record in self:
+            record.task_count = len(record.task_ids)
     
     @api.depends('task_ids.total_hours')
     def _compute_total_hours(self):

@@ -160,6 +160,10 @@ class PosOrder(models.Model):
         user_id = self.user_id.id if self.user_id else self.env.user.id
         _logger.info('✓ Usuario responsable: %s', self.env['res.users'].browse(user_id).name)
         
+        # Obtener referencia correcta de POS
+        pos_reference = self.pos_reference if hasattr(self, 'pos_reference') and self.pos_reference else self.name
+        _logger.info('✓ Referencia POS: %s', pos_reference)
+        
         # Crear proyecto
         project_vals = {
             'pos_order_id': self.id,
@@ -171,13 +175,13 @@ class PosOrder(models.Model):
         
         _logger.info('Valores del proyecto: %s', project_vals)
         project = self.env['tracker.project'].create(project_vals)
-        _logger.info('✓✓✓ Proyecto tracker %s CREADO para POS %s', project.name, self.name)
+        _logger.info('✓✓✓ Proyecto tracker %s CREADO para POS %s', project.name, pos_reference)
         
         # Obtener servicios
         service_products = self._get_service_products_from_bom()
         
         if not service_products:
-            _logger.warning('⚠ No se encontraron servicios específicos en POS %s', self.name)
+            _logger.warning('⚠ No se encontraron servicios específicos en POS %s', pos_reference)
             return project
         
         # Crear tareas
@@ -198,20 +202,26 @@ class PosOrder(models.Model):
         return project
     
     def _get_analytic_account(self):
-        """Buscar cuenta analítica para el tracker"""
+        """Buscar cuenta analítica para el tracker - PRIORIDAD: sh_pos_order_analytic_account"""
         analytic_account = False
         
-        # Opción 1: Desde la configuración del POS (campo personalizado)
+        # PRIORIDAD 1: Campo sh_pos_order_analytic_account (módulo Softhealer)
+        if hasattr(self, 'sh_pos_order_analytic_account') and self.sh_pos_order_analytic_account:
+            analytic_account = self.sh_pos_order_analytic_account
+            _logger.info('✓ Cuenta analítica encontrada en sh_pos_order_analytic_account: %s', analytic_account.name)
+            return analytic_account
+        
+        # PRIORIDAD 2: Desde la configuración del POS (campo personalizado)
         if self.session_id and self.session_id.config_id:
             config = self.session_id.config_id
             _logger.info('Buscando cuenta analítica en config POS: %s', config.name)
             
             if hasattr(config, 'analytic_account_id') and config.analytic_account_id:
                 analytic_account = config.analytic_account_id
-                _logger.info('  -> Encontrada en config.analytic_account_id')
+                _logger.info('  -> Encontrada en config.analytic_account_id: %s', analytic_account.name)
                 return analytic_account
         
-        # Opción 2: Desde las líneas de la orden
+        # PRIORIDAD 3: Desde las líneas de la orden
         _logger.info('Buscando cuenta analítica en líneas de orden...')
         for line in self.lines:
             # Buscar en account_analytic_line o similar
@@ -220,7 +230,7 @@ class PosOrder(models.Model):
                 _logger.info('  -> Encontrada en línea: %s', analytic_account.name)
                 return analytic_account
         
-        # Opción 3: Buscar cuenta analítica por nombre del POS
+        # PRIORIDAD 4: Buscar cuenta analítica por nombre del POS
         if self.session_id and self.session_id.config_id:
             _logger.info('Buscando cuenta analítica por nombre del POS...')
             config_name = self.session_id.config_id.name
@@ -232,7 +242,7 @@ class PosOrder(models.Model):
                 _logger.info('  -> Encontrada por nombre: %s', analytic_account.name)
                 return analytic_account
         
-        # Opción 4: Buscar cualquier cuenta analítica activa con "POS" o "TIENDA"
+        # PRIORIDAD 5: Buscar cualquier cuenta analítica activa con "POS" o "TIENDA"
         _logger.info('Buscando cuenta analítica genérica...')
         analytic_account = self.env['account.analytic.account'].search([
             '|', '|',
@@ -245,7 +255,7 @@ class PosOrder(models.Model):
             _logger.info('  -> Encontrada cuenta genérica: %s', analytic_account.name)
             return analytic_account
         
-        # Opción 5: Tomar la primera cuenta analítica disponible
+        # PRIORIDAD 6: Tomar la primera cuenta analítica disponible
         _logger.info('Buscando primera cuenta analítica disponible...')
         analytic_account = self.env['account.analytic.account'].search([], limit=1)
         
@@ -261,7 +271,8 @@ class PosOrder(models.Model):
         self.ensure_one()
         service_products = {}
         
-        _logger.info('=== EXTRAYENDO SERVICIOS DE LA ORDEN %s ===', self.name)
+        pos_reference = self.pos_reference if hasattr(self, 'pos_reference') and self.pos_reference else self.name
+        _logger.info('=== EXTRAYENDO SERVICIOS DE LA ORDEN %s ===', pos_reference)
         
         def process_bom_recursive(product, qty, level=0):
             indent = "  " * level
