@@ -28,6 +28,27 @@ class TrackerProject(models.Model):
         help='Orden de venta origen del proyecto'
     )
     
+    pos_order_id = fields.Many2one(
+        'pos.order',
+        string='Orden POS',
+        tracking=True,
+        readonly=True,
+        help='Orden del punto de venta origen del proyecto'
+    )
+    
+    order_reference = fields.Char(
+        string='Ref. Orden',
+        compute='_compute_order_reference',
+        store=True,
+        help='Referencia de la orden de origen (Venta o POS)'
+    )
+    
+    origen_type = fields.Char(
+        string='Origen',
+        compute='_compute_origen_type',
+        store=True
+    )
+    
     invoice_ids = fields.Many2many(
         'account.move',
         'tracker_project_invoice_rel',
@@ -161,7 +182,7 @@ class TrackerProject(models.Model):
                 delta = record.delivery_date - record.promise_date
                 record.delay_days = delta.days
             elif record.state != 'delivered' and record.promise_date:
-                today = fields.Date.today()
+                today = fields.Datetime.now()
                 if today > record.promise_date:
                     delta = today - record.promise_date
                     record.delay_days = delta.days
@@ -189,6 +210,32 @@ class TrackerProject(models.Model):
             else:
                 pending_tasks = record.task_ids.filtered(lambda t: t.state != 'done')
                 record.all_tasks_done = len(pending_tasks) == 0
+    
+    @api.depends('sale_order_id', 'pos_order_id')
+    def _compute_order_reference(self):
+        """Obtener referencia de la orden origen (Venta o POS)"""
+        for record in self:
+            if record.pos_order_id:
+                # Intentar obtener pos_reference, si no existe usar name
+                if hasattr(record.pos_order_id, 'pos_reference') and record.pos_order_id.pos_reference:
+                    record.order_reference = record.pos_order_id.pos_reference
+                else:
+                    record.order_reference = record.pos_order_id.name
+            elif record.sale_order_id:
+                record.order_reference = record.sale_order_id.name
+            else:
+                record.order_reference = 'Manual'
+    
+    @api.depends('sale_order_id', 'pos_order_id')
+    def _compute_origen_type(self):
+        """Determinar el tipo de origen del proyecto"""
+        for record in self:
+            if record.sale_order_id:
+                record.origen_type = 'Venta'
+            elif record.pos_order_id:
+                record.origen_type = 'POS'
+            else:
+                record.origen_type = 'Manual'
     
     def write(self, vals):
         if 'state' in vals:
