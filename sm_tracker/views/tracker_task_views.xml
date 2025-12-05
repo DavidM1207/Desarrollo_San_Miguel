@@ -6,7 +6,7 @@
             <field name="name">tracker.task.tree</field>
             <field name="model">tracker.task</field>
             <field name="arch" type="xml">
-                <tree string="Tareas de Servicio" decoration-muted="state=='cancel'" decoration-success="state=='done'" decoration-warning="state=='in_progress'" decoration-info="state=='paused'">
+                <tree string="Tareas de Servicio" create="0" decoration-muted="state=='cancel'" decoration-success="state=='done'" decoration-warning="state=='in_progress'" decoration-info="state=='paused'">
                     <field name="name"/>
                     <field name="project_id"/>
                     <field name="product_id"/>
@@ -195,7 +195,7 @@
             <field name="res_model">tracker.task</field>
             <field name="view_mode">tree,kanban,form</field>
             <field name="search_view_id" ref="view_tracker_task_search"/>
-            <field name="context">{'search_default_my_tasks': 1}</field>
+            <field name="context">{'search_default_my_tasks': 1, 'create': False}</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     No hay tareas asignadas

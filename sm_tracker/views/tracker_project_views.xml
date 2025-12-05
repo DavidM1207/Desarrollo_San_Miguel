@@ -6,7 +6,7 @@
             <field name="name">tracker.project.tree</field>
             <field name="model">tracker.project</field>
             <field name="arch" type="xml">
-                <tree string="Proyectos Tracker" decoration-info="state=='pending'" decoration-warning="state=='processing'" decoration-success="state=='delivered'">
+                <tree string="Proyectos Tracker" create="0" decoration-info="state=='pending'" decoration-warning="state=='processing'" decoration-success="state=='delivered'">
                     <field name="name"/>
                     <field name="partner_id"/>
                     <field name="analytic_account_id"/>
@@ -93,7 +93,11 @@
                                         <field name="product_id" string="Producto"/>
                                         <field name="product_uom_qty" string="Demanda"/>
                                         <field name="quantity" string="Cantidad"/>
-                                        <field name="state" string="Estado" widget="badge"/>
+                                        <field name="state" string="Estado" widget="badge" 
+                                               decoration-muted="state == 'draft'" 
+                                               decoration-danger="state == 'waiting'"
+                                               decoration-warning="state == 'confirmed'" 
+                                               decoration-success="state == 'assigned'"/>
                                     </tree>
                                 </field>
                             </page>
@@ -123,6 +127,7 @@
                     <field name="state"/>
                     <field name="task_count"/>
                     <field name="progress"/>
+                    <progressbar field="state" colors='{"pending": "info", "processing": "warning", "delivered": "success"}' sum_field="task_count"/>
                     <templates>
                         <t t-name="kanban-box">
                             <div class="oe_kanban_global_click">
@@ -172,6 +177,8 @@
                     <filter string="En Proceso" name="processing" domain="[('state','=','processing')]"/>
                     <filter string="Entregados" name="delivered" domain="[('state','=','delivered')]"/>
                     <separator/>
+                    <filter string="En espera de disponibilidad" name="waiting_stock" domain="[('pending_stock_move_ids.state','=','waiting')]"/>
+                    <separator/>
                     <filter string="Con Retraso" name="delayed" domain="[('delay_days','>',0)]"/>
                     <filter string="A Tiempo" name="on_time" domain="[('delay_days','&lt;=',0)]"/>
                     <separator/>
@@ -187,7 +194,7 @@
             <field name="res_model">tracker.project</field>
             <field name="view_mode">kanban,tree,form</field>
             <field name="search_view_id" ref="view_tracker_project_search"/>
-            <field name="context">{}</field>
+            <field name="context">{'create': False}</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     No hay proyectos tracker

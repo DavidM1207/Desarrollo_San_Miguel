@@ -5,7 +5,7 @@
         <menuitem id="menu_tracker_root" 
                   name="Tracker" 
                   sequence="60" 
-                  action="action_tracker_task"
+                  action="action_tracker_project"
                   groups="group_tracker_user,group_tracker_manager"/>
 
         <menuitem id="menu_tracker_projects" 
