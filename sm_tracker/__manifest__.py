@@ -19,6 +19,7 @@
     'depends': [
         'base',
         'sale_management',
+        'stock',
         'account',
         'mrp',
         'hr',

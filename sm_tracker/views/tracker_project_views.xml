@@ -87,13 +87,15 @@
                                 </field>
                             </page>
                             <page string="Abasto">
-                                <group>
-                                    <div class="alert alert-info" role="alert">
-                                        <h4>Información de Abasto</h4>
-                                        <p>Esta sección mostrará los productos que no tienen stock disponible al momento de generar la orden.</p>
-                                        <p><strong>Funcionalidad en desarrollo.</strong></p>
-                                    </div>
-                                </group>
+                                <field name="pending_stock_move_ids" nolabel="1">
+                                    <tree create="0" delete="0" edit="0" decoration-warning="state in ['waiting', 'confirmed']" decoration-info="state == 'assigned'" decoration-muted="state == 'draft'">
+                                        <field name="picking_id" string="# Movimiento"/>
+                                        <field name="product_id" string="Producto"/>
+                                        <field name="product_uom_qty" string="Demanda"/>
+                                        <field name="quantity_done" string="Cantidad"/>
+                                        <field name="state" string="Estado" widget="badge"/>
+                                    </tree>
+                                </field>
                             </page>
                             <page string="Notas">
                                 <field name="notes" placeholder="Notas adicionales..."/>

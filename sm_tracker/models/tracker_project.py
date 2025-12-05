@@ -101,11 +101,12 @@ class TrackerProject(models.Model):
         string='Tareas de Servicio'
     )
     
-    # shortage_ids = fields.One2many(
-    #     'tracker.stock.shortage',
-    #     'project_id',
-    #     string='Productos sin Abasto'
-    # )
+    pending_stock_move_ids = fields.Many2many(
+        'stock.move',
+        string='Movimientos Pendientes',
+        compute='_compute_pending_stock_moves',
+        help='Movimientos de inventario pendientes (no done ni cancel)'
+    )
     
     task_count = fields.Integer(
         string='Total Tareas',
@@ -242,6 +243,32 @@ class TrackerProject(models.Model):
                 record.origen_type = 'POS'
             else:
                 record.origen_type = 'Manual'
+    
+    @api.depends('sale_order_id', 'sale_order_id.picking_ids', 'pos_order_id', 'pos_order_id.picking_ids')
+    def _compute_pending_stock_moves(self):
+        """Obtener movimientos de inventario pendientes (no done ni cancel)"""
+        for record in self:
+            pending_moves = self.env['stock.move']
+            
+            # Obtener pickings de la venta
+            if record.sale_order_id:
+                pickings = record.sale_order_id.picking_ids
+            # Obtener pickings del POS
+            elif record.pos_order_id:
+                pickings = record.pos_order_id.picking_ids
+            else:
+                pickings = self.env['stock.picking']
+            
+            # Filtrar movimientos pendientes (no done ni cancel)
+            if pickings:
+                for picking in pickings:
+                    # Obtener movimientos que no estén done ni cancel
+                    moves = picking.move_ids_without_package.filtered(
+                        lambda m: m.state not in ['done', 'cancel']
+                    )
+                    pending_moves |= moves
+            
+            record.pending_stock_move_ids = pending_moves
     
     def write(self, vals):
         if 'state' in vals:
