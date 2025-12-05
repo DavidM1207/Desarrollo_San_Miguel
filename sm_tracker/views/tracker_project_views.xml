@@ -177,7 +177,7 @@
                     <filter string="En Proceso" name="processing" domain="[('state','=','processing')]"/>
                     <filter string="Entregados" name="delivered" domain="[('state','=','delivered')]"/>
                     <separator/>
-                    <filter string="En espera de disponibilidad" name="waiting_stock" domain="[('pending_stock_move_ids.state','=','waiting')]"/>
+                    <filter string="En espera de disponibilidad" name="waiting_stock" domain="[('has_waiting_stock','=',True)]"/>
                     <separator/>
                     <filter string="Con Retraso" name="delayed" domain="[('delay_days','>',0)]"/>
                     <filter string="A Tiempo" name="on_time" domain="[('delay_days','&lt;=',0)]"/>

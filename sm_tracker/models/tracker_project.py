@@ -108,6 +108,13 @@ class TrackerProject(models.Model):
         help='Movimientos de inventario pendientes (no done ni cancel)'
     )
     
+    has_waiting_stock = fields.Boolean(
+        string='Tiene productos en espera',
+        compute='_compute_has_waiting_stock',
+        store=True,
+        help='Indica si hay movimientos en estado waiting (esperando disponibilidad)'
+    )
+    
     task_count = fields.Integer(
         string='Total Tareas',
         compute='_compute_task_count',
@@ -269,6 +276,35 @@ class TrackerProject(models.Model):
                     pending_moves |= moves
             
             record.pending_stock_move_ids = pending_moves
+    
+    @api.depends('sale_order_id', 'sale_order_id.picking_ids', 'sale_order_id.picking_ids.move_ids_without_package',
+                 'sale_order_id.picking_ids.move_ids_without_package.state',
+                 'pos_order_id', 'pos_order_id.picking_ids', 'pos_order_id.picking_ids.move_ids_without_package',
+                 'pos_order_id.picking_ids.move_ids_without_package.state')
+    def _compute_has_waiting_stock(self):
+        """Verificar si hay movimientos en estado waiting (esperando disponibilidad)"""
+        for record in self:
+            has_waiting = False
+            
+            # Obtener pickings de la venta o POS
+            if record.sale_order_id:
+                pickings = record.sale_order_id.picking_ids
+            elif record.pos_order_id:
+                pickings = record.pos_order_id.picking_ids
+            else:
+                pickings = self.env['stock.picking']
+            
+            # Verificar si hay algún movimiento en estado waiting
+            if pickings:
+                for picking in pickings:
+                    waiting_moves = picking.move_ids_without_package.filtered(
+                        lambda m: m.state == 'waiting'
+                    )
+                    if waiting_moves:
+                        has_waiting = True
+                        break
+            
+            record.has_waiting_stock = has_waiting
     
     def write(self, vals):
         if 'state' in vals:
