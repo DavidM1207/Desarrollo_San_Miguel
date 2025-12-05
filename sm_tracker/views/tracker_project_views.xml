@@ -119,12 +119,13 @@
             <field name="name">tracker.project.kanban</field>
             <field name="model">tracker.project</field>
             <field name="arch" type="xml">
-                <kanban class="o_kanban_mobile" default_group_by="state">
+                <kanban class="o_kanban_mobile" default_group_by="state" groups_draggable="false" default_order="state_sequence,promise_date desc">
                     <field name="name"/>
                     <field name="partner_id"/>
                     <field name="analytic_account_id"/>
                     <field name="promise_date"/>
                     <field name="state"/>
+                    <field name="state_sequence"/>
                     <field name="task_count"/>
                     <field name="progress"/>
                     <progressbar field="state" colors='{"pending": "info", "processing": "warning", "delivered": "success"}' sum_field="task_count"/>
@@ -194,7 +195,8 @@
             <field name="res_model">tracker.project</field>
             <field name="view_mode">kanban,tree,form</field>
             <field name="search_view_id" ref="view_tracker_project_search"/>
-            <field name="context">{'create': False}</field>
+            <field name="context">{'create': False, 'group_by': 'state'}</field>
+            <field name="domain">[]</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     No hay proyectos tracker

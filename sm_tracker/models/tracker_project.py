@@ -95,6 +95,13 @@ class TrackerProject(models.Model):
         ('delivered', 'Entregado'),
     ], string='Estado', default='pending', required=True, tracking=True)
     
+    state_sequence = fields.Integer(
+        string='Secuencia de Estado',
+        compute='_compute_state_sequence',
+        store=True,
+        help='Secuencia para ordenar estados: Pendiente=1, Procesando=2, Entregado=3'
+    )
+    
     task_ids = fields.One2many(
         'tracker.task',
         'project_id',
@@ -183,6 +190,17 @@ class TrackerProject(models.Model):
     def _compute_task_count(self):
         for record in self:
             record.task_count = len(record.task_ids)
+    
+    @api.depends('state')
+    def _compute_state_sequence(self):
+        """Asignar secuencia numérica para ordenar estados correctamente en kanban"""
+        state_order = {
+            'pending': 1,
+            'processing': 2,
+            'delivered': 3,
+        }
+        for record in self:
+            record.state_sequence = state_order.get(record.state, 99)
     
     @api.depends('task_ids.total_hours')
     def _compute_total_hours(self):
