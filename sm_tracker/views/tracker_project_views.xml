@@ -87,14 +87,13 @@
                                 </field>
                             </page>
                             <page string="Abasto">
-                                <field name="shortage_ids" nolabel="1">
-                                    <tree create="0" delete="0" edit="0" decoration-danger="state=='sin_abasto'" decoration-success="state=='con_abasto'">
-                                        <field name="product_id"/>
-                                        <field name="demand_qty" string="Demanda"/>
-                                        <field name="available_qty" string="Cantidad"/>
-                                        <field name="state" widget="badge" decoration-danger="state=='sin_abasto'" decoration-success="state=='con_abasto'"/>
-                                    </tree>
-                                </field>
+                                <group>
+                                    <div class="alert alert-info" role="alert">
+                                        <h4>Información de Abasto</h4>
+                                        <p>Esta sección mostrará los productos que no tienen stock disponible al momento de generar la orden.</p>
+                                        <p><strong>Funcionalidad en desarrollo.</strong></p>
+                                    </div>
+                                </group>
                             </page>
                             <page string="Notas">
                                 <field name="notes" placeholder="Notas adicionales..."/>

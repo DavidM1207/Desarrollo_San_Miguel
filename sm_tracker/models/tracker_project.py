@@ -101,11 +101,11 @@ class TrackerProject(models.Model):
         string='Tareas de Servicio'
     )
     
-    shortage_ids = fields.One2many(
-        'tracker.stock.shortage',
-        'project_id',
-        string='Productos sin Abasto'
-    )
+    # shortage_ids = fields.One2many(
+    #     'tracker.stock.shortage',
+    #     'project_id',
+    #     string='Productos sin Abasto'
+    # )
     
     task_count = fields.Integer(
         string='Total Tareas',

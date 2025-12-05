@@ -104,13 +104,5 @@
             <field name="perm_unlink" eval="True"/>
         </record>
 
-        <!-- Regla GLOBAL para tracker.stock.shortage - Sin restricciones -->
-        <record id="tracker_stock_shortage_rule_global" model="ir.rule">
-            <field name="name">Tracker Stock Shortage: Global Access</field>
-            <field name="model_id" ref="model_tracker_stock_shortage"/>
-            <field name="domain_force">[(1, '=', 1)]</field>
-            <field name="global" eval="True"/>
-        </record>
-
     </data>
 </odoo>
