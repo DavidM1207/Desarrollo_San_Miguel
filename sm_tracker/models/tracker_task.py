@@ -301,5 +301,7 @@ class TrackerTask(models.Model):
                 'default_task_id': self.id,
                 'default_employee_id': self.employee_id.id,
                 'default_analytic_account_id': self.analytic_account_id.id,
+                'create': False,
+                'edit': False,
             },
         }

@@ -29,7 +29,6 @@
             <field name="arch" type="xml">
                 <form string="Proyecto Tracker">
                     <header>
-                        <button name="action_start_processing" string="Iniciar Procesamiento" type="object" invisible="state != 'pending'" class="oe_highlight"/>
                         <button name="action_mark_delivered" string="Marcar Entregado" type="object" invisible="state != 'processing' or not all_tasks_done" class="oe_highlight"/>
                         <field name="state" widget="statusbar" statusbar_visible="pending,processing,delivered"/>
                         <field name="all_tasks_done" invisible="1"/>
@@ -119,7 +118,12 @@
             <field name="name">tracker.project.kanban</field>
             <field name="model">tracker.project</field>
             <field name="arch" type="xml">
-                <kanban class="o_kanban_mobile" default_group_by="state" groups_draggable="false" default_order="state_sequence,promise_date desc">
+                <kanban class="o_kanban_mobile" 
+                        default_group_by="state" 
+                        groups_draggable="false" 
+                        records_draggable="false"
+                        default_order="state_sequence,promise_date desc"
+                        on_create="quick_create">
                     <field name="name"/>
                     <field name="partner_id"/>
                     <field name="analytic_account_id"/>
