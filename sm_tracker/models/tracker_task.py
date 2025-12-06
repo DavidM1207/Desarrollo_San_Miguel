@@ -305,3 +305,14 @@ class TrackerTask(models.Model):
                 'edit': False,
             },
         }
+    
+    def _migrate_draft_to_pending(self):
+        """Migrar estados 'draft' existentes a 'pending'"""
+        # Buscar todas las tareas con estado draft (si existen)
+        self._cr.execute("""
+            UPDATE tracker_task 
+            SET state = 'pending' 
+            WHERE state = 'draft'
+        """)
+        self._cr.commit()
+        return True
