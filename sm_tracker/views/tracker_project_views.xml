@@ -76,12 +76,12 @@
                         <notebook>
                             <page string="Tareas de Servicio">
                                 <field name="task_ids" nolabel="1">
-                                    <tree decoration-muted="state=='cancel'" decoration-success="state=='done'" decoration-warning="state=='in_progress'" decoration-info="state=='paused'" create="0" delete="0">
+                                    <tree decoration-muted="state=='cancel'" decoration-success="state=='done'" decoration-warning="state=='in_progress'" decoration-info="state in ['paused', 'pending']" create="0" delete="0">
                                         <field name="name"/>
                                         <field name="product_id"/>
                                         <field name="quantity"/>
                                         <field name="employee_id"/>
-                                        <field name="state" widget="badge" decoration-muted="state=='cancel'" decoration-success="state=='done'" decoration-warning="state=='in_progress'" decoration-info="state=='paused'"/>
+                                        <field name="state" widget="badge" decoration-muted="state=='cancel'" decoration-success="state=='done'" decoration-warning="state=='in_progress'" decoration-info="state in ['paused', 'pending']"/>
                                         <field name="total_hours" widget="float_time"/>
                                     </tree>
                                 </field>
