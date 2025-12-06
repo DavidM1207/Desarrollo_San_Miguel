@@ -70,13 +70,13 @@ class TrackerTask(models.Model):
     )
     
     state = fields.Selection([
-        ('draft', 'Borrador'),
+        ('pending', 'Pendiente'),
         ('ready', 'Listo'),
         ('in_progress', 'En Progreso'),
         ('paused', 'Pausado'),
         ('done', 'Terminado'),
         ('cancel', 'Cancelado'),
-    ], string='Estado', default='draft', required=True, tracking=True)
+    ], string='Estado', default='pending', required=True, tracking=True)
     
     timesheet_ids = fields.One2many(
         'tracker.timesheet',
@@ -187,8 +187,8 @@ class TrackerTask(models.Model):
     
     def action_start_task(self):
         for record in self:
-            if record.state not in ['ready', 'draft', 'paused']:
-                raise UserError(_('Solo se puede iniciar una tarea en estado Listo, Borrador o Pausado.'))
+            if record.state not in ['ready', 'pending', 'paused']:
+                raise UserError(_('Solo se puede iniciar una tarea en estado Listo, Pendiente o Pausado.'))
             
             # Validar que el proyecto tenga fecha prometida
             if not record.project_id.promise_date:
@@ -281,10 +281,10 @@ class TrackerTask(models.Model):
             })
         return True
     
-    def action_reset_to_draft(self):
+    def action_reset_to_pending(self):
         for record in self:
             record.write({
-                'state': 'draft',
+                'state': 'pending',
                 'current_start_time': False
             })
         return True

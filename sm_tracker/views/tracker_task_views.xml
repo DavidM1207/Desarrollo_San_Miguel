@@ -26,7 +26,7 @@
             <field name="arch" type="xml">
                 <form string="Tarea de Servicio">
                     <header>
-                        <field name="state" widget="statusbar" statusbar_visible="draft,ready,in_progress,done"/>
+                        <field name="state" widget="statusbar" statusbar_visible="pending,ready,in_progress,done"/>
                     </header>
                     <sheet>
                         <div class="oe_button_box" name="button_box">
@@ -86,7 +86,7 @@
                                 <group>
                                     <group style="width: 100%;">
                                         <button name="action_start_task" string="Iniciar" type="object" 
-                                                invisible="state not in ['draft', 'ready', 'paused']" 
+                                                invisible="state not in ['pending', 'ready', 'paused']" 
                                                 class="btn-success btn-block mb-2" 
                                                 style="width: 100%; text-align: left;"
                                                 icon="fa-play"/>
@@ -173,8 +173,9 @@
                     <field name="analytic_account_id"/>
                     <separator/>
                     <filter string="Mis Tareas" name="my_tasks" domain="[('employee_id.user_id','=',uid)]"/>
+                    <filter string="Sin Operario Asignado" name="no_employee" domain="[('employee_id','=',False)]"/>
                     <separator/>
-                    <filter string="Borrador" name="draft" domain="[('state','=','draft')]"/>
+                    <filter string="Pendiente" name="pending" domain="[('state','=','pending')]"/>
                     <filter string="Listo" name="ready" domain="[('state','=','ready')]"/>
                     <filter string="En Progreso" name="in_progress" domain="[('state','=','in_progress')]"/>
                     <filter string="Pausado" name="paused" domain="[('state','=','paused')]"/>

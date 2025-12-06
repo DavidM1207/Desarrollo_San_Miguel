@@ -56,8 +56,9 @@
                             </group>
                             <group>
                                 <field name="analytic_account_id" options="{'no_create': True}" readonly="1"/>
-                                <field name="promise_date"/>
+                                <field name="promise_date" readonly="state != 'pending'"/>
                                 <field name="delivery_date" readonly="state != 'delivered'"/>
+                                <field name="own_transport" readonly="state != 'delivered'"/>
                                 <field name="company_id" groups="base.group_multi_company"/>
                             </group>
                         </group>

@@ -89,6 +89,13 @@ class TrackerProject(models.Model):
         help='Fecha y hora real de entrega del proyecto'
     )
     
+    own_transport = fields.Boolean(
+        string='Entrega con Transporte Propio',
+        default=False,
+        tracking=True,
+        help='Marcar si el proyecto se entregó con transporte propio'
+    )
+    
     state = fields.Selection([
         ('pending', 'Pendiente'),
         ('processing', 'Procesando'),
