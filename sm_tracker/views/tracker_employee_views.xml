@@ -29,8 +29,20 @@
                                 <field name="is_tracker_manager"/>
                             </group>
                         </group>
-                        <group string="Tiendas Asignadas">
-                            <field name="tracker_analytic_account_ids" widget="many2many_tags" nolabel="1"/>
+                        
+                        <group string="Tiendas como Operario">
+                            <field name="tracker_analytic_account_operario_ids" widget="many2many_tags" nolabel="1"/>
+                            <p class="text-muted">Tiendas donde puede ser asignado como operario de tareas</p>
+                        </group>
+                        
+                        <group string="Tiendas como Responsable de Proyectos">
+                            <field name="tracker_analytic_account_responsable_ids" widget="many2many_tags" nolabel="1"/>
+                            <p class="text-muted">Tiendas donde puede ser responsable de proyectos</p>
+                        </group>
+                        
+                        <group string="Tiendas para Visualización">
+                            <field name="tracker_analytic_account_visualizacion_ids" widget="many2many_tags" nolabel="1"/>
+                            <p class="text-muted">Tiendas que puede ver sin necesariamente ejecutar tareas o ser responsable (para supervisores, gerentes, etc.)</p>
                         </group>
                     </page>
                 </xpath>

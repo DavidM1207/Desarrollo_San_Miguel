@@ -59,7 +59,7 @@ class TrackerTask(models.Model):
         'hr.employee',
         string='Operario Asignado',
         tracking=True,
-        domain="[('tracker_analytic_account_ids', 'in', [analytic_account_id])]",
+        domain="[('tracker_analytic_account_operario_ids', 'in', [analytic_account_id])]",
         help='Empleado responsable de ejecutar esta tarea'
     )
     

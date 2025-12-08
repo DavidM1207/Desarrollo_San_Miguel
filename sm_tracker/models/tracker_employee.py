@@ -6,13 +6,42 @@ from odoo import models, fields, api, _
 class HrEmployee(models.Model):
     _inherit = 'hr.employee'
 
+    # CAMPOS SEPARADOS POR ROL - Tiendas asignadas según función
+    tracker_analytic_account_operario_ids = fields.Many2many(
+        'account.analytic.account',
+        'hr_employee_analytic_operario_rel',
+        'employee_id',
+        'analytic_account_id',
+        string='Tiendas como Operario',
+        help='Tiendas donde este empleado puede ejecutar tareas como operario'
+    )
+    
+    tracker_analytic_account_responsable_ids = fields.Many2many(
+        'account.analytic.account',
+        'hr_employee_analytic_responsable_rel',
+        'employee_id',
+        'analytic_account_id',
+        string='Tiendas como Responsable',
+        help='Tiendas donde este empleado puede ser responsable de proyectos'
+    )
+    
+    tracker_analytic_account_visualizacion_ids = fields.Many2many(
+        'account.analytic.account',
+        'hr_employee_analytic_visualizacion_rel',
+        'employee_id',
+        'analytic_account_id',
+        string='Tiendas para Visualización',
+        help='Tiendas que este empleado puede ver sin necesariamente ser operario o responsable (para gerentes, supervisores, etc.)'
+    )
+    
+    # Campo legacy - mantener para compatibilidad pero deprecado
     tracker_analytic_account_ids = fields.Many2many(
         'account.analytic.account',
         'hr_employee_analytic_account_rel',
         'employee_id',
         'analytic_account_id',
-        string='Tiendas Asignadas',
-        help='Cuentas analíticas (tiendas) a las que tiene acceso el empleado'
+        string='Tiendas Asignadas (Deprecado)',
+        help='[DEPRECADO] Usar los campos específicos por rol'
     )
     
     is_tracker_manager = fields.Boolean(
