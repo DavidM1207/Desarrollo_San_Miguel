@@ -165,7 +165,8 @@ class TrackerProject(models.Model):
         'res.users',
         string='Responsable',
         default=lambda self: self.env.user,
-        tracking=True
+        tracking=True,
+        domain="[('employee_id.tracker_analytic_account_ids', 'in', [analytic_account_id])]"
     )
     
     notes = fields.Text(string='Notas')
