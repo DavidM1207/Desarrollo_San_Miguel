@@ -34,6 +34,17 @@ class HrEmployee(models.Model):
         help='Tiendas que este empleado puede ver sin necesariamente ser operario o responsable (para gerentes, supervisores, etc.)'
     )
     
+    # CAMPO NUEVO: Servicios que puede realizar
+    tracker_product_ids = fields.Many2many(
+        'product.product',
+        'hr_employee_product_rel',
+        'employee_id',
+        'product_id',
+        string='Servicios que Realiza',
+        domain=[('type', '=', 'service')],
+        help='Servicios/productos que este empleado puede realizar (Corte, Pegado, Barnizado, etc.)'
+    )
+    
     # Campo legacy - mantener para compatibilidad pero deprecado
     tracker_analytic_account_ids = fields.Many2many(
         'account.analytic.account',

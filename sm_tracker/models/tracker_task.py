@@ -59,8 +59,8 @@ class TrackerTask(models.Model):
         'hr.employee',
         string='Operario Asignado',
         tracking=True,
-        domain="[('tracker_analytic_account_operario_ids', 'in', [analytic_account_id])]",
-        help='Empleado responsable de ejecutar esta tarea'
+        domain="['&', ('tracker_analytic_account_operario_ids', 'in', [analytic_account_id]), ('tracker_product_ids', 'in', [product_id])]",
+        help='Empleado responsable de ejecutar esta tarea. Debe tener la tienda y el servicio asignados.'
     )
     
     analytic_account_id = fields.Many2one(

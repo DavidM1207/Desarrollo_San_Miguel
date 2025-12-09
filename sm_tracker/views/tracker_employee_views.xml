@@ -35,6 +35,12 @@
                             <p class="text-muted">Tiendas donde puede ser asignado como operario de tareas</p>
                         </group>
                         
+                        <group string="Servicios que Realiza">
+                            <field name="tracker_product_ids" widget="many2many_tags" nolabel="1" 
+                                   options="{'no_create': True, 'no_create_edit': True}"/>
+                            <p class="text-muted">Servicios/productos que puede realizar: Corte, Pegado, Barnizado, etc.</p>
+                        </group>
+                        
                         <group string="Tiendas como Responsable de Proyectos">
                             <field name="tracker_analytic_account_responsable_ids" widget="many2many_tags" nolabel="1"/>
                             <p class="text-muted">Tiendas donde puede ser responsable de proyectos</p>

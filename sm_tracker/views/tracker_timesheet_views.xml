@@ -6,7 +6,7 @@
             <field name="name">tracker.timesheet.tree</field>
             <field name="model">tracker.timesheet</field>
             <field name="arch" type="xml">
-                <tree string="Registros de Tiempo" editable="bottom">
+                <tree string="Registros de Tiempo" create="0" edit="0" delete="0">
                     <field name="date"/>
                     <field name="employee_id"/>
                     <field name="task_id"/>

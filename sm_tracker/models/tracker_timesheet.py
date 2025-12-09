@@ -34,6 +34,7 @@ class TrackerTimesheet(models.Model):
         'hr.employee',
         string='Empleado',
         required=True,
+        readonly=True,
         default=lambda self: self.env.user.employee_id
     )
     
