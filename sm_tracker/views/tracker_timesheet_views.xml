@@ -24,43 +24,37 @@
             <field name="name">tracker.timesheet.form</field>
             <field name="model">tracker.timesheet</field>
             <field name="arch" type="xml">
-                <form string="Registro de Tiempo">
+                <form string="Registro de Tiempo" create="0">
                     <sheet>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name" readonly="1" placeholder="Descripción del trabajo realizado..."/>
+                            </h1>
+                        </div>
                         <group>
-                            <group>
-                                <field name="employee_id" options="{'no_create': True}"/>
+                            <group string="Información del Registro">
+                                <field name="employee_id" readonly="1" options="{'no_create': True}"/>
                                 <field name="user_id" readonly="1"/>
-                                <field name="task_id" options="{'no_create': True}"/>
+                                <field name="task_id" readonly="1" options="{'no_create': True}"/>
                                 <field name="project_id" readonly="1"/>
                             </group>
-                            <group>
-                                <field name="analytic_account_id" options="{'no_create': True}"/>
-                                <field name="date"/>
-                                <field name="company_id" groups="base.group_multi_company"/>
+                            <group string="Ubicación y Fecha">
+                                <field name="analytic_account_id" readonly="1" options="{'no_create': True}"/>
+                                <field name="date" readonly="1"/>
+                                <field name="company_id" readonly="1" groups="base.group_multi_company"/>
                             </group>
                         </group>
-                        <group>
-                            <field name="name" placeholder="Descripción del trabajo realizado..."/>
-                        </group>
-                        <group>
+                        <group string="Tiempo Trabajado">
                             <group>
-                                <label for="start_time"/>
-                                <div class="o_row">
-                                    <field name="start_time"/>
-                                    <button name="action_start_timer" string="Iniciar" type="object" class="btn-sm btn-primary" invisible="start_time"/>
-                                </div>
-                                <label for="end_time"/>
-                                <div class="o_row">
-                                    <field name="end_time"/>
-                                    <button name="action_stop_timer" string="Detener" type="object" class="btn-sm btn-warning" invisible="not start_time or end_time"/>
-                                </div>
+                                <field name="start_time" readonly="1" widget="datetime"/>
+                                <field name="end_time" readonly="1" widget="datetime"/>
                             </group>
                             <group>
-                                <field name="hours" widget="float_time"/>
+                                <field name="hours" readonly="1" widget="float_time"/>
                             </group>
                         </group>
-                        <group>
-                            <field name="notes" placeholder="Notas adicionales..."/>
+                        <group string="Notas (Editable)">
+                            <field name="notes" placeholder="Puedes agregar notas adicionales aquí..."/>
                         </group>
                     </sheet>
                 </form>

@@ -279,8 +279,8 @@ class TrackerProject(models.Model):
     
     @api.depends('sale_order_id', 'sale_order_id.picking_ids', 'pos_order_id', 'pos_order_id.picking_ids')
     def _compute_pending_stock_moves(self):
-        """Obtener movimientos de inventario pendientes (no done ni cancel)
-        Filtrados: solo productos de familia tableros, excluye retazos"""
+        """Obtener movimientos en estado 'waiting' (En espera de disponibilidad)
+        Solo movimientos internos (no envíos a clientes)"""
         for record in self:
             pending_moves = self.env['stock.move']
             
@@ -293,16 +293,13 @@ class TrackerProject(models.Model):
             else:
                 pickings = self.env['stock.picking']
             
-            # Filtrar movimientos pendientes (no done ni cancel)
+            # Filtrar movimientos en espera de disponibilidad
             if pickings:
                 for picking in pickings:
-                    # Obtener movimientos que no estén done ni cancel
+                    # Movimientos en estado 'waiting' con ubicación destino interna
                     moves = picking.move_ids_without_package.filtered(
-                        lambda m: m.state not in ['done', 'cancel'] and
-                        # Filtrar solo productos de familia tableros
-                        m.product_id.categ_id.name and 'tablero' in m.product_id.categ_id.name.lower() and
-                        # Excluir retazos
-                        'retazo' not in m.product_id.name.lower()
+                        lambda m: m.state == 'waiting' and 
+                        m.location_dest_id.usage == 'internal'
                     )
                     pending_moves |= moves
             

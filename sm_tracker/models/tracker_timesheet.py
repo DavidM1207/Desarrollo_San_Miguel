@@ -12,13 +12,15 @@ class TrackerTimesheet(models.Model):
 
     name = fields.Char(
         string='Descripción',
-        required=True
+        required=True,
+        readonly=True
     )
     
     task_id = fields.Many2one(
         'tracker.task',
         string='Tarea',
         required=True,
+        readonly=True,
         ondelete='cascade'
     )
     
@@ -48,21 +50,25 @@ class TrackerTimesheet(models.Model):
     analytic_account_id = fields.Many2one(
         'account.analytic.account',
         string='Tienda',
-        required=True
+        required=True,
+        readonly=True
     )
     
     date = fields.Date(
         string='Fecha',
         required=True,
+        readonly=True,
         default=fields.Date.context_today
     )
     
     start_time = fields.Datetime(
-        string='Hora Inicio'
+        string='Hora Inicio',
+        readonly=True
     )
     
     end_time = fields.Datetime(
-        string='Hora Fin'
+        string='Hora Fin',
+        readonly=True
     )
     
     hours = fields.Float(
@@ -103,6 +109,29 @@ class TrackerTimesheet(models.Model):
         for record in self:
             if record.hours < 0:
                 raise ValidationError(_('Las horas no pueden ser negativas.'))
+    
+    def write(self, vals):
+        """Prevenir modificación de campos críticos, solo permitir editar notas"""
+        # Campos que NUNCA se pueden modificar
+        protected_fields = [
+            'name', 'task_id', 'employee_id', 'user_id', 
+            'analytic_account_id', 'date', 'start_time', 'end_time', 'hours'
+        ]
+        
+        # Si el usuario es Manager, permitir todo
+        if self.env.user.has_group('sm_tracker.group_tracker_manager'):
+            return super(TrackerTimesheet, self).write(vals)
+        
+        # Verificar si se está intentando modificar campos protegidos
+        attempting_to_modify = [field for field in protected_fields if field in vals]
+        
+        if attempting_to_modify:
+            raise UserError(_(
+                'No se pueden modificar los siguientes campos: %s. '
+                'Solo se pueden agregar notas.' % ', '.join(attempting_to_modify)
+            ))
+        
+        return super(TrackerTimesheet, self).write(vals)
     
     def action_start_timer(self):
         for record in self:
