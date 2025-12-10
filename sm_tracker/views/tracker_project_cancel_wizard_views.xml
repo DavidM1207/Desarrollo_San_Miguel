@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Vista del wizard para anular proyecto -->
+    <record id="view_tracker_project_cancel_wizard_form" model="ir.ui.view">
+        <field name="name">tracker.project.cancel.wizard.form</field>
+        <field name="model">tracker.project.cancel.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Anular Proyecto">
+                <group>
+                    <field name="project_id" readonly="1"/>
+                    <field name="cancellation_reason" widget="text" placeholder="Especifique el motivo de anulación..."/>
+                </group>
+                <footer>
+                    <button name="action_confirm_cancel" 
+                            string="Confirmar Anulación" 
+                            type="object" 
+                            class="btn-primary"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>
