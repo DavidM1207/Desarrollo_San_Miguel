@@ -36,7 +36,6 @@
         'views/tracker_timesheet_views.xml',
         'views/tracker_employee_views.xml',
         'views/tracker_menus.xml',
-        'views/tracker_migration_action.xml',
         'views/tracker_reports.xml',
         'views/sale_order_views.xml',
         'views/account_move_views.xml',
