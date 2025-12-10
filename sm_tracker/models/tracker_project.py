@@ -99,14 +99,30 @@ class TrackerProject(models.Model):
     state = fields.Selection([
         ('pending', 'Pendiente'),
         ('processing', 'Procesando'),
+        ('pending_delivery', 'Pendiente de Entrega'),
         ('delivered', 'Entregado'),
+        ('cancel', 'Anulado'),
     ], string='Estado', default='pending', required=True, tracking=True)
     
     state_sequence = fields.Integer(
         string='Secuencia de Estado',
         compute='_compute_state_sequence',
         store=True,
-        help='Secuencia para ordenar estados: Pendiente=1, Procesando=2, Entregado=3'
+        help='Secuencia para ordenar estados: Pendiente=1, Procesando=2, Pendiente Entrega=3, Entregado=4, Anulado=5'
+    )
+    
+    completion_date = fields.Datetime(
+        string='Fecha de Finalización',
+        readonly=True,
+        tracking=True,
+        help='Fecha en que todas las tareas fueron completadas'
+    )
+    
+    cancellation_reason = fields.Text(
+        string='Motivo de Anulación',
+        readonly=True,
+        tracking=True,
+        help='Razón por la cual se anuló el proyecto'
     )
     
     task_ids = fields.One2many(
@@ -205,7 +221,9 @@ class TrackerProject(models.Model):
         state_order = {
             'pending': 1,
             'processing': 2,
-            'delivered': 3,
+            'pending_delivery': 3,
+            'delivered': 4,
+            'cancel': 5,
         }
         for record in self:
             record.state_sequence = state_order.get(record.state, 99)
@@ -279,7 +297,7 @@ class TrackerProject(models.Model):
     
     @api.depends('sale_order_id', 'sale_order_id.picking_ids', 'pos_order_id', 'pos_order_id.picking_ids')
     def _compute_pending_stock_moves(self):
-        """Obtener movimientos en estado 'waiting' (sin stock) y sin lista de materiales
+        """Obtener movimientos en estado 'confirmed' (En espera de disponibilidad) sin BoM
         Solo productos que se COMPRAN, no los que se FABRICAN"""
         for record in self:
             pending_moves = self.env['stock.move']
@@ -293,12 +311,12 @@ class TrackerProject(models.Model):
             else:
                 pickings = self.env['stock.picking']
             
-            # Filtrar movimientos en waiting sin lista de materiales
+            # Filtrar movimientos en confirmed sin lista de materiales
             if pickings:
                 for picking in pickings:
-                    # Solo productos en estado 'waiting' y sin BoM (lista de materiales)
+                    # Solo productos en estado 'confirmed' y sin BoM (lista de materiales)
                     moves = picking.move_ids_without_package.filtered(
-                        lambda m: m.state == 'waiting' and 
+                        lambda m: m.state == 'confirmed' and 
                         not m.product_id.product_tmpl_id.bom_ids
                     )
                     pending_moves |= moves
@@ -346,7 +364,7 @@ class TrackerProject(models.Model):
     
     def action_start_processing(self):
         self.ensure_one()
-        if self.state != 'pending':
+        if self.state not in ['pending', 'cancel']:
             raise UserError(_('Solo se puede procesar un proyecto pendiente.'))
         
         # Validar que tenga fecha prometida antes de iniciar
@@ -358,27 +376,42 @@ class TrackerProject(models.Model):
     
     def action_mark_delivered(self):
         self.ensure_one()
-        if self.state != 'processing':
-            raise UserError(_('Solo se puede entregar un proyecto en procesamiento.'))
-        
-        pending_tasks = self.task_ids.filtered(lambda t: t.state != 'done')
-        if pending_tasks:
-            raise UserError(_(
-                'No se puede marcar como entregado. '
-                'Aún hay %d tarea(s) pendiente(s).'
-            ) % len(pending_tasks))
+        if self.state != 'pending_delivery':
+            raise UserError(_('Solo se puede entregar un proyecto pendiente de entrega.'))
         
         self.write({
             'state': 'delivered',
             'delivery_date': fields.Datetime.now()
         })
         return True
+    
+    def action_cancel_project(self):
+        """Abrir wizard para anular proyecto con motivo"""
+        self.ensure_one()
+        if self.state == 'delivered':
+            raise UserError(_('No se puede anular un proyecto ya entregado.'))
         
-        self.write({
-            'state': 'delivered',
-            'delivery_date': fields.Date.today()
-        })
-        return True
+        return {
+            'name': _('Anular Proyecto'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'tracker.project.cancel.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_project_id': self.id}
+        }
+    
+    @api.depends('task_ids.state')
+    def _check_all_tasks_done(self):
+        """Verificar si todas las tareas están terminadas y cambiar a pending_delivery"""
+        for record in self:
+            if record.state == 'processing' and record.task_ids:
+                all_done = all(task.state == 'done' for task in record.task_ids)
+                if all_done and not record.completion_date:
+                    record.write({
+                        'state': 'pending_delivery',
+                        'completion_date': fields.Datetime.now()
+                    })
+    
     
     def action_view_tasks(self):
         self.ensure_one()

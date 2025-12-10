@@ -6,15 +6,16 @@
             <field name="name">tracker.project.tree</field>
             <field name="model">tracker.project</field>
             <field name="arch" type="xml">
-                <tree string="Proyectos Tracker" create="0" decoration-info="state=='pending'" decoration-warning="state=='processing'" decoration-success="state=='delivered'">
+                <tree string="Proyectos Tracker" create="0" decoration-info="state=='pending'" decoration-warning="state=='processing'" decoration-primary="state=='pending_delivery'" decoration-success="state=='delivered'" decoration-danger="state=='cancel'">
                     <field name="name"/>
                     <field name="partner_id"/>
                     <field name="analytic_account_id"/>
                     <field name="order_reference" string="Orden"/>
                     <field name="origen_type"/>
                     <field name="promise_date"/>
+                    <field name="completion_date"/>
                     <field name="delivery_date"/>
-                    <field name="state" widget="badge" decoration-info="state=='pending'" decoration-warning="state=='processing'" decoration-success="state=='delivered'"/>
+                    <field name="state" widget="badge" decoration-info="state=='pending'" decoration-warning="state=='processing'" decoration-primary="state=='pending_delivery'" decoration-success="state=='delivered'" decoration-danger="state=='cancel'"/>
                     <field name="task_count"/>
                     <field name="total_hours" widget="float_time"/>
                     <field name="delay_days"/>
@@ -29,8 +30,9 @@
             <field name="arch" type="xml">
                 <form string="Proyecto Tracker">
                     <header>
-                        <button name="action_mark_delivered" string="Marcar Entregado" type="object" invisible="state != 'processing' or not all_tasks_done" class="oe_highlight"/>
-                        <field name="state" widget="statusbar" statusbar_visible="pending,processing,delivered"/>
+                        <button name="action_mark_delivered" string="Marcar Entregado" type="object" invisible="state != 'pending_delivery'" class="oe_highlight"/>
+                        <button name="action_cancel_project" string="Anular" type="object" invisible="state in ['delivered', 'cancel']" class="btn-danger" groups="sm_tracker.group_tracker_manager"/>
+                        <field name="state" widget="statusbar" statusbar_visible="pending,processing,pending_delivery,delivered"/>
                         <field name="all_tasks_done" invisible="1"/>
                     </header>
                     <sheet>
@@ -57,10 +59,14 @@
                             <group>
                                 <field name="analytic_account_id" options="{'no_create': True}" readonly="1"/>
                                 <field name="promise_date" readonly="state != 'pending'"/>
+                                <field name="completion_date" readonly="1" invisible="not completion_date"/>
                                 <field name="delivery_date" readonly="state != 'delivered'"/>
                                 <field name="own_transport" readonly="state != 'delivered'"/>
                                 <field name="company_id" groups="base.group_multi_company"/>
                             </group>
+                        </group>
+                        <group invisible="state != 'cancel'">
+                            <field name="cancellation_reason" readonly="1" nolabel="1"/>
                         </group>
                         <group>
                             <group>
@@ -133,7 +139,7 @@
                     <field name="state_sequence"/>
                     <field name="task_count"/>
                     <field name="progress"/>
-                    <progressbar field="state" colors='{"pending": "info", "processing": "warning", "delivered": "success"}' sum_field="task_count"/>
+                    <progressbar field="state" colors='{"pending": "info", "processing": "warning", "pending_delivery": "primary", "delivered": "success", "cancel": "danger"}' sum_field="task_count"/>
                     <templates>
                         <t t-name="kanban-box">
                             <div class="oe_kanban_global_click">
