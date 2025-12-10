@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        
+        <!-- Reporte de Boleta de Despacho -->
+        <record id="action_report_boleta_despacho" model="ir.actions.report">
+            <field name="name">Boleta de Despacho</field>
+            <field name="model">tracker.project</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="report_name">sm_tracker.report_boleta_despacho_document</field>
+            <field name="report_file">sm_tracker.report_boleta_despacho_document</field>
+            <field name="binding_model_id" ref="model_tracker_project"/>
+            <field name="binding_type">report</field>
+            <field name="print_report_name">'Boleta_Despacho_%s' % (object.name)</field>
+        </record>
+
+        <!-- Template del Reporte -->
+        <template id="report_boleta_despacho_document">
+            <t t-call="web.html_container">
+                <t t-foreach="docs" t-as="o">
+                    <t t-call="web.external_layout">
+                        <div class="page" style="font-family: Arial, sans-serif;">
+                            
+                            <!-- Encabezado -->
+                            <div class="text-center" style="margin-bottom: 30px; border-bottom: 3px solid #000; padding-bottom: 15px;">
+                                <h2 style="font-size: 28px; font-weight: bold; margin: 0;">BOLETA DE DESPACHO</h2>
+                                <h3 style="font-size: 18px; margin-top: 10px;">San Miguel S.A.</h3>
+                            </div>
+
+                            <!-- Información Principal -->
+                            <div style="margin-bottom: 25px;">
+                                <table class="table table-sm" style="width: 100%; margin-bottom: 20px;">
+                                    <tr>
+                                        <td style="width: 50%; padding: 8px;">
+                                            <strong style="font-size: 14px;">NÚMERO DE ORDEN:</strong><br/>
+                                            <span style="font-size: 16px; font-weight: bold;">
+                                                <t t-if="o.pos_order_id">
+                                                    <t t-esc="o.pos_order_id.name"/>
+                                                </t>
+                                                <t t-if="o.sale_order_id">
+                                                    <t t-esc="o.sale_order_id.name"/>
+                                                </t>
+                                            </span>
+                                        </td>
+                                        <td style="width: 50%; padding: 8px; text-align: right;">
+                                            <strong style="font-size: 14px;">FECHA CREACIÓN:</strong><br/>
+                                            <span style="font-size: 14px;">
+                                                <t t-esc="o.create_date.strftime('%d/%m/%Y %H:%M')" t-if="o.create_date"/>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <div style="padding: 8px; background-color: #f8f9fa; border: 1px solid #dee2e6; margin-bottom: 15px;">
+                                    <strong style="font-size: 14px;">CLIENTE:</strong><br/>
+                                    <span style="font-size: 16px; font-weight: bold;">
+                                        <t t-esc="o.partner_id.name"/>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Productos/Servicios -->
+                            <div style="margin-bottom: 25px;">
+                                <h4 style="font-size: 16px; font-weight: bold; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 15px;">
+                                    PRODUCTOS Y SERVICIOS
+                                </h4>
+                                <table class="table table-sm table-bordered" style="width: 100%;">
+                                    <thead style="background-color: #e9ecef;">
+                                        <tr>
+                                            <th style="padding: 8px; text-align: left;">Descripción</th>
+                                            <th style="padding: 8px; text-align: center; width: 15%;">Cantidad</th>
+                                            <th style="padding: 8px; text-align: center; width: 15%;">Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-foreach="o.task_ids" t-as="task">
+                                            <tr>
+                                                <td style="padding: 8px;">
+                                                    <t t-esc="task.product_id.name if task.product_id else task.name"/>
+                                                </td>
+                                                <td style="padding: 8px; text-align: center;">
+                                                    <t t-esc="task.quantity"/>
+                                                </td>
+                                                <td style="padding: 8px; text-align: center;">
+                                                    <t t-if="task.state == 'done'">
+                                                        <span style="color: green; font-weight: bold;">✓ Completado</span>
+                                                    </t>
+                                                    <t t-else="">
+                                                        <span style="color: gray;">Pendiente</span>
+                                                    </t>
+                                                </td>
+                                            </tr>
+                                        </t>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Cantidades de Material -->
+                            <div style="margin-bottom: 25px; border: 2px solid #000; padding: 15px; background-color: #f8f9fa;">
+                                <h4 style="font-size: 16px; font-weight: bold; margin-bottom: 15px;">DETALLE DE MATERIALES</h4>
+                                <table style="width: 100%;">
+                                    <tr>
+                                        <td style="padding: 8px; width: 40%;"><strong>CANTIDAD DE TABLEROS:</strong></td>
+                                        <td style="padding: 8px; border-bottom: 1px solid #000;">_________________</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px;"><strong>CANTIDAD DE PIEZAS CORTADAS:</strong></td>
+                                        <td style="padding: 8px; border-bottom: 1px solid #000;">_________________</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px;"><strong>CANTIDAD DE PIEZAS SOBRANTES:</strong></td>
+                                        <td style="padding: 8px; border-bottom: 1px solid #000;">_________________</td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            <!-- Texto Legal -->
+                            <div style="margin-bottom: 25px; border: 2px solid #000; padding: 15px; background-color: #fff8dc;">
+                                <p style="font-size: 11px; text-align: justify; margin: 0; line-height: 1.6;">
+                                    Recibí conforme a la totalidad de materiales que refieren al despacho de la factura descrita, 
+                                    verificando tableros completos, piezas cortadas, sobrantes, ferretería y madera, si fuera el caso. 
+                                    Confirmo mi satisfacción por la calidad de materiales entregados y eximo a la empresa San Miguel S.A. 
+                                    de reclamos posteriores referente a faltantes o material entregado en mal estado. Después de 24 horas 
+                                    de haber sido entregado el material no será válido ningún reclamo referente a lo antes mencionado.
+                                </p>
+                            </div>
+
+                            <!-- Firmas -->
+                            <div style="margin-bottom: 25px;">
+                                <table style="width: 100%;">
+                                    <tr>
+                                        <td style="width: 50%; vertical-align: top; padding-right: 10px;">
+                                            <div style="border: 1px solid #000; padding: 15px; min-height: 150px;">
+                                                <p style="margin: 0 0 80px 0;"><strong>FIRMA DEL CLIENTE:</strong></p>
+                                                <div style="border-top: 1px solid #000; padding-top: 5px;">
+                                                    <strong>NOMBRE:</strong> ___________________________
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td style="width: 50%; vertical-align: top; padding-left: 10px;">
+                                            <div style="border: 1px solid #000; padding: 15px; min-height: 150px;">
+                                                <p style="margin: 0 0 10px 0;"><strong>DESPACHADOR:</strong></p>
+                                                <p style="margin: 0 0 60px 0; font-size: 14px;">
+                                                    <t t-esc="o.user_id.name if o.user_id else '___________________________'"/>
+                                                </p>
+                                                <div style="border-top: 1px solid #000; padding-top: 5px;">
+                                                    <strong>Firma:</strong> ___________________________
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            <!-- Fecha y Hora de Impresión -->
+                            <div style="text-align: right; font-size: 11px; color: #666; margin-top: 20px; border-top: 1px solid #ccc; padding-top: 10px;">
+                                <p style="margin: 0;">
+                                    <strong>Fecha de impresión:</strong> 
+                                    <t t-esc="datetime.datetime.now().strftime('%d/%m/%Y')"/>
+                                    <strong style="margin-left: 20px;">Hora:</strong>
+                                    <t t-esc="datetime.datetime.now().strftime('%H:%M')"/>
+                                </p>
+                            </div>
+
+                        </div>
+                    </t>
+                </t>
+            </t>
+        </template>
+
+    </data>
+</odoo>

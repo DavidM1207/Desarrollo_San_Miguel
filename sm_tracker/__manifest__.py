@@ -31,6 +31,7 @@
         'security/ir.model.access.csv',
         'data/tracker_data.xml',
         'views/tracker_task_views.xml',
+        'views/tracker_boleta_despacho.xml',
         'views/tracker_project_views.xml',
         'views/tracker_project_cancel_wizard_views.xml',
         'views/tracker_timesheet_views.xml',
