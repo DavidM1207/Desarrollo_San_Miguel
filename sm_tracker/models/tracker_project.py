@@ -279,8 +279,8 @@ class TrackerProject(models.Model):
     
     @api.depends('sale_order_id', 'sale_order_id.picking_ids', 'pos_order_id', 'pos_order_id.picking_ids')
     def _compute_pending_stock_moves(self):
-        """Obtener TODOS los movimientos pendientes (no done ni cancel)
-        Muestra productos que aún no se han entregado"""
+        """Obtener movimientos en estado 'waiting' (sin stock) y sin lista de materiales
+        Solo productos que se COMPRAN, no los que se FABRICAN"""
         for record in self:
             pending_moves = self.env['stock.move']
             
@@ -293,12 +293,13 @@ class TrackerProject(models.Model):
             else:
                 pickings = self.env['stock.picking']
             
-            # Filtrar movimientos pendientes (cualquier estado excepto done y cancel)
+            # Filtrar movimientos en waiting sin lista de materiales
             if pickings:
                 for picking in pickings:
-                    # TODOS los movimientos que no están completos ni cancelados
+                    # Solo productos en estado 'waiting' y sin BoM (lista de materiales)
                     moves = picking.move_ids_without_package.filtered(
-                        lambda m: m.state not in ['done', 'cancel']
+                        lambda m: m.state == 'waiting' and 
+                        not m.product_id.product_tmpl_id.bom_ids
                     )
                     pending_moves |= moves
             
