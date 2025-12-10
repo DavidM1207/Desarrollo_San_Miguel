@@ -123,6 +123,12 @@ class PosOrder(models.Model):
             _logger.debug('Orden %s ya tiene tracker, skip', order.name)
             return False
         
+        # Validar que NO sea devolución (cantidades negativas o monto negativo)
+        is_refund = order.amount_total < 0 or any(line.qty < 0 for line in order.lines)
+        if is_refund:
+            _logger.info('Orden %s es DEVOLUCIÓN/NOTA DE CRÉDITO, NO se crea tracker', order.name)
+            return False
+        
         # Validar estado - crear tracker cuando la orden esté pagada o completada
         if order.state not in ['paid', 'done', 'invoiced']:
             _logger.debug('Orden %s en estado %s, esperando paid/done/invoiced', 

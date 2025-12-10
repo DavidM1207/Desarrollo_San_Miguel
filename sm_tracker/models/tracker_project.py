@@ -187,6 +187,13 @@ class TrackerProject(models.Model):
     
     notes = fields.Text(string='Notas')
     
+    is_despacho_host = fields.Boolean(
+        string='Despacho Host',
+        compute='_compute_is_despacho_host',
+        store=True,
+        help='Indica si el proyecto contiene servicios de despacho host'
+    )
+    
     company_id = fields.Many2one(
         'res.company',
         string='Compañía',
@@ -222,8 +229,8 @@ class TrackerProject(models.Model):
             'pending': 1,
             'processing': 2,
             'pending_delivery': 3,
-            'delivered': 4,
-            'cancel': 5,
+            'cancel': 4,
+            'delivered': 5,
         }
         for record in self:
             record.state_sequence = state_order.get(record.state, 99)
@@ -352,6 +359,30 @@ class TrackerProject(models.Model):
             
             record.has_waiting_stock = has_waiting
     
+    @api.depends('task_ids.product_id')
+    def _compute_is_despacho_host(self):
+        """Determinar si el proyecto contiene servicios de despacho host"""
+        # Códigos de referencia interna de los servicios de despacho host
+        DESPACHO_HOST_CODES = [
+            'CORTES',
+            'CORTESEXTERNOS', 
+            'PEGADOCANTO',
+            'PEGADOCANTO2',
+            'PEGADOCANTOEXTERNO',
+            'S-024'
+        ]
+        
+        for record in self:
+            is_despacho = False
+            
+            # Verificar si alguna tarea tiene un producto con esos códigos
+            for task in record.task_ids:
+                if task.product_id and task.product_id.default_code in DESPACHO_HOST_CODES:
+                    is_despacho = True
+                    break
+            
+            record.is_despacho_host = is_despacho
+    
     def write(self, vals):
         if 'state' in vals:
             vals['state_changed_by'] = self.env.user.id
@@ -386,31 +417,25 @@ class TrackerProject(models.Model):
         return True
     
     def action_cancel_project(self):
-        """Abrir wizard para anular proyecto con motivo"""
+        """Anular proyecto (versión simplificada - wizard pendiente)"""
         self.ensure_one()
         if self.state == 'delivered':
             raise UserError(_('No se puede anular un proyecto ya entregado.'))
         
-        return {
-            'name': _('Anular Proyecto'),
-            'type': 'ir.actions.act_window',
-            'res_model': 'tracker.project.cancel.wizard',
-            'view_mode': 'form',
-            'target': 'new',
-            'context': {'default_project_id': self.id}
-        }
-    
-    @api.depends('task_ids.state')
-    def _check_all_tasks_done(self):
-        """Verificar si todas las tareas están terminadas y cambiar a pending_delivery"""
-        for record in self:
-            if record.state == 'processing' and record.task_ids:
-                all_done = all(task.state == 'done' for task in record.task_ids)
-                if all_done and not record.completion_date:
-                    record.write({
-                        'state': 'pending_delivery',
-                        'completion_date': fields.Datetime.now()
-                    })
+        # Versión simplificada - TODO: Implementar wizard
+        self.write({'state': 'cancel'})
+        self.task_ids.write({'state': 'cancel'})
+        return True
+        
+        # TODO: Descomentar cuando se active el wizard
+        # return {
+        #     'name': _('Anular Proyecto'),
+        #     'type': 'ir.actions.act_window',
+        #     'res_model': 'tracker.project.cancel.wizard',
+        #     'view_mode': 'form',
+        #     'target': 'new',
+        #     'context': {'default_project_id': self.id}
+        # }
     
     
     def action_view_tasks(self):

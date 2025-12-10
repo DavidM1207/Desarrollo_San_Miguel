@@ -187,7 +187,11 @@
                     <separator/>
                     <filter string="Pendientes" name="pending" domain="[('state','=','pending')]"/>
                     <filter string="En Proceso" name="processing" domain="[('state','=','processing')]"/>
+                    <filter string="Pendiente de Entrega" name="pending_delivery" domain="[('state','=','pending_delivery')]"/>
                     <filter string="Entregados" name="delivered" domain="[('state','=','delivered')]"/>
+                    <filter string="Anulados" name="cancel" domain="[('state','=','cancel')]"/>
+                    <separator/>
+                    <filter string="DESPACHO HOST" name="despacho_host" domain="[('is_despacho_host','=',True)]"/>
                     <separator/>
                     <filter string="En espera de disponibilidad" name="waiting_stock" domain="[('has_waiting_stock','=',True)]"/>
                     <separator/>

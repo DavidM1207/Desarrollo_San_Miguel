@@ -71,7 +71,11 @@ class SaleOrder(models.Model):
         res = super(SaleOrder, self).action_confirm()
         
         for order in self:
-            if order.has_service_products and not order.tracker_project_ids:
+            # Solo crear proyecto si es una VENTA normal (no devoluciones ni notas de crédito)
+            # Verificar que no tenga invoices con tipo out_refund (nota de crédito)
+            is_refund = any(inv.move_type == 'out_refund' for inv in order.invoice_ids)
+            
+            if order.has_service_products and not order.tracker_project_ids and not is_refund:
                 try:
                     order._auto_create_tracker_project()
                 except Exception as e:
