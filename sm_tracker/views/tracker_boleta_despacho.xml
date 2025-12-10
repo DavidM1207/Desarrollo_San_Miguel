@@ -8,8 +8,8 @@
             <field name="name">Boleta Térmica 7.12cm x 70cm</field>
             <field name="default" eval="False"/>
             <field name="format">custom</field>
-            <field name="page_height">700</field>  <!-- 70cm = 700mm -->
-            <field name="page_width">71</field>     <!-- 7.12cm = 71.2mm -->
+            <field name="page_height">1400</field>  <!-- 70cm = 700mm -->
+            <field name="page_width">142</field>     <!-- 7.12cm = 71.2mm -->
             <field name="orientation">Portrait</field>
             <field name="margin_top">3</field>
             <field name="margin_bottom">3</field>
