@@ -2,20 +2,8 @@
 <odoo>
     <data>
         
-        <!-- Reporte de Boleta de Despacho para Impresora Térmica -->
-        <record id="action_report_boleta_despacho" model="ir.actions.report">
-            <field name="name">Boleta de Despacho</field>
-            <field name="model">tracker.project</field>
-            <field name="report_type">qweb-pdf</field>
-            <field name="report_name">sm_tracker.report_boleta_despacho_document</field>
-            <field name="report_file">sm_tracker.report_boleta_despacho_document</field>
-            <field name="binding_model_id" ref="model_tracker_project"/>
-            <field name="binding_type">report</field>
-            <field name="print_report_name">'Boleta_Despacho_%s' % (object.name)</field>
-            <field name="paperformat_id" ref="paperformat_boleta_termica"/>
-        </record>
-
         <!-- Formato de Papel para Impresora Térmica 7.12cm x 70cm -->
+        <!-- DEBE ESTAR PRIMERO, ANTES DEL REPORTE -->
         <record id="paperformat_boleta_termica" model="report.paperformat">
             <field name="name">Boleta Térmica 7.12cm x 70cm</field>
             <field name="default" eval="False"/>
@@ -30,6 +18,20 @@
             <field name="header_line" eval="False"/>
             <field name="header_spacing">0</field>
             <field name="dpi">96</field>
+        </record>
+
+        <!-- Reporte de Boleta de Despacho para Impresora Térmica -->
+        <!-- AHORA SÍ PUEDE USAR paperformat_boleta_termica -->
+        <record id="action_report_boleta_despacho" model="ir.actions.report">
+            <field name="name">Boleta de Despacho</field>
+            <field name="model">tracker.project</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="report_name">sm_tracker.report_boleta_despacho_document</field>
+            <field name="report_file">sm_tracker.report_boleta_despacho_document</field>
+            <field name="binding_model_id" ref="model_tracker_project"/>
+            <field name="binding_type">report</field>
+            <field name="print_report_name">'Boleta_Despacho_%s' % (object.name)</field>
+            <field name="paperformat_id" ref="paperformat_boleta_termica"/>
         </record>
 
         <!-- Template del Reporte Optimizado para Térmica -->
