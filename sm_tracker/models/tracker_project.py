@@ -100,8 +100,8 @@ class TrackerProject(models.Model):
         ('pending', 'Pendiente'),
         ('processing', 'Procesando'),
         ('pending_delivery', 'Pendiente de Entrega'),
-        ('delivered', 'Entregado'),
         ('cancel', 'Anulado'),
+        ('delivered', 'Entregado'),
     ], string='Estado', default='pending', required=True, tracking=True)
     
     state_sequence = fields.Integer(
@@ -422,20 +422,14 @@ class TrackerProject(models.Model):
         if self.state == 'delivered':
             raise UserError(_('No se puede anular un proyecto ya entregado.'))
         
-        # Versión simplificada - TODO: Implementar wizard
-        self.write({'state': 'cancel'})
-        self.task_ids.write({'state': 'cancel'})
-        return True
-        
-        # TODO: Descomentar cuando se active el wizard
-        # return {
-        #     'name': _('Anular Proyecto'),
-        #     'type': 'ir.actions.act_window',
-        #     'res_model': 'tracker.project.cancel.wizard',
-        #     'view_mode': 'form',
-        #     'target': 'new',
-        #     'context': {'default_project_id': self.id}
-        # }
+        return {
+             'name': _('Anular Proyecto'),
+             'type': 'ir.actions.act_window',
+             'res_model': 'tracker.project.cancel.wizard',
+             'view_mode': 'form',
+             'target': 'new',
+             'context': {'default_project_id': self.id}
+         }
     
     
     def action_view_tasks(self):
