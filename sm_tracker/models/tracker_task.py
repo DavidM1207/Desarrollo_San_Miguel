@@ -261,6 +261,21 @@ class TrackerTask(models.Model):
                 'current_start_time': False,
                 'quantity_done': record.quantity
             })
+            
+            # Verificar si todas las tareas del proyecto están terminadas
+            project = record.project_id
+            if project.state == 'processing':
+                # Obtener solo tareas con estado válido (no NULL, no cancel)
+                valid_tasks = project.task_ids.filtered(
+                    lambda t: t.state and t.state != 'cancel'
+                )
+                
+                # Si hay tareas válidas y todas están terminadas
+                if valid_tasks and all(t.state == 'done' for t in valid_tasks):
+                    project.write({
+                        'state': 'pending_delivery',
+                        'completion_date': fields.Datetime.now()
+                    })
         
         return True
     
