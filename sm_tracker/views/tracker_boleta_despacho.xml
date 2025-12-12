@@ -35,21 +35,22 @@
         </record>
 
         <!-- Template del Reporte Optimizado para Térmica 80mm x 297mm -->
+        <!-- DISEÑO ESPACIADO Y LEGIBLE -->
         <template id="report_boleta_despacho_document">
             <t t-call="web.basic_layout">
                 <t t-foreach="docs" t-as="o">
-                    <div class="page" style="font-family: Arial, sans-serif; font-size: 9px; padding: 3px;">
+                    <div class="page" style="font-family: Arial, sans-serif; font-size: 11px; padding: 8px;">
                         
                         <!-- Encabezado -->
-                        <div style="text-align: center; margin-bottom: 6px; border-bottom: 2px solid #000; padding-bottom: 4px;">
-                            <div style="font-size: 13px; font-weight: bold; margin-bottom: 2px;">BOLETA DE DESPACHO</div>
-                            <div style="font-size: 10px; font-weight: bold;">San Miguel S.A.</div>
+                        <div style="text-align: center; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px;">
+                            <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">BOLETA DE DESPACHO</div>
+                            <div style="font-size: 12px; font-weight: bold;">San Miguel S.A.</div>
                         </div>
 
                         <!-- Número de Orden -->
-                        <div style="margin-bottom: 5px; border: 1px solid #000; padding: 3px;">
-                            <div style="font-weight: bold; font-size: 8px; margin-bottom: 1px;">ORDEN:</div>
-                            <div style="font-size: 10px; font-weight: bold;">
+                        <div style="margin-bottom: 12px; border: 1px solid #000; padding: 8px;">
+                            <div style="font-weight: bold; font-size: 10px; margin-bottom: 4px;">ORDEN:</div>
+                            <div style="font-size: 13px; font-weight: bold;">
                                 <t t-if="o.pos_order_id">
                                     <t t-esc="o.pos_order_id.name"/>
                                 </t>
@@ -59,26 +60,28 @@
                             </div>
                         </div>
 
-                        <!-- Fecha y Cliente en una sección -->
-                        <div style="margin-bottom: 5px; border: 1px solid #000; padding: 3px; background-color: #f0f0f0;">
-                            <div style="font-size: 8px; margin-bottom: 2px;">
-                                <strong>FECHA:</strong>
-                                <t t-esc="o.create_date.strftime('%d/%m/%Y %H:%M')" t-if="o.create_date"/>
-                            </div>
-                            <div style="font-weight: bold; font-size: 8px; margin-bottom: 1px;">CLIENTE:</div>
-                            <div style="font-size: 9px; font-weight: bold; word-wrap: break-word;">
+                        <!-- Fecha Creación -->
+                        <div style="margin-bottom: 12px; font-size: 10px; padding: 5px;">
+                            <strong>FECHA:</strong>
+                            <t t-esc="o.create_date.strftime('%d/%m/%Y %H:%M')" t-if="o.create_date"/>
+                        </div>
+
+                        <!-- Cliente -->
+                        <div style="margin-bottom: 15px; border: 1px solid #000; padding: 8px; background-color: #f0f0f0;">
+                            <div style="font-weight: bold; font-size: 10px; margin-bottom: 4px;">CLIENTE:</div>
+                            <div style="font-size: 12px; font-weight: bold; word-wrap: break-word;">
                                 <t t-esc="o.partner_id.name"/>
                             </div>
                         </div>
 
                         <!-- Productos y Servicios -->
-                        <div style="margin-bottom: 5px;">
-                            <div style="font-weight: bold; font-size: 9px; border-bottom: 1px solid #000; padding-bottom: 2px; margin-bottom: 3px;">
+                        <div style="margin-bottom: 15px;">
+                            <div style="font-weight: bold; font-size: 11px; border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 8px;">
                                 PRODUCTOS Y SERVICIOS
                             </div>
                             <t t-foreach="o.task_ids" t-as="task">
-                                <div style="margin-bottom: 3px; padding: 2px; border: 1px solid #ccc; font-size: 8px;">
-                                    <div style="font-weight: bold; margin-bottom: 1px;">
+                                <div style="margin-bottom: 8px; padding: 6px; border: 1px solid #ccc; font-size: 10px;">
+                                    <div style="font-weight: bold; margin-bottom: 3px;">
                                         <t t-esc="task.product_id.name if task.product_id else task.name"/>
                                     </div>
                                     <div style="display: flex; justify-content: space-between;">
@@ -97,52 +100,52 @@
                         </div>
 
                         <!-- Detalle de Materiales -->
-                        <div style="margin-bottom: 5px; border: 2px solid #000; padding: 4px; background-color: #f8f8f8;">
-                            <div style="font-weight: bold; font-size: 9px; margin-bottom: 3px; text-align: center;">
+                        <div style="margin-bottom: 15px; border: 2px solid #000; padding: 10px; background-color: #f8f8f8;">
+                            <div style="font-weight: bold; font-size: 11px; margin-bottom: 8px; text-align: center;">
                                 DETALLE DE MATERIALES
                             </div>
-                            <div style="font-size: 8px; margin-bottom: 2px;">
+                            <div style="font-size: 10px; margin-bottom: 8px;">
                                 <strong>TABLEROS:</strong>
-                                <div style="border-bottom: 1px solid #000; height: 12px; margin-top: 1px;"></div>
+                                <div style="border-bottom: 1px solid #000; height: 20px; margin-top: 3px;"></div>
                             </div>
-                            <div style="font-size: 8px; margin-bottom: 2px;">
+                            <div style="font-size: 10px; margin-bottom: 8px;">
                                 <strong>PIEZAS CORTADAS:</strong>
-                                <div style="border-bottom: 1px solid #000; height: 12px; margin-top: 1px;"></div>
+                                <div style="border-bottom: 1px solid #000; height: 20px; margin-top: 3px;"></div>
                             </div>
-                            <div style="font-size: 8px; margin-bottom: 2px;">
+                            <div style="font-size: 10px; margin-bottom: 8px;">
                                 <strong>PIEZAS SOBRANTES:</strong>
-                                <div style="border-bottom: 1px solid #000; height: 12px; margin-top: 1px;"></div>
+                                <div style="border-bottom: 1px solid #000; height: 20px; margin-top: 3px;"></div>
                             </div>
                         </div>
 
                         <!-- Texto Legal -->
-                        <div style="margin-bottom: 5px; border: 2px solid #000; padding: 4px; background-color: #fffacd; font-size: 7px; text-align: justify; line-height: 1.2;">
-                            Recibí conforme la totalidad de materiales del despacho, verificando tableros, piezas cortadas, sobrantes, ferretería y madera. Confirmo satisfacción por la calidad y eximo a San Miguel S.A. de reclamos posteriores. Después de 24 horas no será válido ningún reclamo.
+                        <div style="margin-bottom: 15px; border: 2px solid #000; padding: 8px; background-color: #fffacd; font-size: 9px; text-align: justify; line-height: 1.4;">
+                            Recibí conforme la totalidad de materiales del despacho descrito, verificando tableros completos, piezas cortadas, sobrantes, ferretería y madera. Confirmo satisfacción por la calidad entregada y eximo a San Miguel S.A. de reclamos posteriores sobre faltantes o material en mal estado. Después de 24 horas no será válido ningún reclamo.
                         </div>
 
                         <!-- Firma Cliente -->
-                        <div style="margin-bottom: 5px; border: 1px solid #000; padding: 4px;">
-                            <div style="font-weight: bold; font-size: 8px; margin-bottom: 25px;">FIRMA DEL CLIENTE:</div>
-                            <div style="border-top: 1px solid #000; padding-top: 2px; font-size: 7px;">
+                        <div style="margin-bottom: 12px; border: 1px solid #000; padding: 10px;">
+                            <div style="font-weight: bold; font-size: 10px; margin-bottom: 50px;">FIRMA DEL CLIENTE:</div>
+                            <div style="border-top: 1px solid #000; padding-top: 5px; font-size: 9px;">
                                 <strong>NOMBRE:</strong>
-                                <div style="border-bottom: 1px solid #000; height: 10px; margin-top: 1px;"></div>
+                                <div style="border-bottom: 1px solid #000; height: 15px; margin-top: 3px;"></div>
                             </div>
                         </div>
 
                         <!-- Despachador -->
-                        <div style="margin-bottom: 5px; border: 1px solid #000; padding: 4px;">
-                            <div style="font-weight: bold; font-size: 8px; margin-bottom: 1px;">DESPACHADOR:</div>
-                            <div style="font-size: 9px; margin-bottom: 20px;">
+                        <div style="margin-bottom: 12px; border: 1px solid #000; padding: 10px;">
+                            <div style="font-weight: bold; font-size: 10px; margin-bottom: 5px;">DESPACHADOR:</div>
+                            <div style="font-size: 11px; margin-bottom: 40px;">
                                 <t t-esc="o.user_id.name if o.user_id else '__________________'"/>
                             </div>
-                            <div style="border-top: 1px solid #000; padding-top: 2px; font-size: 7px;">
+                            <div style="border-top: 1px solid #000; padding-top: 5px; font-size: 9px;">
                                 <strong>FIRMA:</strong>
-                                <div style="border-bottom: 1px solid #000; height: 10px; margin-top: 1px;"></div>
+                                <div style="border-bottom: 1px solid #000; height: 15px; margin-top: 3px;"></div>
                             </div>
                         </div>
 
                         <!-- Fecha y Hora de Impresión -->
-                        <div style="text-align: center; font-size: 7px; color: #666; margin-top: 5px; padding-top: 3px; border-top: 1px dashed #999;">
+                        <div style="text-align: center; font-size: 9px; color: #666; margin-top: 10px; padding-top: 8px; border-top: 1px dashed #999;">
                             <div>
                                 <strong>Impreso:</strong> 
                                 <t t-esc="datetime.datetime.now().strftime('%d/%m/%Y %H:%M')"/>
