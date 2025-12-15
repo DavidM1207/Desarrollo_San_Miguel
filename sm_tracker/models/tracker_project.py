@@ -245,7 +245,9 @@ class TrackerProject(models.Model):
         for record in self:
             if record.state == 'delivered' and record.promise_date and record.delivery_date:
                 delta = record.delivery_date - record.promise_date
-                record.delay_days = delta.days
+                # Si se entregó antes (negativo), mostrar 0
+                # Si se entregó después (positivo), mostrar los días de retraso
+                record.delay_days = max(0, delta.days)
             elif record.state != 'delivered' and record.promise_date:
                 today = fields.Datetime.now()
                 if today > record.promise_date:
@@ -417,19 +419,29 @@ class TrackerProject(models.Model):
         return True
     
     def action_cancel_project(self):
-        """Anular proyecto (versión simplificada - wizard pendiente)"""
+        """Abrir wizard para anular proyecto con motivo"""
         self.ensure_one()
         if self.state == 'delivered':
             raise UserError(_('No se puede anular un proyecto ya entregado.'))
         
         return {
-             'name': _('Anular Proyecto'),
-             'type': 'ir.actions.act_window',
-             'res_model': 'tracker.project.cancel.wizard',
-             'view_mode': 'form',
-             'target': 'new',
-             'context': {'default_project_id': self.id}
-         }
+            'name': _('Anular Proyecto'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'tracker.project.cancel.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_project_id': self.id,
+            }
+        }
+        # return {
+        #     'name': _('Anular Proyecto'),
+        #     'type': 'ir.actions.act_window',
+        #     'res_model': 'tracker.project.cancel.wizard',
+        #     'view_mode': 'form',
+        #     'target': 'new',
+        #     'context': {'default_project_id': self.id}
+        # }
     
     
     def action_view_tasks(self):
