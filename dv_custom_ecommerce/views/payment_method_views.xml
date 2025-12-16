@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="payment_method_form_inherit" model="ir.ui.view">
+        <field name="name">payment.method.form.inherit</field>
+        <field name="model">payment.method</field>
+        <field name="inherit_id" ref="payment.payment_method_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <field name="code" invisible="1"/>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Imagen de Transferencia" invisible="code != 'wire_transfer'">
+                    <group>
+                        <field name="transfer_image" widget="image"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

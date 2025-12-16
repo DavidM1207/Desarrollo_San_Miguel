@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_inherit" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="website_sale.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@id='website_warehouse_setting']" position="after">
+                <div class="row mt16" id="website_warehouses_setting" groups="stock.group_stock_multi_warehouses">
+                    <label for="website_warehouses_ids" string="Almacenes de exhibición de existencias" class="col-lg-3 o_light_label"/>
+                    <field name="website_warehouses_ids" widget="many2many_tags"/>
+                </div>
+            </xpath>
+            <setting id="cart_redirect_setting" position="after">
+                <setting id="skip_payment_step_setting" help="Omitir el paso de pago en el proceso de pago">
+                    <field name="skip_payment_step"/>
+                    <div class="mt16" invisible="not skip_payment_step">
+                        <label for="skip_payment_message" string="Mensaje cuando el pago está desactivado"/>
+                        <field name="skip_payment_message" placeholder="Ingrese el mensaje que se mostrará a los clientes cuando intenten pagar..."/>
+                    </div>
+                    <div class="mt16" invisible="not skip_payment_step">
+                        <label for="helpdesk_team_id" string="Equipo de Helpdesk" class="o_form_label o_light_label col-lg-3"/>
+                        <field name="helpdesk_team_id" placeholder="Seleccione el equipo donde se crearán los tickets..."/>
+                    </div>
+                    <div class="mt16" invisible="not skip_payment_step or not helpdesk_team_id">
+                        <field name="helpdesk_notify_customer"/>
+                        <label for="helpdesk_notify_customer" string="Notificar al cliente sobre el ticket"/>
+                    </div>
+                </setting>
+            </setting>
+        </field>
+    </record>
+</odoo>

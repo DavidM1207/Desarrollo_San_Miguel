@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="nit_verification_res_partner" model="ir.ui.view">
+            <field name="name">nit_verification_res_partners</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//form//sheet" position="before">
+                    <header>
+                        <button name="action_nit_validate" string="Verificar NIT" type="object"/>
+                    </header>
+                </xpath>
+                <!-- <field name="vat" position="after">
+                    <button name="action_nit_validate" string="Verificar NIT" type="object"/>
+                </field> -->
+            </field>
+        </record>
+    </data>
+</odoo>

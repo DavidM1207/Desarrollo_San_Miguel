@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates id="template" xml:space="preserve">
+    <t t-name="website_sale_stock.product_availability" t-inherit="website_sale_stock.product_availability" t-inherit-mode="extension">
+        <xpath expr="//div[contains(@t-attf-class, 'availability_message_')][1]" position="attributes">
+            <attribute name="t-if">(free_qty lte 0 and !cart_qty) or is_out_of_stock</attribute>
+        </xpath>
+        
+        <xpath expr="//div[@id='out_of_stock_message']/t[@t-elif]" position="replace">
+            <t t-elif="!allow_out_of_stock_order or is_out_of_stock">
+                <div class="text-danger fw-bold">
+                    <i class="fa fa-times me-1"/>
+                    Agotado.
+                </div>
+            </t>
+        </xpath>
+        
+        <xpath expr="//div[@id='stock_notification_div']" position="attributes">
+            <attribute name="t-if">!allow_out_of_stock_order or is_out_of_stock</attribute>
+        </xpath>
+        
+        <xpath expr="//div[@id='already_in_cart_message']" position="attributes">
+            <attribute name="t-if">(!allow_out_of_stock_order or is_out_of_stock) and show_availability and cart_qty</attribute>
+        </xpath>
+        
+        <xpath expr="//div[@id='threshold_message']" position="after">
+            <div id="total_stock_info" t-if="show_availability and total_stock_all_warehouses &gt;= 0" class="mt-1">
+                <div class="small text-muted">
+                    <i class="fa fa-warehouse me-1"/>
+                    Total disponible:
+                    <span t-attf-class="fw-bold #{total_stock_all_warehouses &gt; 0 ? 'text-success' : 'text-danger'}">
+                        <t t-esc="formatQuantity(total_stock_all_warehouses)"/> <t t-esc="uom_name"/>
+                    </span>
+                </div>
+            </div>
+        </xpath>
+    </t>
+</templates>

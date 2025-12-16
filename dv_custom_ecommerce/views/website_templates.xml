@@ -1,0 +1,487 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="address_submit_button" inherit_id="website_sale.address">
+        <xpath expr="//form[@action='/shop/address']/div[@class='d-flex flex-column flex-md-row align-items-center justify-content-between mt32 mb32']/a[@role='button' and @href='#']" position="replace">
+            <a role="button" href="#" class="a-submit a-submit-disable a-submit-loading btn btn-primary w-100 w-md-auto order-1 order-md-3">
+                <t t-if="mode == ('new', 'billing')">
+                    <t t-if="request.website.skip_payment_step">Continuar</t>
+                    <t t-else="">Continuar pago</t>
+                </t>
+                <t t-else="">Guardar direccion</t>
+                <i class="fw-light fa fa-angle-right ms-2"/>
+            </a>
+        </xpath>
+    </template>
+
+
+
+    <!-- Plantilla completa para la página de pago cuando skip_payment_step está activo -->
+    <template id="payment_skipped_page" name="Payment Skipped Page">
+        <t t-call="website.layout">
+            <t t-set="no_footer" t-value="True"/>
+            <t t-set="additional_title">Compra - Confirmar orden</t>
+            <t t-call-assets="web.assets_frontend" t-js="false"/>
+            <t t-call-assets="website_sale.assets_shop" t-js="false"/>
+            <t t-call-assets="payment.assets_payment_form" t-js="false"/>
+            <div id="wrap">
+                <div class="oe_website_sale o_website_sale_checkout container py-2">
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <h3 class="mb-4">Confirmar orden</h3>
+                            <div class="alert alert-success" role="alert">
+                                <h4 class="alert-heading">¡Orden lista para confirmar!</h4>
+                                <!-- <p>El pago ha sido deshabilitado. Puede confirmar su orden directamente.</p> -->
+                                <hr/>
+                                <p>Por favor revisa tus datos antes de confirmar tu compra.</p>
+                                <!-- <p class="mb-0">
+                                    <t t-esc="skip_payment_message or 'El pago no está disponible en este momento. Por favor contacte con ventas.'"/>
+                                </p> -->
+                            </div>
+                            
+                            <!-- Mostrar dirección resumida -->
+                            <div t-if="order" class="card mb-4">
+                                <div class="card-body d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>Facturación &amp; Envío:</strong>
+                                        <span t-esc="order.partner_shipping_id.name"/>,
+                                        <span t-esc="order.partner_shipping_id.street"/>,
+                                        <span t-esc="order.partner_shipping_id.city"/>
+                                        <span t-if="order.partner_shipping_id.state_id">, <span t-esc="order.partner_shipping_id.state_id.name"/></span>
+                                    </div>
+                                    <a href="/shop/checkout" class="btn btn-link text-decoration-none">
+                                        <i class="fa fa-pencil me-1"/> Editar
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            
+                            
+                            <!-- Métodos de entrega -->
+                            <div t-if="order and not order.only_services and deliveries" class="card mb-4">
+                                <div class="card-body">
+                                    <h5>Método de entrega</h5>
+                                    <div class="dv_carriers_container">
+                                        <t t-set="onsite_carriers" t-value="[c for c in deliveries if c.delivery_type == 'onsite']"/>
+                                        <t t-set="other_carriers" t-value="[c for c in deliveries if c.delivery_type != 'onsite']"/>
+                                        
+                                        <!-- Carriers que NO son onsite -->
+                                        <t t-foreach="other_carriers" t-as="carrier">
+                                            <div class="form-check mb-3">
+                                                <input type="radio" name="dv_carrier" t-att-value="carrier.id" 
+                                                       t-att-id="'dv_carrier_%s' % carrier.id"
+                                                       t-att-checked="'checked' if order.carrier_id.id == carrier.id else None"
+                                                       class="form-check-input dv_carrier_radio"/>
+                                                <label t-att-for="'dv_carrier_%s' % carrier.id" class="form-check-label">
+                                                    <span t-esc="carrier.name"/>
+                                                    <span t-if="carrier.fixed_price" class="text-muted ms-2">
+                                                        (<span t-esc="carrier.fixed_price" t-options="{'widget': 'monetary', 'display_currency': order.currency_id}"/>)
+                                                    </span>
+                                                </label>
+                                            </div>
+                                        </t>
+                                        
+                                        <!-- Acordeón para carriers onsite -->
+                                        <t t-if="onsite_carriers">
+                                            <div class="accordion mb-3" id="onsiteAccordion">
+                                                <div class="accordion-item border-0">
+                                                    <h2 class="accordion-header" id="onsiteHeader">
+                                                        <button class="accordion-button collapsed p-0 bg-transparent border-0 shadow-none" type="button" 
+                                                                data-bs-toggle="collapse" data-bs-target="#onsiteCollapse" 
+                                                                aria-expanded="false" aria-controls="onsiteCollapse">
+                                                            <div class="form-check">
+                                                                <input type="radio" name="dv_carrier_group" value="onsite" 
+                                                                       id="dv_carrier_group_onsite"
+                                                                       t-att-checked="'checked' if order.carrier_id.delivery_type == 'onsite' else None"
+                                                                       class="form-check-input"/>
+                                                                <label for="dv_carrier_group_onsite" class="form-check-label">
+                                                                    Recoger en tienda
+                                                                </label>
+                                                            </div>
+                                                        </button>
+                                                    </h2>
+                                                    <div id="onsiteCollapse" t-att-class="'accordion-collapse collapse' + (' show' if order.carrier_id.delivery_type == 'onsite' else '')" 
+                                                         aria-labelledby="onsiteHeader" data-bs-parent="#onsiteAccordion">
+                                                        <div class="accordion-body ps-4">
+                                                            <t t-foreach="onsite_carriers" t-as="carrier">
+                                                                <div class="form-check mb-3 d-flex align-items-center">
+                                                                    <input type="radio" name="dv_carrier" t-att-value="carrier.id" 
+                                                                           t-att-id="'dv_carrier_%s' % carrier.id"
+                                                                           t-att-checked="'checked' if order.carrier_id.id == carrier.id else None"
+                                                                           class="form-check-input dv_carrier_radio me-2"/>
+                                                                    <label t-att-for="'dv_carrier_%s' % carrier.id" class="form-check-label flex-grow-1 ms-1">
+                                                                        <span t-esc="carrier.name"/>
+                                                                        <span t-if="carrier.fixed_price" class="text-muted ms-2">
+                                                                            (<span t-esc="carrier.fixed_price" t-options="{'widget': 'monetary', 'display_currency': order.currency_id}"/>)
+                                                                        </span>
+                                                                    </label>
+                                                                    <t t-if="carrier.store_image">
+                                                                        <img t-att-src="'data:image/png;base64,%s' % carrier.store_image.decode('utf-8')" 
+                                                                             class="ms-3 store-image-hover" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; transition: transform 0.3s ease; cursor: pointer;"/>
+                                                                    </t>
+                                                                    <t t-if="carrier.google_maps_link">
+                                                                        <a t-att-href="carrier.google_maps_link" target="_blank" class="btn btn-sm btn-link ms-2" title="Ver en Google Maps">
+                                                                            <i class="fa fa-map-marker" style="font-size: 20px; color: #dc3545;"/>
+                                                                        </a>
+                                                                    </t>
+                                                                </div>
+                                                            </t>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </t>
+                                    </div>
+                                    <style>
+                                        .store-image-hover:hover {
+                                            transform: scale(2.5);
+                                            z-index: 1000;
+                                            position: relative;
+                                            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+                                        }
+                                        .accordion-button:not(.collapsed) {
+                                            background-color: transparent;
+                                            box-shadow: none;
+                                        }
+                                    </style>
+                                </div>
+                            </div>
+                            
+                           <!-- Métodos de pago -->
+                            <div t-if="payment_methods_sudo" class="card mb-4">
+                                <div class="card-body">
+                                    <!-- <h5>Método de pago</h5> -->
+                                    <div id="payment_method">
+                                        <t t-set="mode" t-value="'payment'"/>
+                                        <t t-set="display_submit_button" t-value="True"/>
+                                        <t t-call="payment.form"/>
+                                    </div>
+                                    <style>
+                                        #payment_method button[name="o_payment_submit_button"] {
+                                            display: none !important;
+                                        }
+                                    </style>
+                                </div>
+                            </div>
+                            
+                            <!-- Botón de confirmar cuando skip_payment_step está activo -->
+                            <div t-if="request.website.skip_payment_step" class="mt-3">
+                                                               
+                            </div>
+                            
+                            <!-- Enlace para volver al carrito cuando no está activo -->
+                            <div t-if="not request.website.skip_payment_step" class="mt-3">
+                                <a href="/shop/cart" class="btn btn-secondary">
+                                    <i class="fa fa-arrow-left me-2"/> Volver al carrito
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <!-- Sidebar con resumen -->
+                        <div class="col-lg-4">
+                            <div t-if="order" class="card">
+                                <div class="card-body">                                    
+                                    <div t-if="order" class="card  mb-2">
+                                        <div class="card-header bg-white" id="productsHeader">
+                                            <h5 class="mb-0">
+                                                <button class="btn btn-link w-100 text-start text-decoration-none d-flex justify-content-between align-items-center" 
+                                                        type="button" data-bs-toggle="collapse" data-bs-target="#productsCollapse" 
+                                                        aria-expanded="true" aria-controls="productsCollapse">
+                                                    <span>
+                                                        Resumen de la orden
+                                                        <t t-set="product_lines" t-value="order.order_line.filtered(lambda l: not l.is_delivery and l.product_id)"/>
+                                                        <small class="text-muted ms-2">(<t t-esc="len(product_lines)"/> item<t t-if="len(product_lines) != 1">s</t>)</small>
+                                                    </span>
+                                                    <i class="fa fa-chevron-down"/>
+                                                </button>
+                                            </h5>
+                                        </div>
+                                        <div id="productsCollapse" class="collapse hide" aria-labelledby="productsHeader">
+                                            <div class="card-body">
+                                                <t t-foreach="order.order_line.filtered(lambda l: not l.is_delivery and l.product_id)" t-as="line">
+                                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                                        <img t-att-src="'/web/image/product.product/%s/image_128' % line.product_id.id" 
+                                                             class="me-2" style="width: 50px; height: 50px; object-fit: cover;"/>
+                                                        <div class="flex-grow-1">
+                                                            <div><span t-esc="line.name"/></div>
+                                                            <small class="text-muted">Cantidad: <span t-esc="int(line.product_uom_qty)"/></small>
+                                                        </div>
+                                                        <div class="text-end ms-3">
+                                                            <span t-esc="line.price_subtotal" t-options="{'widget': 'monetary', 'display_currency': order.currency_id}"/>
+                                                        </div>
+                                                    </div>
+                                                </t>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Subtotal:</span>
+                                        <span id="order_total_untaxed" t-esc="order.amount_untaxed" t-options="{'widget': 'monetary', 'display_currency': order.currency_id}"/>
+                                    </div>
+                                    <div id="delivery_cost_line" class="d-flex justify-content-between mb-2">
+                                        <span>Envío:</span>
+                                        <span id="order_delivery" t-esc="order.amount_delivery" t-options="{'widget': 'monetary', 'display_currency': order.currency_id}"/>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Impuestos:</span>
+                                        <span id="order_total_taxes" t-esc="order.amount_tax" t-options="{'widget': 'monetary', 'display_currency': order.currency_id}"/>
+                                    </div>
+                                    <hr/>
+                                    <div class="d-flex justify-content-between">
+                                        <strong>Total:</strong>
+                                        <strong id="order_total" t-esc="order.amount_total" t-options="{'widget': 'monetary', 'display_currency': order.currency_id}"/>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-white border-0 p-3">
+                                    <form action="/shop/confirm_order_skip_payment" method="post" id="confirm_order_form">
+                                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()" t-nocache="The csrf token must always be up to date."/>
+                                        <input type="hidden" name="payment_method_id" id="payment_method_id_input" value=""/>
+                                        <button type="submit" class="btn btn-success btn-lg w-100 mb-3" id="confirm_order_btn">
+                                            <i class="fa fa-check-circle me-2"/> Confirmar Orden
+                                        </button>
+                                        
+                                        <div class="position-relative d-flex w-100 justify-content-center align-items-center my-3 opacity-75">
+                                            <hr class="w-100"/>
+                                            <span class="px-3 bg-white">o</span>
+                                            <hr class="w-100"/>
+                                        </div>
+                                        
+                                        <a href="/shop/cart" class="text-center position-relative d-flex w-100 justify-content-center align-items-center">
+                                            <i class="fa fa-angle-left me-2 fw-light"/>
+                                            Volver al carrito
+                                        </a>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <script type="text/javascript">
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Expandir acordeón al seleccionar grupo onsite
+                    const onsiteGroupRadio = document.getElementById('dv_carrier_group_onsite');
+                    if (onsiteGroupRadio) {
+                        onsiteGroupRadio.addEventListener('change', function() {
+                            if (this.checked) {
+                                const collapseEl = document.getElementById('onsiteCollapse');
+                                if (collapseEl &amp;&amp; !collapseEl.classList.contains('show')) {
+                                    collapseEl.classList.add('show');
+                                }
+                                
+                                document.querySelectorAll('input[name="dv_carrier"]:not(.accordion-body input)').forEach(r => {
+                                    r.checked = false;
+                                });
+                            }
+                        });
+                    }
+                    
+                    // Actualizar payment methods y precios al cambiar carrier sin recargar
+                    document.querySelectorAll('.dv_carrier_radio').forEach(radio => {
+                        radio.addEventListener('change', function() {
+                            const carrierId = this.value;
+                            const isOnsiteCarrier = this.closest('.accordion-body');
+                            
+                            if (onsiteGroupRadio) {
+                                onsiteGroupRadio.checked = !!isOnsiteCarrier;
+                            }
+                            
+                            console.log('Carrier changed to:', carrierId);
+                            
+                            fetch('/shop/update_payment_methods', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    jsonrpc: '2.0',
+                                    method: 'call',
+                                    params: {
+                                        carrier_id: carrierId
+                                    }
+                                })
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                console.log('Response:', data);
+                                if (data.result) {
+                                    console.log('HTML length:', data.result.payment_methods_html ? data.result.payment_methods_html.length : 0);
+                                    const paymentContainer = document.getElementById('payment_method');
+                                    if (paymentContainer &amp;&amp; data.result.payment_methods_html) {
+                                        paymentContainer.innerHTML = data.result.payment_methods_html;
+                                        console.log('Updated payment methods');
+                                        const submitBtn = paymentContainer.querySelector('button[name="o_payment_submit_button"]');
+                                        if (submitBtn) {
+                                            submitBtn.style.display = 'none';
+                                        }
+                                    }
+                                    
+                                    if (data.result.new_amount_delivery !== undefined) {
+                                        const formatter = new Intl.NumberFormat('es-GT', {
+                                            style: 'currency',
+                                            currency: 'GTQ'
+                                        });
+                                        
+                                        document.getElementById('order_delivery').textContent = formatter.format(data.result.new_amount_delivery);
+                                        document.getElementById('order_total_untaxed').textContent = formatter.format(data.result.new_amount_untaxed);
+                                        document.getElementById('order_total_taxes').textContent = formatter.format(data.result.new_amount_tax);
+                                        document.getElementById('order_total').textContent = formatter.format(data.result.new_amount_total);
+                                    }
+                                }
+                            })
+                            .catch(error => console.error('Error:', error));
+                        });
+                    });
+                    
+                    const btn = document.getElementById('confirm_order_btn');
+                    document.getElementById('confirm_order_form').addEventListener('submit', function(e) {
+                        const anyCarrierSelected = document.querySelector('input[name="dv_carrier"]:checked');
+                        
+                        if (!anyCarrierSelected) {
+                            e.preventDefault();
+                            alert('Por favor selecciona un método de entrega.');
+                            return false;
+                        }
+                        
+                        const onsiteGroupChecked = onsiteGroupRadio &amp;&amp; onsiteGroupRadio.checked;
+                        const onsiteCarrierSelected = document.querySelector('.accordion-body input[name="dv_carrier"]:checked');
+                        
+                        if (onsiteGroupChecked &amp;&amp; !onsiteCarrierSelected) {
+                            e.preventDefault();
+                            alert('Por favor selecciona una ubicación de tienda para recoger tu pedido.');
+                            return false;
+                        }
+                        
+                        const paymentMethodRadio = document.querySelector('input[name="o_payment_radio"]:checked');
+                        if (!paymentMethodRadio) {
+                            e.preventDefault();
+                            alert('Por favor selecciona un método de pago.');
+                            return false;
+                        }
+                        
+                        const pmId = paymentMethodRadio.getAttribute('data-payment-option-id');
+                        document.getElementById('payment_method_id_input').value = pmId || '';
+                        
+                        btn.disabled = true;
+                        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Procesando...';
+                    });
+                });
+            </script>
+        </t>
+    </template>
+
+    <!-- Plantilla para confirmación de orden con pago saltado -->
+    <template id="order_confirmed_skip_payment_page" name="Order Confirmed Skip Payment">
+        <t t-call="website.layout">
+            <t t-set="additional_title">Orden confirmada</t>
+            <div id="wrap">
+                <div class="container py-5">
+                    <input type="hidden" id="ticket_id_hidden" t-att-value="ticket_id or ''"/>
+                    <div class="row justify-content-center">
+                        <div class="col-lg-8">
+                            <div class="card border-success mb-4">
+                                <div class="card-header bg-success text-white">
+                                    <h3 class="mb-0">
+                                        <i class="fa fa-check-circle"/> ¡Orden Confirmada!
+                                    </h3>
+                                </div>
+                                <div class="card-body">
+                                    <h4 class="text-success">Gracias por su compra</h4>
+                                    <p>Su orden <strong t-field="order.name"/> ha sido confirmada exitosamente.</p>
+                                    
+                                    <!-- Info de método de entrega -->
+                                    <t t-if="order.carrier_id">
+                                        <div class="alert alert-info mt-4 text-center">
+                                            <h5>Método de entrega:</h5>
+                                            <p><strong t-esc="order.carrier_id.name"/></p>
+                                            <t t-if="order.carrier_id.delivery_type == 'onsite'">
+                                                <t t-if="order.carrier_id.store_image">
+                                                    <img t-att-src="'data:image/png;base64,%s' % order.carrier_id.store_image.decode('utf-8')" 
+                                                         class="img-fluid mb-3" style="max-width: 500px; width: 100%;"/>
+                                                </t>
+                                                <t t-if="order.carrier_id.google_maps_link">
+                                                    <p>
+                                                        <a t-att-href="order.carrier_id.google_maps_link" target="_blank" class="btn btn-primary">
+                                                            <i class="fa fa-map-marker me-2"/> Ver ubicación
+                                                        </a>
+                                                    </p>
+                                                </t>
+                                            </t>
+                                        </div>
+                                    </t>
+                                    
+                                    <!-- Info según método de pago -->
+                                    <t t-if="order.payment_method_id">
+                                        <div class="alert alert-warning mt-4 text-center">
+                                            <h5>Método de pago seleccionado:</h5>
+                                            <p><strong t-esc="order.payment_method_id.name"/></p>
+                                            
+                                            <!-- Transferencia bancaria -->
+                                            <t t-if="order.payment_method_id.code == 'wire_transfer'">
+                                                <t t-if="order.payment_method_id.transfer_image">
+                                                    <p>Por favor realiza la transferencia a:</p>
+                                                    <img t-att-src="'data:image/png;base64,%s' % order.payment_method_id.transfer_image.decode('utf-8')" 
+                                                         class="img-fluid mb-3" style="max-width: 600px; width: 100%;"/>
+                                                </t>
+                                                
+                                                <t t-if="not order.transfer_proof and not request.params.get('uploaded')">
+                                                    <hr/>
+                                                    <h6>Aca puedes subir tu boleta de pago:</h6>
+                                                    <form t-attf-action="/shop/upload_transfer_proof?order_id={{order.id}}&amp;ticket_id={{ticket_id or ''}}" 
+                                                          method="post" enctype="multipart/form-data">
+                                                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                                        <div class="mb-3">
+                                                            <input type="file" name="transfer_proof" class="form-control" accept="image/*" required="1"/>
+                                                        </div>
+                                                        <button type="submit" class="btn btn-primary">
+                                                            <i class="fa fa-upload me-2"/> Subir Comprobante
+                                                        </button>
+                                                    </form>
+                                                </t>
+                                                <t t-if="request.params.get('uploaded')">
+                                                    <div class="alert alert-success mt-3">
+                                                        <i class="fa fa-check-circle me-2"/> Comprobante recibido correctamente
+                                                    </div>
+                                                </t>
+                                            </t>
+                                            
+                                            <!-- Pago con tarjeta -->
+                                            <t t-if="'tarjeta' in order.payment_method_id.name.lower() or 'card' in order.payment_method_id.name.lower()">
+                                                <p>Nuestro equipo de servicio al cliente se contactará contigo para procesar el pago.</p>
+                                            </t>
+                                        </div>
+                                    </t>
+                                    
+                                    <div class="mt-4">
+                                        <h5>Detalles de la orden:</h5>
+                                        <ul class="list-group">
+                                            <li class="list-group-item d-flex justify-content-between">
+                                                <span>Número de orden:</span>
+                                                <strong t-field="order.name"/>
+                                            </li>
+                                            <li class="list-group-item d-flex justify-content-between">
+                                                <span>Total:</span>
+                                                <strong t-field="order.amount_total" t-options="{'widget': 'monetary', 'display_currency': order.currency_id}"/>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                    
+                                    <t t-if="skip_payment_message">
+                                        <div class="alert alert-info mt-4">
+                                            <t t-out="skip_payment_message"/>
+                                        </div>
+                                    </t>
+                                    
+                                    <div class="mt-4 text-center">
+                                        <a href="/shop" class="btn btn-secondary">
+                                            <i class="fa fa-shopping-cart me-2"/> Continuar comprando
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+</odoo>
