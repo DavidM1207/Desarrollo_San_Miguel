@@ -6,7 +6,7 @@
     'author': "William Valencia",
     'maintainer': 'GTWONBAT',
     'website': 'https://gtwonbat.com',
-    'depends': ['website', 'website_sale', 'website_sale_stock', 'sale', 'contacts', 'pt_nit_verification', 'pt_partner_vat_unique_check', 'helpdesk','payment','delivery'],
+    'depends': ['base','website', 'website_sale', 'website_sale_stock', 'sale', 'contacts', 'pt_nit_verification', 'pt_partner_vat_unique_check', 'helpdesk','payment','delivery'],
     'data': [
         'data/ir_cron.xml',
         'views/website_templates.xml',
