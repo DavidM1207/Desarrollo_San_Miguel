@@ -6,7 +6,7 @@
     'depends': ['point_of_sale'],
     'assets': {
         'point_of_sale._assets_pos': [
-            'pos_bold_fix/static/src/js/receipt_bold.js',
+            'sm_pos_receipt_bold/static/src/js/receipt_bold.js',
         ],
     },
     'installable': True,
