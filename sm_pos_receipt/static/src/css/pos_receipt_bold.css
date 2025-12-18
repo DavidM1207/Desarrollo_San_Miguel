@@ -1,0 +1,82 @@
+/* ============================================
+   POS Receipt Bold Fields - Odoo 17
+   Resalta Cliente, NIT y Número de Orden
+   ============================================ */
+
+/* NOMBRE DEL CLIENTE */
+.pos-receipt .pos-receipt-contact,
+.receipt .pos-receipt-contact,
+.pos-receipt .receipt-contact,
+.receipt .receipt-contact {
+    font-weight: bold !important;
+    font-size: 20px !important;
+    margin: 15px 0 !important;
+    padding: 10px 0 !important;
+    border-top: 2px solid #000 !important;
+    border-bottom: 2px solid #000 !important;
+}
+
+/* Todo el texto dentro del contacto en bold */
+.pos-receipt .pos-receipt-contact *,
+.receipt .pos-receipt-contact *,
+.pos-receipt .receipt-contact *,
+.receipt .receipt-contact * {
+    font-weight: bold !important;
+}
+
+/* NIT / VAT / Tax ID */
+.pos-receipt div[class*="vat"],
+.pos-receipt span[class*="vat"],
+.receipt div[class*="vat"],
+.receipt span[class*="vat"] {
+    font-weight: bold !important;
+    font-size: 18px !important;
+}
+
+/* NÚMERO DE ORDEN */
+.pos-receipt .pos-receipt-order-data,
+.receipt .pos-receipt-order-data,
+.pos-receipt .receipt-order-data,
+.receipt .receipt-order-data {
+    font-weight: bold !important;
+    font-size: 18px !important;
+    margin: 15px 0 !important;
+    padding: 10px 0 !important;
+    border-top: 2px solid #000 !important;
+}
+
+/* Todo el texto dentro de order-data en bold */
+.pos-receipt .pos-receipt-order-data *,
+.receipt .pos-receipt-order-data *,
+.pos-receipt .receipt-order-data *,
+.receipt .receipt-order-data * {
+    font-weight: bold !important;
+}
+
+/* Selectores adicionales para compatibilidad */
+.pos-receipt div[class*="order-name"],
+.pos-receipt div[class*="order-ref"],
+.receipt div[class*="order-name"],
+.receipt div[class*="order-ref"] {
+    font-weight: bold !important;
+    font-size: 20px !important;
+}
+
+/* Para impresión */
+@media print {
+    .pos-receipt .pos-receipt-contact,
+    .receipt .pos-receipt-contact {
+        font-weight: bold !important;
+        font-size: 20px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    .pos-receipt .pos-receipt-order-data,
+    .receipt .pos-receipt-order-data {
+        font-weight: bold !important;
+        font-size: 18px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}
