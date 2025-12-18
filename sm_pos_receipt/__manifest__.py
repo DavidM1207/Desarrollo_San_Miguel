@@ -15,10 +15,10 @@
         
         Mejora la visibilidad de información importante en el ticket impreso.
     """,
-    'author': 'Tu Empresa',
+    'author': 'SAN MIGUEL MADERA, S.A.',
     'depends': ['point_of_sale'],
     'data': [
-        'views/pos_receipt_templates.xml',
+       
     ],
     'assets': {
         'point_of_sale._assets_pos': [
