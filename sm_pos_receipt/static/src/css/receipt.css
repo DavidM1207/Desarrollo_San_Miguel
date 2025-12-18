@@ -1,0 +1,17 @@
+/* Cliente en negrilla */
+.pos-receipt-contact {
+    font-weight: bold;
+    font-size: 20px;
+}
+
+/* NIT en negrilla */
+.pos-receipt-contact [class*="vat"] {
+    font-weight: bold;
+    font-size: 18px;
+}
+
+/* Número de orden en negrilla */
+.pos-receipt-order-data {
+    font-weight: bold;
+    font-size: 18px;
+}
