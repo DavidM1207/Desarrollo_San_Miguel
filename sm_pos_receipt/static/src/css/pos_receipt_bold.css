@@ -1,71 +1,78 @@
 /* ============================================
    POS Receipt Bold Fields - Odoo 17
    Resalta Cliente, NIT y Número de Orden
+   Div principal: pos-receipt
    ============================================ */
 
-/* NOMBRE DEL CLIENTE */
+/* CLIENTE EN NEGRILLA */
 .pos-receipt .pos-receipt-contact,
-.receipt .pos-receipt-contact,
-.pos-receipt .receipt-contact,
-.receipt .receipt-contact {
+.pos-receipt .pos-receipt-contact *,
+#pos-receipt .pos-receipt-contact,
+#pos-receipt .pos-receipt-contact *,
+div.pos-receipt .pos-receipt-contact,
+div.pos-receipt .pos-receipt-contact * {
     font-weight: bold !important;
     font-size: 20px !important;
+}
+
+/* Contenedor del cliente con bordes */
+.pos-receipt .pos-receipt-contact,
+#pos-receipt .pos-receipt-contact,
+div.pos-receipt .pos-receipt-contact {
     margin: 15px 0 !important;
     padding: 10px 0 !important;
     border-top: 2px solid #000 !important;
     border-bottom: 2px solid #000 !important;
 }
 
-/* Todo el texto dentro del contacto en bold */
-.pos-receipt .pos-receipt-contact *,
-.receipt .pos-receipt-contact *,
-.pos-receipt .receipt-contact *,
-.receipt .receipt-contact * {
-    font-weight: bold !important;
-}
-
-/* NIT / VAT / Tax ID */
+/* NIT EN NEGRILLA */
 .pos-receipt div[class*="vat"],
 .pos-receipt span[class*="vat"],
-.receipt div[class*="vat"],
-.receipt span[class*="vat"] {
+#pos-receipt div[class*="vat"],
+#pos-receipt span[class*="vat"],
+div.pos-receipt div[class*="vat"],
+div.pos-receipt span[class*="vat"] {
+    font-weight: bold !important;
+    font-size: 18px !important;
+    color: #000 !important;
+}
+
+/* NÚMERO DE ORDEN EN NEGRILLA */
+.pos-receipt .pos-receipt-order-data,
+.pos-receipt .pos-receipt-order-data *,
+#pos-receipt .pos-receipt-order-data,
+#pos-receipt .pos-receipt-order-data *,
+div.pos-receipt .pos-receipt-order-data,
+div.pos-receipt .pos-receipt-order-data * {
     font-weight: bold !important;
     font-size: 18px !important;
 }
 
-/* NÚMERO DE ORDEN */
+/* Contenedor de orden con borde */
 .pos-receipt .pos-receipt-order-data,
-.receipt .pos-receipt-order-data,
-.pos-receipt .receipt-order-data,
-.receipt .receipt-order-data {
-    font-weight: bold !important;
-    font-size: 18px !important;
+#pos-receipt .pos-receipt-order-data,
+div.pos-receipt .pos-receipt-order-data {
     margin: 15px 0 !important;
     padding: 10px 0 !important;
     border-top: 2px solid #000 !important;
 }
 
-/* Todo el texto dentro de order-data en bold */
-.pos-receipt .pos-receipt-order-data *,
-.receipt .pos-receipt-order-data *,
-.pos-receipt .receipt-order-data *,
-.receipt .receipt-order-data * {
+/* Selectores adicionales por si las clases son diferentes */
+.pos-receipt div[class*="order"],
+#pos-receipt div[class*="order"] {
     font-weight: bold !important;
 }
 
-/* Selectores adicionales para compatibilidad */
-.pos-receipt div[class*="order-name"],
-.pos-receipt div[class*="order-ref"],
-.receipt div[class*="order-name"],
-.receipt div[class*="order-ref"] {
+.pos-receipt div[class*="client"],
+#pos-receipt div[class*="client"] {
     font-weight: bold !important;
-    font-size: 20px !important;
 }
 
 /* Para impresión */
 @media print {
     .pos-receipt .pos-receipt-contact,
-    .receipt .pos-receipt-contact {
+    #pos-receipt .pos-receipt-contact,
+    div.pos-receipt .pos-receipt-contact {
         font-weight: bold !important;
         font-size: 20px !important;
         -webkit-print-color-adjust: exact !important;
@@ -73,7 +80,8 @@
     }
     
     .pos-receipt .pos-receipt-order-data,
-    .receipt .pos-receipt-order-data {
+    #pos-receipt .pos-receipt-order-data,
+    div.pos-receipt .pos-receipt-order-data {
         font-weight: bold !important;
         font-size: 18px !important;
         -webkit-print-color-adjust: exact !important;
