@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+    <t t-name="SMPOSBold" t-inherit="OrderReceipt" t-inherit-mode="extension" owl="1">
+        
+        <!-- Reemplazar la línea del Cliente con negrilla -->
+        <xpath expr="//div[t[@t-if='props.data.partner']][div[contains(text(), 'Cliente:')]]" position="replace">
+            <div t-if="props.data.partner">
+                <div style="font-weight: bold; font-size: 20px;">
+                    <t t-if="props.data.partner">
+                        Cliente: <t t-esc='props.data.partner.name'/>
+                    </t>
+                </div>
+                <div style="font-weight: bold; font-size: 18px;">
+                    <t t-if="props.data.partner.vat and props.data.partner.vat != 'CF'">
+                        NIT: <t t-esc='props.data.partner.vat or "-"'/>
+                    </t>
+                    <t t-elif="props.data.partner.dpi_number and props.data.partner.dpi_number != ''">
+                        DPI: <t t-esc='props.data.partner.dpi_number'/>
+                    </t>
+                    <t t-elif="props.data.partner.passport_number and props.data.partner.passport_number != ''">
+                        No. Pasaporte: <t t-esc='props.data.partner.passport_number'/>
+                    </t>
+                    <t t-else="">
+                        NIT: <t t-esc='props.data.partner.vat or "CF"'/>
+                    </t>
+                </div>
+                <div>Dirección:
+                    <t t-if="!props.data.partner.street">
+                        Ciudad
+                    </t>
+                    <t t-if="props.data.partner.street">
+                        <t t-esc='props.data.partner.street'/>
+                    </t>
+                </div>
+            </div>
+        </xpath>
+        
+        <!-- Reemplazar la línea del Número de recibo con negrilla -->
+        <xpath expr="//div[contains(text(), 'Número de recibo:')]" position="replace">
+            <div style="font-weight: bold; font-size: 18px;">Número de recibo: <t t-esc="props.data.pos_reference" /></div>
+        </xpath>
+        
+    </t>
+</templates>
