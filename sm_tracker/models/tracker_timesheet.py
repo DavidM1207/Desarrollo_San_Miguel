@@ -80,7 +80,10 @@ class TrackerTimesheet(models.Model):
     
     quantity = fields.Float(
         string='Cantidad',
-        help='Cantidad de productos/servicios completados en este registro de tiempo'
+        related='task_id.quantity',
+        store=True,
+        readonly=True,
+        help='Cantidad del servicio de la tarea'
     )
     
     notes = fields.Text(string='Notas')

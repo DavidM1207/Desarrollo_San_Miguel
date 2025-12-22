@@ -52,7 +52,7 @@
                             </group>
                             <group>
                                 <field name="hours" readonly="1" widget="float_time"/>
-                                <field name="quantity"/>
+                                <field name="quantity" readonly="1"/>
                             </group>
                         </group>
                         <group string="Notas (Editable)">

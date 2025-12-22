@@ -165,11 +165,11 @@ class TrackerProject(models.Model):
         help='Días de diferencia entre fecha prometida y entregada'
     )
     
-    days_until_delivery = fields.Integer(
-        string='Días Pendientes',
-        compute='_compute_days_until_delivery',
+    hours_unassigned = fields.Float(
+        string='Horas sin Asignar',
+        compute='_compute_hours_unassigned',
         store=True,
-        help='Días hasta la fecha prometida (negativo si está retrasado, positivo si falta tiempo)'
+        help='Horas transcurridas desde la creación hasta que se asignó fecha promesa'
     )
     
     progress = fields.Float(
@@ -358,17 +358,16 @@ class TrackerProject(models.Model):
             else:
                 record.delay_days = 0
     
-    @api.depends('promise_date', 'state')
-    def _compute_days_until_delivery(self):
-        """Calcular días hasta la fecha prometida (para proyectos NO entregados)"""
+    @api.depends('promise_date', 'create_date')
+    def _compute_hours_unassigned(self):
+        """Calcular horas desde creación hasta asignación de fecha promesa"""
         for record in self:
-            if record.state != 'delivered' and record.promise_date:
-                today = fields.Datetime.now()
-                delta = record.promise_date - today
-                # Positivo: faltan días, Negativo: está retrasado
-                record.days_until_delivery = delta.days
+            if record.promise_date and record.create_date:
+                delta = record.promise_date - record.create_date
+                # Convertir a horas
+                record.hours_unassigned = delta.total_seconds() / 3600.0
             else:
-                record.days_until_delivery = 0
+                record.hours_unassigned = 0.0
     
     @api.depends('task_ids.state')
     def _compute_progress(self):
