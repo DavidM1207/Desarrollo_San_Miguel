@@ -9,3 +9,4 @@ from . import sale_order
 from . import account_move
 from . import pos_order
 from . import tracker_project_cancel_wizard
+from . import tracker_task_pin_wizard

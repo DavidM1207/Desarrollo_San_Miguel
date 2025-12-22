@@ -187,6 +187,7 @@ class TrackerTask(models.Model):
             self.name = self.product_id.name
     
     def action_start_task(self):
+        """Abrir wizard para validar NIP del operario"""
         for record in self:
             if record.state not in ['ready', 'pending', 'paused']:
                 raise UserError(_('Solo se puede iniciar una tarea en estado Listo, Pendiente o Pausado.'))
@@ -201,6 +202,21 @@ class TrackerTask(models.Model):
             if not record.employee_id:
                 raise UserError(_('Debe asignar un operario antes de iniciar la tarea.'))
             
+            # Abrir wizard para validar NIP
+            return {
+                'name': _('Validar NIP del Operario'),
+                'type': 'ir.actions.act_window',
+                'res_model': 'tracker.task.pin.wizard',
+                'view_mode': 'form',
+                'target': 'new',
+                'context': {
+                    'default_task_id': record.id,
+                }
+            }
+    
+    def _start_task_internal(self):
+        """Método interno para iniciar la tarea (después de validar NIP)"""
+        for record in self:
             current_time = fields.Datetime.now()
             
             timesheet_vals = {
@@ -321,14 +337,3 @@ class TrackerTask(models.Model):
                 'edit': False,
             },
         }
-    
-    def _migrate_draft_to_pending(self):
-        """Migrar estados 'draft' existentes a 'pending'"""
-        # Buscar todas las tareas con estado draft (si existen)
-        self._cr.execute("""
-            UPDATE tracker_task 
-            SET state = 'pending' 
-            WHERE state = 'draft'
-        """)
-        self._cr.commit()
-        return True

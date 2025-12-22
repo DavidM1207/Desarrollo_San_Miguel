@@ -6,3 +6,4 @@ access_tracker_task_manager,tracker.task.manager,model_tracker_task,group_tracke
 access_tracker_timesheet_user,tracker.timesheet.user,model_tracker_timesheet,group_tracker_user,1,1,1,1
 access_tracker_timesheet_manager,tracker.timesheet.manager,model_tracker_timesheet,group_tracker_manager,1,1,1,1
 access_tracker_project_cancel_wizard_manager,tracker.project.cancel.wizard.manager,model_tracker_project_cancel_wizard,group_tracker_manager,1,1,1,1
+access_tracker_task_pin_wizard_user,tracker.task.pin.wizard.user,model_tracker_task_pin_wizard,group_tracker_user,1,1,1,1
