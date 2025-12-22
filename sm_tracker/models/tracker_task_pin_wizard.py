@@ -32,18 +32,18 @@ class TrackerTaskPinWizard(models.TransientModel):
         """Validar NIP e iniciar tarea"""
         self.ensure_one()
         
-        # Validar que el empleado tenga NIP configurado
-        if not self.employee_id.tracker_pin:
+        # Validar que el empleado tenga PIN configurado (campo 'pin' de Odoo)
+        if not self.employee_id.pin:
             raise UserError(_(
-                'El operario %s no tiene un NIP configurado. '
-                'Por favor, configure el NIP en los datos del empleado.'
+                'El operario %s no tiene un PIN configurado. '
+                'Por favor, configure el PIN en los datos del empleado (pestaña HR Settings).'
             ) % self.employee_id.name)
         
-        # Validar que el NIP sea correcto
-        if self.pin != self.employee_id.tracker_pin:
-            raise ValidationError(_('NIP incorrecto. Verifique e intente nuevamente.'))
+        # Validar que el PIN sea correcto
+        if self.pin != self.employee_id.pin:
+            raise ValidationError(_('PIN incorrecto. Verifique e intente nuevamente.'))
         
-        # Si el NIP es correcto, iniciar la tarea
+        # Si el PIN es correcto, iniciar la tarea
         self.task_id._start_task_internal()
         
         return {'type': 'ir.actions.act_window_close'}

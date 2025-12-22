@@ -45,6 +45,9 @@ class HrEmployee(models.Model):
         help='Servicios/productos que este empleado puede realizar (Corte, Pegado, Barnizado, etc.)'
     )
     
+    # Nota: El campo 'pin' ya existe en hr.employee de Odoo
+    # Se usa para validar inicio de tareas
+    
     # Campo legacy - mantener para compatibilidad pero deprecado
     tracker_analytic_account_ids = fields.Many2many(
         'account.analytic.account',

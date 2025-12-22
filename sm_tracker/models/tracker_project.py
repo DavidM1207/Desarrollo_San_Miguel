@@ -217,6 +217,92 @@ class TrackerProject(models.Model):
             vals['name'] = self.env['ir.sequence'].next_by_code('tracker.project') or 'Nuevo'
         return super(TrackerProject, self).create(vals)
     
+    @api.onchange('promise_date')
+    def _onchange_promise_date(self):
+        """Validar fecha promesa en tiempo real cuando el usuario la cambia"""
+        if self.promise_date:
+            # Validar que la fecha promesa no sea anterior a la creación
+            if self.create_date:
+                promise_date_only = fields.Date.to_date(self.promise_date)
+                create_date_only = fields.Date.to_date(self.create_date)
+                if promise_date_only < create_date_only:
+                    return {
+                        'warning': {
+                            'title': _('Fecha Prometida Inválida'),
+                            'message': _(
+                                'La Fecha Prometida (%s) no puede ser anterior a la fecha de creación del proyecto (%s).'
+                            ) % (promise_date_only.strftime('%d/%m/%Y'), create_date_only.strftime('%d/%m/%Y'))
+                        }
+                    }
+            
+            # Validar que la fecha promesa tenga hora específica (no solo fecha)
+            promise_time = self.promise_date.time()
+            if promise_time.hour == 0 and promise_time.minute == 0 and promise_time.second == 0:
+                return {
+                    'warning': {
+                        'title': _('Hora Requerida'),
+                        'message': _(
+                            'La Fecha Prometida debe incluir una hora específica (no solo la fecha). '
+                            'Por favor, ingrese la hora de entrega prometida al cliente.'
+                        )
+                    }
+                }
+    
+    @api.constrains('promise_date')
+    def _check_promise_date(self):
+        """Validar que la fecha promesa no sea anterior a la creación (validación al guardar)"""
+        for record in self:
+            if record.promise_date and record.create_date:
+                # Comparar solo las fechas (sin hora)
+                promise_date_only = fields.Date.to_date(record.promise_date)
+                create_date_only = fields.Date.to_date(record.create_date)
+                if promise_date_only < create_date_only:
+                    raise ValidationError(_(
+                        'La Fecha Prometida (%s) no puede ser anterior a la fecha de creación del proyecto (%s).'
+                    ) % (promise_date_only.strftime('%d/%m/%Y'), create_date_only.strftime('%d/%m/%Y')))
+            
+            # Validar que la fecha promesa tenga hora específica (no solo fecha)
+            if record.promise_date:
+                promise_time = record.promise_date.time()
+                if promise_time.hour == 0 and promise_time.minute == 0 and promise_time.second == 0:
+                    raise ValidationError(_(
+                        'La Fecha Prometida debe incluir una hora específica (no solo la fecha). '
+                        'Por favor, ingrese la hora de entrega prometida al cliente.'
+                    ))
+    
+    @api.constrains('user_id', 'state', 'task_ids')
+    def _check_responsable_assignment(self):
+        """Validar que no se asigne responsable si no se han finalizado servicios"""
+        for record in self:
+            # Permitir asignar responsable en estado pending (al crear)
+            if record.state == 'pending':
+                continue
+                
+            # Si hay cambio de responsable y hay tareas sin finalizar
+            if record.user_id and record.task_ids:
+                incomplete_tasks = record.task_ids.filtered(lambda t: t.state != 'done')
+                if incomplete_tasks:
+                    # Verificar si es un cambio de responsable (no asignación inicial)
+                    if self._origin.user_id and self._origin.user_id != record.user_id:
+                        raise ValidationError(_(
+                            'No se puede cambiar el responsable del proyecto mientras haya servicios sin finalizar. '
+                            'Complete todas las tareas antes de cambiar el responsable.'
+                        ))
+    
+    def write(self, vals):
+        """Validar que el responsable no se pueda modificar una vez asignado"""
+        for record in self:
+            # Si se intenta cambiar el responsable y ya tenía uno asignado
+            if 'user_id' in vals and record.user_id and vals.get('user_id') != record.user_id.id:
+                # Verificar si el usuario tiene permiso especial
+                if not self.env.user.has_group('sm_tracker.group_tracker_manager'):
+                    raise ValidationError(_(
+                        'No se puede modificar el responsable del proyecto una vez asignado. '
+                        'Solo los gerentes tienen permiso para cambiar el responsable.'
+                    ))
+        
+        return super(TrackerProject, self).write(vals)
+    
     @api.depends('task_ids')
     def _compute_task_count(self):
         for record in self:
