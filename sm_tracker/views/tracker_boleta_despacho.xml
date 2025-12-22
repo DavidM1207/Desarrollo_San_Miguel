@@ -69,30 +69,6 @@
                             </div>
                         </div>
 
-                        <!-- Productos y Servicios -->
-                        <div style="margin-bottom: 15px;">
-                            <div style="font-weight: bold; font-size: 13px; border-bottom: 2px solid #000; padding-bottom: 3px; margin-bottom: 8px;">
-                                PRODUCTOS Y SERVICIOS
-                            </div>
-                            <t t-foreach="o.task_ids" t-as="task">
-                                <div style="margin-bottom: 8px; font-size: 12px;">
-                                    <div style="font-weight: bold; margin-bottom: 2px;">
-                                        <t t-esc="task.product_id.name if task.product_id else task.name"/>
-                                    </div>
-                                    <div>
-                                        Cantidad: <t t-esc="task.quantity"/> - 
-                                        <t t-if="task.state == 'done'">
-                                            ✓ COMPLETADO
-                                        </t>
-                                        <t t-else="">
-                                            PENDIENTE
-                                        </t>
-                                    </div>
-                                    <div style="border-bottom: 1px solid #ccc; margin-top: 5px;"></div>
-                                </div>
-                            </t>
-                        </div>
-
                         <!-- Detalle de Materiales -->
                         <div style="margin-bottom: 15px;">
                             <div style="font-weight: bold; font-size: 13px; border-bottom: 2px solid #000; padding-bottom: 3px; margin-bottom: 8px;">

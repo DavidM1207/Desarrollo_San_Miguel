@@ -129,6 +129,72 @@ class SaleOrder(models.Model):
             task = task_obj.create(task_vals)
             _logger.info('Tarea creada: %s (cantidad: %s) para proyecto %s', product.name, qty, project.name)
         
+        # Calcular abasto basado en almacén de la tienda
+        self._calculate_stock_shortage(project, analytic_account)
+        
+        return project
+    
+    def _calculate_stock_shortage(self, project, analytic_account):
+        """Calcular faltantes de stock basado en el almacén de la tienda"""
+        self.ensure_one()
+        
+        # Obtener almacén de la tienda
+        warehouse = analytic_account.warehouse_id if analytic_account.warehouse_id else False
+        
+        if not warehouse:
+            _logger.warning('⚠ Tienda %s no tiene almacén configurado, no se puede calcular abasto', 
+                          analytic_account.name)
+            return
+        
+        _logger.info('=== CALCULANDO ABASTO PARA ALMACÉN %s ===', warehouse.name)
+        
+        # Obtener ubicación del almacén para consultar stock
+        location = warehouse.lot_stock_id
+        
+        # Limpiar registros de abasto previos del proyecto
+        self.env['tracker.stock.shortage'].search([('project_id', '=', project.id)]).unlink()
+        
+        # Procesar cada línea de la orden de venta
+        shortage_obj = self.env['tracker.stock.shortage']
+        
+        for line in self.order_line:
+            product = line.product_id
+            
+            # Solo verificar productos almacenables (no servicios)
+            if not product or product.type != 'product':
+                continue
+            
+            demand_qty = line.product_uom_qty
+            
+            # Consultar cantidad disponible EN EL ALMACÉN ESPECÍFICO
+            # Usar with_context para filtrar por ubicación
+            product_in_location = product.with_context(location=location.id)
+            available_qty = product_in_location.qty_available
+            
+            _logger.info('Producto: %s | Demanda: %s | Disponible en %s: %s', 
+                        product.name, demand_qty, warehouse.name, available_qty)
+            
+            # Determinar estado
+            if available_qty >= demand_qty:
+                state = 'con_abasto'
+                _logger.info('  ✓ CON ABASTO')
+            else:
+                state = 'sin_abasto'
+                _logger.info('  ❌ SIN ABASTO (faltante: %s)', demand_qty - available_qty)
+            
+            # Crear registro de abasto
+            shortage_vals = {
+                'project_id': project.id,
+                'product_id': product.id,
+                'demand_qty': demand_qty,
+                'available_qty': available_qty,
+                'state': state,
+                'warehouse_id': warehouse.id,
+                'analytic_account_id': analytic_account.id,
+            }
+            shortage_obj.create(shortage_vals)
+        
+        _logger.info('=== CÁLCULO DE ABASTO COMPLETADO ===')
         return project
     
     def _get_service_products_from_bom(self):
