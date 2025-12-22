@@ -414,14 +414,20 @@ class TrackerProject(models.Model):
                 record.delay_days = 0
     
     @api.depends('promise_date', 'create_date')
+    @api.depends('promise_date', 'create_date')
     def _compute_hours_unassigned(self):
         """Calcular horas desde creación hasta asignación de fecha promesa"""
         for record in self:
-            if record.promise_date and record.create_date:
+            if not record.create_date:
+                record.hours_unassigned = 0.0
+                continue
+            
+            # Si YA tiene fecha promesa: calcular desde create_date hasta promise_date
+            if record.promise_date:
                 delta = record.promise_date - record.create_date
-                # Convertir a horas
                 record.hours_unassigned = delta.total_seconds() / 3600.0
             else:
+                # Si NO tiene fecha promesa: mostrar 0 (aún no se ha asignado)
                 record.hours_unassigned = 0.0
     
     @api.depends('task_ids.state')

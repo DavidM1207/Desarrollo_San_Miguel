@@ -223,7 +223,7 @@ class SaleOrder(models.Model):
                     _logger.info('  ❌ SIN ABASTO (faltante: %s, a la mano: %s < demanda: %s)', 
                                shortage, on_hand_qty, demand_qty)
                 
-                # Solo crear registro si NO tiene abasto
+                # Solo crear registro si NO tiene abasto (FALTANTES)
                 if state == 'sin_abasto':
                     shortage_vals = {
                         'project_id': project.id,
