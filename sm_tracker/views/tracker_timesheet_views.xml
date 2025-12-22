@@ -16,6 +16,7 @@
                     <field name="start_time"/>
                     <field name="end_time"/>
                     <field name="hours" widget="float_time" sum="total_hours"/>
+                    <field name="quantity" sum="total_quantity"/>
                 </tree>
             </field>
         </record>
@@ -51,6 +52,7 @@
                             </group>
                             <group>
                                 <field name="hours" readonly="1" widget="float_time"/>
+                                <field name="quantity"/>
                             </group>
                         </group>
                         <group string="Notas (Editable)">

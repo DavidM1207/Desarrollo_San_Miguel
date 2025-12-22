@@ -165,6 +165,13 @@ class TrackerProject(models.Model):
         help='Días de diferencia entre fecha prometida y entregada'
     )
     
+    days_until_delivery = fields.Integer(
+        string='Días Pendientes',
+        compute='_compute_days_until_delivery',
+        store=True,
+        help='Días hasta la fecha prometida (negativo si está retrasado, positivo si falta tiempo)'
+    )
+    
     progress = fields.Float(
         string='Progreso (%)',
         compute='_compute_progress',
@@ -192,6 +199,13 @@ class TrackerProject(models.Model):
         compute='_compute_is_despacho_host',
         store=True,
         help='Indica si el proyecto contiene servicios de despacho host'
+    )
+    
+    is_cnc = fields.Boolean(
+        string='CNC',
+        compute='_compute_is_cnc',
+        store=True,
+        help='Indica si el proyecto contiene servicios de CNC'
     )
     
     company_id = fields.Many2one(
@@ -344,6 +358,18 @@ class TrackerProject(models.Model):
             else:
                 record.delay_days = 0
     
+    @api.depends('promise_date', 'state')
+    def _compute_days_until_delivery(self):
+        """Calcular días hasta la fecha prometida (para proyectos NO entregados)"""
+        for record in self:
+            if record.state != 'delivered' and record.promise_date:
+                today = fields.Datetime.now()
+                delta = record.promise_date - today
+                # Positivo: faltan días, Negativo: está retrasado
+                record.days_until_delivery = delta.days
+            else:
+                record.days_until_delivery = 0
+    
     @api.depends('task_ids.state')
     def _compute_progress(self):
         for record in self:
@@ -470,6 +496,20 @@ class TrackerProject(models.Model):
                     break
             
             record.is_despacho_host = is_despacho
+    
+    @api.depends('task_ids.product_id')
+    def _compute_is_cnc(self):
+        """Determinar si el proyecto contiene servicios de CNC"""
+        for record in self:
+            is_cnc = False
+            
+            # Verificar si alguna tarea tiene un producto que contenga "CNC" en el nombre
+            for task in record.task_ids:
+                if task.product_id and task.product_id.name and 'CNC' in task.product_id.name.upper():
+                    is_cnc = True
+                    break
+            
+            record.is_cnc = is_cnc
     
     def write(self, vals):
         if 'state' in vals:

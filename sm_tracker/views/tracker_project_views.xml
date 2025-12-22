@@ -18,6 +18,7 @@
                     <field name="state" widget="badge" decoration-info="state=='pending'" decoration-warning="state=='processing'" decoration-primary="state=='pending_delivery'" decoration-success="state=='delivered'" decoration-danger="state=='cancel'"/>
                     <field name="task_count"/>
                     <field name="total_hours" widget="float_time"/>
+                    <field name="days_until_delivery"/>
                     <field name="delay_days"/>
                     <field name="progress" widget="progressbar"/>
                 </tree>
@@ -72,6 +73,7 @@
                         <group>
                             <group>
                                 <field name="total_hours" widget="float_time"/>
+                                <field name="days_until_delivery"/>
                                 <field name="delay_days"/>
                             </group>
                             <group>
@@ -193,6 +195,7 @@
                     <filter string="Anulados" name="cancel" domain="[('state','=','cancel')]"/>
                     <separator/>
                     <filter string="DESPACHO HOST" name="despacho_host" domain="[('is_despacho_host','=',True)]"/>
+                    <filter string="CNC" name="cnc" domain="[('is_cnc','=',True)]"/>
                     <separator/>
                     <filter string="En espera de disponibilidad" name="waiting_stock" domain="[('has_waiting_stock','=',True)]"/>
                     <separator/>

@@ -78,6 +78,11 @@ class TrackerTimesheet(models.Model):
         readonly=True
     )
     
+    quantity = fields.Float(
+        string='Cantidad',
+        help='Cantidad de productos/servicios completados en este registro de tiempo'
+    )
+    
     notes = fields.Text(string='Notas')
     
     company_id = fields.Many2one(
