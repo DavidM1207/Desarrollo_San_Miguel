@@ -97,12 +97,13 @@ class TrackerProject(models.Model):
     )
     
     state = fields.Selection([
+        ('unstarted', 'Sin Iniciar'),
         ('pending', 'Pendiente'),
         ('processing', 'Procesando'),
         ('pending_delivery', 'Pendiente de Entrega'),
         ('cancel', 'Anulado'),
         ('delivered', 'Entregado'),
-    ], string='Estado', default='pending', required=True, tracking=True)
+    ], string='Estado', default='unstarted', required=True, tracking=True)
     
     state_sequence = fields.Integer(
         string='Secuencia de Estado',
@@ -214,6 +215,25 @@ class TrackerProject(models.Model):
         default=lambda self: self.env.company
     )
     
+    previous_analytic_account_id = fields.Many2one(
+        'account.analytic.account',
+        string='Tienda Anterior',
+        readonly=True,
+        help='Tienda anterior antes del último cambio'
+    )
+    
+    store_change_reason = fields.Text(
+        string='Razón del Cambio de Tienda',
+        readonly=True,
+        help='Razón del último cambio de tienda'
+    )
+    
+    store_change_history = fields.Text(
+        string='Historial de Cambios de Tienda',
+        readonly=True,
+        help='Historial completo de cambios de tienda'
+    )
+    
     state_changed_by = fields.Many2one(
         'res.users',
         string='Estado Cambiado Por',
@@ -304,7 +324,9 @@ class TrackerProject(models.Model):
                         ))
     
     def write(self, vals):
-        """Validar que el responsable no se pueda modificar una vez asignado"""
+        """Validar que el responsable no se pueda modificar una vez asignado
+        y manejar cambio de estado a 'Sin Iniciar' cuando se asigna fecha promesa
+        y validar cambio de tienda con permiso especial"""
         for record in self:
             # Si se intenta cambiar el responsable y ya tenía uno asignado
             if 'user_id' in vals and record.user_id and vals.get('user_id') != record.user_id.id:
@@ -314,6 +336,38 @@ class TrackerProject(models.Model):
                         'No se puede modificar el responsable del proyecto una vez asignado. '
                         'Solo los gerentes tienen permiso para cambiar el responsable.'
                     ))
+            
+            # Si se intenta cambiar la tienda
+            if 'analytic_account_id' in vals and record.analytic_account_id and vals.get('analytic_account_id') != record.analytic_account_id.id:
+                # Verificar si el usuario tiene permiso especial
+                if not self.env.user.has_group('sm_tracker.group_tracker_change_store'):
+                    raise ValidationError(_(
+                        'No tiene permiso para cambiar la tienda del proyecto. '
+                        'Contacte a un supervisor para solicitar este permiso.'
+                    ))
+                
+                # Obtener la nueva tienda
+                new_store = self.env['account.analytic.account'].browse(vals.get('analytic_account_id'))
+                
+                # Abrir wizard para pedir razón del cambio
+                return {
+                    'name': _('Cambio de Tienda'),
+                    'type': 'ir.actions.act_window',
+                    'res_model': 'tracker.project.change.store.wizard',
+                    'view_mode': 'form',
+                    'target': 'new',
+                    'context': {
+                        'default_project_id': record.id,
+                        'default_old_store_id': record.analytic_account_id.id,
+                        'default_new_store_id': vals.get('analytic_account_id'),
+                    }
+                }
+            
+            # Si se asigna promise_date por primera vez y el proyecto está en pending
+            # cambiarlo automáticamente a 'unstarted'
+            if 'promise_date' in vals and vals.get('promise_date') and not record.promise_date:
+                if record.state == 'pending':
+                    vals['state'] = 'unstarted'
         
         return super(TrackerProject, self).write(vals)
     
@@ -326,6 +380,7 @@ class TrackerProject(models.Model):
     def _compute_state_sequence(self):
         """Asignar secuencia numérica para ordenar estados correctamente en kanban"""
         state_order = {
+            'unstarted': 0,
             'pending': 1,
             'processing': 2,
             'pending_delivery': 3,

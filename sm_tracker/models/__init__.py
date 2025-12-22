@@ -10,4 +10,5 @@ from . import account_move
 from . import account_analytic_account 
 from . import pos_order
 from . import tracker_project_cancel_wizard
+from . import tracker_project_change_store_wizard
 from . import tracker_task_pin_wizard

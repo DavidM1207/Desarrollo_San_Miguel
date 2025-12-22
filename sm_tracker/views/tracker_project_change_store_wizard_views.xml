@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        
+        <record id="view_tracker_project_change_store_wizard_form" model="ir.ui.view">
+            <field name="name">tracker.project.change.store.wizard.form</field>
+            <field name="model">tracker.project.change.store.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Cambiar Tienda del Proyecto">
+                    <group>
+                        <group>
+                            <field name="project_id" readonly="1"/>
+                            <field name="old_store_id" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="new_store_id"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="reason" placeholder="Explique por qué se está cambiando la tienda del proyecto..." nolabel="1"/>
+                    </group>
+                    <footer>
+                        <button string="Confirmar Cambio" type="object" name="action_confirm_change" class="btn-primary"/>
+                        <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+    </data>
+</odoo>

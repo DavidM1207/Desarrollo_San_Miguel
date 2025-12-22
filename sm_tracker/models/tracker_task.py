@@ -178,6 +178,12 @@ class TrackerTask(models.Model):
         if 'state' in vals:
             vals['state_changed_by'] = self.env.user.id
             vals['state_changed_date'] = fields.Datetime.now()
+            
+            # Si la tarea cambia a 'in_progress', cambiar el proyecto de 'unstarted' a 'processing'
+            if vals['state'] == 'in_progress':
+                for record in self:
+                    if record.project_id and record.project_id.state == 'unstarted':
+                        record.project_id.write({'state': 'processing'})
         
         return super(TrackerTask, self).write(vals)
     

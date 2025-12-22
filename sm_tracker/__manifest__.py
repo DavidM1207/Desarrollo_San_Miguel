@@ -35,6 +35,7 @@
         'views/tracker_boleta_despacho.xml',
         'views/tracker_project_views.xml',
         'views/tracker_project_cancel_wizard_views.xml',
+        'views/tracker_project_change_store_wizard_views.xml',
         'views/tracker_timesheet_views.xml',
         'views/tracker_employee_views.xml',
         'views/account_analytic_account_views.xml',
