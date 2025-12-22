@@ -12,3 +12,4 @@ from . import pos_order
 from . import tracker_project_cancel_wizard
 from . import tracker_project_change_store_wizard
 from . import tracker_task_pin_wizard
+from . import product_template 

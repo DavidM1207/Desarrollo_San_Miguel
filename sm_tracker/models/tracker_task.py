@@ -179,10 +179,10 @@ class TrackerTask(models.Model):
             vals['state_changed_by'] = self.env.user.id
             vals['state_changed_date'] = fields.Datetime.now()
             
-            # Si la tarea cambia a 'in_progress', cambiar el proyecto de 'unstarted' a 'processing'
+            # Si la tarea cambia a 'in_progress', cambiar el proyecto a 'processing'
             if vals['state'] == 'in_progress':
                 for record in self:
-                    if record.project_id and record.project_id.state == 'unstarted':
+                    if record.project_id and record.project_id.state in ['pending', 'unstarted']:
                         record.project_id.write({'state': 'processing'})
         
         return super(TrackerTask, self).write(vals)
@@ -198,11 +198,18 @@ class TrackerTask(models.Model):
             if record.state not in ['ready', 'pending', 'paused']:
                 raise UserError(_('Solo se puede iniciar una tarea en estado Listo, Pendiente o Pausado.'))
             
-            # Validar que el proyecto tenga fecha prometida
+            # Validar que el proyecto tenga fecha prometida (debe estar en 'unstarted' o 'processing')
             if not record.project_id.promise_date:
                 raise UserError(_(
                     'No se puede iniciar la tarea porque el proyecto no tiene una Fecha Prometida asignada. '
                     'Por favor, asigne una fecha prometida al proyecto antes de iniciar las tareas.'
+                ))
+            
+            # Si el proyecto está en 'pending', no permitir iniciar (necesita fecha promesa primero)
+            if record.project_id.state == 'pending':
+                raise UserError(_(
+                    'No se puede iniciar la tarea porque el proyecto está Pendiente. '
+                    'Por favor, asigne una fecha prometida al proyecto primero.'
                 ))
             
             if not record.employee_id:
@@ -242,16 +249,34 @@ class TrackerTask(models.Model):
                 'current_start_time': current_time
             })
             
-            if record.project_id.state == 'pending':
+            # Cambiar proyecto a 'processing' si está en 'pending' o 'unstarted'
+            if record.project_id.state in ['pending', 'unstarted']:
                 record.project_id.write({'state': 'processing'})
         
         return True
     
     def action_pause_task(self):
+        """Abrir wizard para validar NIP del operario antes de pausar"""
         for record in self:
             if record.state != 'in_progress':
                 raise UserError(_('Solo se puede pausar una tarea en progreso.'))
             
+            # Abrir wizard de validación de NIP
+            return {
+                'name': _('Validar NIP para Pausar'),
+                'type': 'ir.actions.act_window',
+                'res_model': 'tracker.task.pin.wizard',
+                'view_mode': 'form',
+                'target': 'new',
+                'context': {
+                    'default_task_id': record.id,
+                    'action_type': 'pause',  # Indicar que es para pausar
+                }
+            }
+    
+    def _execute_pause(self):
+        """Ejecutar pausa de la tarea (llamado desde wizard después de validar NIP)"""
+        for record in self:
             if record.active_timesheet_id:
                 record.active_timesheet_id.write({
                     'end_time': fields.Datetime.now(),
@@ -267,10 +292,27 @@ class TrackerTask(models.Model):
         return True
     
     def action_complete_task(self):
+        """Abrir wizard para validar NIP del operario antes de finalizar"""
         for record in self:
             if record.state not in ['in_progress', 'paused']:
                 raise UserError(_('Solo se puede completar una tarea en progreso o pausada.'))
             
+            # Abrir wizard de validación de NIP
+            return {
+                'name': _('Validar NIP para Finalizar'),
+                'type': 'ir.actions.act_window',
+                'res_model': 'tracker.task.pin.wizard',
+                'view_mode': 'form',
+                'target': 'new',
+                'context': {
+                    'default_task_id': record.id,
+                    'action_type': 'complete',  # Indicar que es para finalizar
+                }
+            }
+    
+    def _execute_complete(self):
+        """Ejecutar finalización de la tarea (llamado desde wizard después de validar NIP)"""
+        for record in self:
             if record.active_timesheet_id:
                 record.active_timesheet_id.write({
                     'end_time': fields.Datetime.now(),

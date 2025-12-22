@@ -97,13 +97,13 @@ class TrackerProject(models.Model):
     )
     
     state = fields.Selection([
-        ('unstarted', 'Sin Iniciar'),
         ('pending', 'Pendiente'),
+        ('unstarted', 'Sin Iniciar'),
         ('processing', 'Procesando'),
         ('pending_delivery', 'Pendiente de Entrega'),
         ('cancel', 'Anulado'),
         ('delivered', 'Entregado'),
-    ], string='Estado', default='unstarted', required=True, tracking=True)
+    ], string='Estado', default='pending', required=True, tracking=True)
     
     state_sequence = fields.Integer(
         string='Secuencia de Estado',
@@ -380,12 +380,12 @@ class TrackerProject(models.Model):
     def _compute_state_sequence(self):
         """Asignar secuencia numérica para ordenar estados correctamente en kanban"""
         state_order = {
-            'unstarted': 0,
             'pending': 1,
-            'processing': 2,
-            'pending_delivery': 3,
-            'cancel': 4,
+            'unstarted': 2,
+            'processing': 3,
+            'pending_delivery': 4,
             'delivered': 5,
+            'cancel': 6,
         }
         for record in self:
             record.state_sequence = state_order.get(record.state, 99)
@@ -591,6 +591,13 @@ class TrackerProject(models.Model):
         self.ensure_one()
         if self.state != 'pending_delivery':
             raise UserError(_('Solo se puede entregar un proyecto pendiente de entrega.'))
+        
+        # Validar que tenga responsable asignado antes de entregar
+        if not self.user_id:
+            raise UserError(_(
+                'Debe asignar un responsable al proyecto antes de marcarlo como entregado. '
+                'Por favor, asigne un responsable en el campo "Responsable" y vuelva a intentar.'
+            ))
         
         self.write({
             'state': 'delivered',

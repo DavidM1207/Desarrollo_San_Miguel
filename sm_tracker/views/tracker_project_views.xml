@@ -34,7 +34,7 @@
                         <button name="%(action_report_boleta_despacho)d" string="Imprimir Boleta de Despacho" type="action" invisible="state != 'delivered'" class="btn-primary"/>
                         <button name="action_mark_delivered" string="Marcar Entregado" type="object" invisible="state != 'pending_delivery'" class="oe_highlight"/>
                         <button name="action_cancel_project" string="Anular" type="object" invisible="state in ['delivered', 'cancel']" class="btn-danger" groups="sm_tracker.group_tracker_manager"/>
-                        <field name="state" widget="statusbar" statusbar_visible="unstarted,pending,processing,pending_delivery,delivered"/>
+                        <field name="state" widget="statusbar" statusbar_visible="pending,unstarted,processing,pending_delivery,delivered"/>
                         <field name="all_tasks_done" invisible="1"/>
                     </header>
                     <sheet>
@@ -56,7 +56,7 @@
                                 <field name="sale_order_id" readonly="1" invisible="not sale_order_id"/>
                                 <field name="pos_order_id" readonly="1" invisible="not pos_order_id"/>
                                 <field name="invoice_ids" widget="many2many_tags"/>
-                                <field name="user_id"/>
+                                <field name="user_id" readonly="state != 'pending_delivery'"/>
                             </group>
                             <group>
                                 <field name="analytic_account_id" options="{'no_create': True}" readonly="1"/>
@@ -202,8 +202,8 @@
                     <separator/>
                     <filter string="Sin Fecha Asignada" name="no_promise_date" domain="[('promise_date','=',False)]"/>
                     <separator/>
-                    <filter string="Sin Iniciar" name="unstarted" domain="[('state','=','unstarted')]"/>
                     <filter string="Pendientes" name="pending" domain="[('state','=','pending')]"/>
+                    <filter string="Sin Iniciar" name="unstarted" domain="[('state','=','unstarted')]"/>
                     <filter string="En Proceso" name="processing" domain="[('state','=','processing')]"/>
                     <filter string="Pendiente de Entrega" name="pending_delivery" domain="[('state','=','pending_delivery')]"/>
                     <filter string="Entregados" name="delivered" domain="[('state','=','delivered')]"/>

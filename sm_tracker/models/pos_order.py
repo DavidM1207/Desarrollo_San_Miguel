@@ -25,7 +25,7 @@ class PosOrder(models.Model):
     
     @api.depends('lines.product_id', 'lines.qty')
     def _compute_has_service_products(self):
-        """Detectar si la orden tiene productos de servicio"""
+        """Detectar si la orden tiene productos de servicio (con tracker_active)"""
         for order in self:
             has_service = False
             _logger.info('=== VERIFICANDO SERVICIOS PARA POS %s ===', order.name or 'Nuevo')
@@ -34,18 +34,19 @@ class PosOrder(models.Model):
                 if not line.product_id:
                     continue
                     
-                _logger.info('Línea: %s (tipo: %s, qty: %s)', 
+                _logger.info('Línea: %s (tipo: %s, qty: %s, tracker_active: %s)', 
                            line.product_id.name, 
                            line.product_id.type,
-                           line.qty)
+                           line.qty,
+                           line.product_id.tracker_active)
                 
-                # Verificar si es servicio directo
-                if line.product_id.type == 'service':
+                # Verificar si es servicio directo con tracker_active=True
+                if line.product_id.type == 'service' and line.product_id.tracker_active:
                     _logger.info('  -> SERVICIO DIRECTO encontrado: %s', line.product_id.name)
                     has_service = True
                     break
                 
-                # Verificar si tiene servicios en BoM
+                # Verificar si tiene servicios en BoM (con tracker_active)
                 if self._check_bom_for_services(line.product_id):
                     _logger.info('  -> SERVICIO EN BOM encontrado para: %s', line.product_id.name)
                     has_service = True
@@ -56,7 +57,7 @@ class PosOrder(models.Model):
                        order.name or 'Nuevo', has_service)
     
     def _check_bom_for_services(self, product):
-        """Verificar recursivamente si un producto tiene servicios en su BoM"""
+        """Verificar recursivamente si un producto tiene servicios en su BoM (con tracker_active)"""
         bom = self.env['mrp.bom'].search([
             ('product_tmpl_id', '=', product.product_tmpl_id.id)
         ], limit=1)
@@ -67,7 +68,8 @@ class PosOrder(models.Model):
         _logger.debug('  BoM encontrado para %s con %d líneas', product.name, len(bom.bom_line_ids))
         
         for line in bom.bom_line_ids:
-            if line.product_id.type == 'service':
+            # Verificar que el servicio tenga tracker_active=True
+            if line.product_id.type == 'service' and line.product_id.tracker_active:
                 _logger.debug('    -> Componente SERVICIO: %s', line.product_id.name)
                 return True
             
@@ -170,12 +172,12 @@ class PosOrder(models.Model):
         pos_reference = self.pos_reference if hasattr(self, 'pos_reference') and self.pos_reference else self.name
         _logger.info('✓ Referencia POS: %s', pos_reference)
         
-        # Crear proyecto SIN fecha prometida
+        # Crear proyecto SIN fecha prometida y SIN responsable
         project_vals = {
             'pos_order_id': self.id,
             'partner_id': partner.id,
             'analytic_account_id': analytic_account.id,
-            'user_id': user_id,
+            # user_id se deja vacío intencionalmente - se asignará antes de entregar
         }
         
         _logger.info('Valores del proyecto: %s', project_vals)
@@ -382,7 +384,7 @@ class PosOrder(models.Model):
         return analytic_account
     
     def _get_service_products_from_bom(self):
-        """Obtener productos de servicio de la orden POS y sus BoMs recursivamente"""
+        """Obtener productos de servicio de la orden POS y sus BoMs recursivamente (solo con tracker_active)"""
         self.ensure_one()
         service_products = {}
         
@@ -403,10 +405,11 @@ class PosOrder(models.Model):
                     component = line.product_id
                     component_qty = qty * line.product_qty
                     
-                    _logger.info('%s  -> %s (tipo: %s, qty: %s)', 
-                               indent, component.name, component.type, component_qty)
+                    _logger.info('%s  -> %s (tipo: %s, qty: %s, tracker_active: %s)', 
+                               indent, component.name, component.type, component_qty, component.tracker_active)
                     
-                    if component.type == 'service':
+                    # Solo agregar servicios con tracker_active=True
+                    if component.type == 'service' and component.tracker_active:
                         _logger.info('%s     ✓ SERVICIO AGREGADO', indent)
                         if component in service_products:
                             service_products[component] += component_qty
@@ -416,8 +419,8 @@ class PosOrder(models.Model):
                         # Procesar recursivamente
                         process_bom_recursive(component, component_qty, level + 1)
             else:
-                # No tiene BoM, verificar si es servicio directo
-                if product.type == 'service':
+                # No tiene BoM, verificar si es servicio directo con tracker_active
+                if product.type == 'service' and product.tracker_active:
                     _logger.info('%sServicio directo: %s (qty: %s)', indent, product.name, qty)
                     if product in service_products:
                         service_products[product] += qty

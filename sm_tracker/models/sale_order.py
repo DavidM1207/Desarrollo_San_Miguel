@@ -38,7 +38,8 @@ class SaleOrder(models.Model):
         for order in self:
             has_service = False
             for line in order.order_line:
-                if line.product_id and line.product_id.type == 'service':
+                # Verificar que el producto tenga tracker_active=True
+                if line.product_id and line.product_id.type == 'service' and line.product_id.tracker_active:
                     has_service = True
                     break
                 
@@ -50,7 +51,7 @@ class SaleOrder(models.Model):
             order.has_service_products = has_service
     
     def _check_bom_for_services(self, product):
-        """Verificar recursivamente si un producto tiene servicios en su BoM"""
+        """Verificar recursivamente si un producto tiene servicios en su BoM (con tracker_active)"""
         bom = self.env['mrp.bom'].search([
             ('product_tmpl_id', '=', product.product_tmpl_id.id)
         ], limit=1)
@@ -59,7 +60,8 @@ class SaleOrder(models.Model):
             return False
         
         for line in bom.bom_line_ids:
-            if line.product_id.type == 'service':
+            # Verificar que el servicio tenga tracker_active=True
+            if line.product_id.type == 'service' and line.product_id.tracker_active:
                 return True
             
             if self._check_bom_for_services(line.product_id):
@@ -105,7 +107,7 @@ class SaleOrder(models.Model):
             'sale_order_id': self.id,
             'partner_id': self.partner_id.id,
             'analytic_account_id': analytic_account.id,
-            'user_id': self.user_id.id,
+            # user_id se deja vacío intencionalmente - se asignará antes de entregar
         }
         
         project = self.env['tracker.project'].create(project_vals)
@@ -238,7 +240,7 @@ class SaleOrder(models.Model):
         return project
     
     def _get_service_products_from_bom(self):
-        """Obtener productos de servicio de la venta y sus BoMs recursivamente"""
+        """Obtener productos de servicio de la venta y sus BoMs recursivamente (solo con tracker_active)"""
         self.ensure_one()
         service_products = {}
         
@@ -253,7 +255,8 @@ class SaleOrder(models.Model):
                     component = line.product_id
                     component_qty = qty * line.product_qty
                     
-                    if component.type == 'service':
+                    # Solo agregar servicios con tracker_active=True
+                    if component.type == 'service' and component.tracker_active:
                         _logger.debug('Servicio encontrado: %s (qty: %s)', component.name, component_qty)
                         if component in service_products:
                             service_products[component] += component_qty
@@ -262,7 +265,8 @@ class SaleOrder(models.Model):
                     else:
                         process_bom_recursive(component, component_qty)
             else:
-                if product.type == 'service':
+                # Solo agregar servicios con tracker_active=True
+                if product.type == 'service' and product.tracker_active:
                     _logger.debug('Producto servicio directo: %s (qty: %s)', product.name, qty)
                     if product in service_products:
                         service_products[product] += qty
