@@ -251,7 +251,6 @@ class PosOrder(models.Model):
         _logger.info('Pickings encontrados: %s', ', '.join(pickings.mapped('name')))
         
         shortage_obj = self.env['tracker.stock.shortage']
-        quant_obj = self.env['stock.quant']
         products_checked = set()
         
         # Revisar movimientos de stock de los pickings
@@ -273,34 +272,15 @@ class PosOrder(models.Model):
                 
                 demand_qty = move.product_uom_qty
                 
-                # CONSULTAR CANTIDAD REAL A LA MANO EN EL ALMACÉN
-                # Buscar en stock.quant la cantidad real en esta ubicación
-                quants = quant_obj.search([
-                    ('product_id', '=', product.id),
-                    ('location_id', '=', stock_location.id)
-                ])
+                # CONSULTAR CANTIDAD DISPONIBLE usando el método estándar de Odoo
+                # Esto considera todas las sublocaciones y hace el cálculo correcto
+                product_qty = product.with_context(location=stock_location.id).qty_available
                 
-                # Sumar cantidad a la mano (quantity - reserved_quantity)
-                available_qty = sum(quants.mapped('quantity'))  # Cantidad total física
-                reserved_qty = sum(quants.mapped('reserved_quantity'))  # Cantidad reservada
-                on_hand_qty = available_qty - reserved_qty  # Cantidad disponible a la mano
-                
-                _logger.info('Producto: %s', product.name)
-                _logger.info('  Ubicación: %s', stock_location.complete_name)
-                _logger.info('  Demanda: %s', demand_qty)
-                _logger.info('  Cantidad física total: %s', available_qty)
-                _logger.info('  Cantidad reservada: %s', reserved_qty)
-                _logger.info('  Cantidad a la mano (disponible): %s', on_hand_qty)
-                
-                # Determinar estado basado en cantidad a la mano
-                if on_hand_qty >= demand_qty:
+                # Determinar estado basado en cantidad disponible
+                if product_qty >= demand_qty:
                     state = 'con_abasto'
-                    _logger.info('  ✓ CON ABASTO (a la mano: %s >= demanda: %s)', on_hand_qty, demand_qty)
                 else:
                     state = 'sin_abasto'
-                    shortage = demand_qty - on_hand_qty
-                    _logger.info('  ❌ SIN ABASTO (faltante: %s, a la mano: %s < demanda: %s)', 
-                               shortage, on_hand_qty, demand_qty)
                 
                 # Solo crear registro si NO tiene abasto (FALTANTES)
                 if state == 'sin_abasto':
@@ -308,7 +288,7 @@ class PosOrder(models.Model):
                         'project_id': project.id,
                         'product_id': product.id,
                         'demand_qty': demand_qty,
-                        'available_qty': on_hand_qty,  # Guardar cantidad a la mano
+                        'available_qty': product_qty,
                         'state': state,
                         'warehouse_id': warehouse.id,
                         'analytic_account_id': analytic_account.id,

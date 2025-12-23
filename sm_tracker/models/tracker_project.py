@@ -422,12 +422,13 @@ class TrackerProject(models.Model):
                 record.hours_unassigned = 0.0
                 continue
             
-            # Si YA tiene fecha promesa: calcular desde create_date hasta promise_date
-            if record.promise_date:
-                delta = record.promise_date - record.create_date
+            # Si NO tiene fecha promesa: calcular tiempo transcurrido desde creación hasta ahora
+            if not record.promise_date:
+                now = fields.Datetime.now()
+                delta = now - record.create_date
                 record.hours_unassigned = delta.total_seconds() / 3600.0
             else:
-                # Si NO tiene fecha promesa: mostrar 0 (aún no se ha asignado)
+                # Si YA tiene fecha promesa: mostrar 0 (ya fue asignado)
                 record.hours_unassigned = 0.0
     
     @api.depends('task_ids.state')
