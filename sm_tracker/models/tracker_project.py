@@ -98,7 +98,6 @@ class TrackerProject(models.Model):
     
     state = fields.Selection([
         ('pending', 'Pendiente'),
-        ('unstarted', 'Sin Iniciar'),
         ('processing', 'Procesando'),
         ('pending_delivery', 'Pendiente de Entrega'),
         ('cancel', 'Anulado'),
@@ -327,6 +326,7 @@ class TrackerProject(models.Model):
         """Validar que el responsable no se pueda modificar una vez asignado
         y manejar cambio de estado a 'Sin Iniciar' cuando se asigna fecha promesa
         y validar cambio de tienda con permiso especial"""
+        
         for record in self:
             # Si se intenta cambiar el responsable y ya tenía uno asignado
             if 'user_id' in vals and record.user_id and vals.get('user_id') != record.user_id.id:
@@ -362,12 +362,6 @@ class TrackerProject(models.Model):
                         'default_new_store_id': vals.get('analytic_account_id'),
                     }
                 }
-            
-            # Si se asigna promise_date por primera vez y el proyecto está en pending
-            # cambiarlo automáticamente a 'unstarted'
-            if 'promise_date' in vals and vals.get('promise_date') and not record.promise_date:
-                if record.state == 'pending':
-                    vals['state'] = 'unstarted'
         
         return super(TrackerProject, self).write(vals)
     
@@ -381,11 +375,10 @@ class TrackerProject(models.Model):
         """Asignar secuencia numérica para ordenar estados correctamente en kanban"""
         state_order = {
             'pending': 1,
-            'unstarted': 2,
-            'processing': 3,
-            'pending_delivery': 4,
-            'delivered': 5,
-            'cancel': 6,
+            'processing': 2,
+            'pending_delivery': 3,
+            'delivered': 4,
+            'cancel': 5,
         }
         for record in self:
             record.state_sequence = state_order.get(record.state, 99)

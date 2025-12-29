@@ -198,18 +198,11 @@ class TrackerTask(models.Model):
             if record.state not in ['ready', 'pending', 'paused']:
                 raise UserError(_('Solo se puede iniciar una tarea en estado Listo, Pendiente o Pausado.'))
             
-            # Validar que el proyecto tenga fecha prometida (debe estar en 'unstarted' o 'processing')
+            # Validar que el proyecto tenga fecha prometida
             if not record.project_id.promise_date:
                 raise UserError(_(
                     'No se puede iniciar la tarea porque el proyecto no tiene una Fecha Prometida asignada. '
                     'Por favor, asigne una fecha prometida al proyecto antes de iniciar las tareas.'
-                ))
-            
-            # Si el proyecto está en 'pending', no permitir iniciar (necesita fecha promesa primero)
-            if record.project_id.state == 'pending':
-                raise UserError(_(
-                    'No se puede iniciar la tarea porque el proyecto está Pendiente. '
-                    'Por favor, asigne una fecha prometida al proyecto primero.'
                 ))
             
             if not record.employee_id:

@@ -193,9 +193,9 @@ class SaleOrder(models.Model):
                 
                 demand_qty = move.product_uom_qty
                 
-                # CONSULTAR CANTIDAD DISPONIBLE usando el método estándar de Odoo
-                # Esto considera todas las sublocaciones y hace el cálculo correcto
-                product_qty = product.with_context(location=stock_location.id).qty_available
+                # Usar free_qty que es la cantidad disponible (a la mano) sin reservas
+                # qty_available incluye reservadas, free_qty no
+                product_qty = product.with_context(location=stock_location.id).free_qty
                 
                 # Determinar estado basado en cantidad disponible
                 if product_qty >= demand_qty:
