@@ -193,8 +193,12 @@ class SaleOrder(models.Model):
                 
                 demand_qty = move.product_uom_qty
                 
-                # Obtener cantidad disponible en el almacén
-                product_qty = product.with_context(location=stock_location.id).qty_available
+                # Buscar cantidad directamente en stock.quant
+                quants = self.env['stock.quant'].search([
+                    ('product_id', '=', product.id),
+                    ('location_id', '=', stock_location.id),
+                ])
+                product_qty = sum(quants.mapped('quantity'))
                 
                 # Solo crear registro si falta stock
                 if product_qty < demand_qty:

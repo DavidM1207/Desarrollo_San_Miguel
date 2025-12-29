@@ -168,7 +168,6 @@ class TrackerProject(models.Model):
     hours_unassigned = fields.Float(
         string='Horas sin Asignar',
         compute='_compute_hours_unassigned',
-        store=True,
         help='Horas transcurridas desde la creación hasta que se asignó fecha promesa'
     )
     
@@ -406,7 +405,6 @@ class TrackerProject(models.Model):
             else:
                 record.delay_days = 0
     
-    @api.depends('promise_date', 'create_date')
     @api.depends('promise_date', 'create_date')
     def _compute_hours_unassigned(self):
         """Calcular horas desde creación hasta asignación de fecha promesa"""
