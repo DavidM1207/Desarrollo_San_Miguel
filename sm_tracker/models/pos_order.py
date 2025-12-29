@@ -272,24 +272,17 @@ class PosOrder(models.Model):
                 
                 demand_qty = move.product_uom_qty
                 
-                # Usar free_qty que es la cantidad disponible (a la mano) sin reservas
-                # qty_available incluye reservadas, free_qty no
-                product_qty = product.with_context(location=stock_location.id).free_qty
+                # Obtener cantidad disponible en el almacén
+                product_qty = product.with_context(location=stock_location.id).qty_available
                 
-                # Determinar estado basado en cantidad disponible
-                if product_qty >= demand_qty:
-                    state = 'con_abasto'
-                else:
-                    state = 'sin_abasto'
-                
-                # Solo crear registro si NO tiene abasto (FALTANTES)
-                if state == 'sin_abasto':
+                # Solo crear registro si falta stock
+                if product_qty < demand_qty:
                     shortage_vals = {
                         'project_id': project.id,
                         'product_id': product.id,
                         'demand_qty': demand_qty,
                         'available_qty': product_qty,
-                        'state': state,
+                        'state': 'sin_abasto',
                         'warehouse_id': warehouse.id,
                         'analytic_account_id': analytic_account.id,
                     }
