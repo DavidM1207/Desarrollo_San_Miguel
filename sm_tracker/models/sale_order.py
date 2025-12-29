@@ -200,8 +200,8 @@ class SaleOrder(models.Model):
                 ])
                 product_qty = sum(quants.mapped('quantity'))
                 
-                # Solo crear registro si falta stock
-                if product_qty < demand_qty:
+                # Solo crear registro si NO hay existencia en stock.quant
+                if product_qty <= 0:
                     shortage_vals = {
                         'project_id': project.id,
                         'product_id': product.id,
