@@ -168,7 +168,7 @@ class TrackerProject(models.Model):
     hours_unassigned = fields.Float(
         string='Horas sin Asignar',
         compute='_compute_hours_unassigned',
-        help='Horas transcurridas desde la creación hasta que se asignó fecha promesa'
+        help='Horas transcurridas desde la asignación de fecha promesa hasta el inicio de trabajo'
     )
     
     progress = fields.Float(
@@ -405,22 +405,27 @@ class TrackerProject(models.Model):
             else:
                 record.delay_days = 0
     
-    @api.depends('promise_date', 'create_date')
+    @api.depends('promise_date', 'task_ids.state')
     def _compute_hours_unassigned(self):
-        """Calcular horas desde creación hasta asignación de fecha promesa"""
+        """Calcular horas desde asignación de fecha promesa hasta inicio de trabajo"""
         for record in self:
-            if not record.create_date:
+            # Si NO tiene fecha promesa → 0
+            if not record.promise_date:
                 record.hours_unassigned = 0.0
                 continue
             
-            # Si NO tiene fecha promesa: calcular tiempo transcurrido desde creación hasta ahora
-            if not record.promise_date:
-                now = fields.Datetime.now()
-                delta = now - record.create_date
-                record.hours_unassigned = delta.total_seconds() / 3600.0
-            else:
-                # Si YA tiene fecha promesa: mostrar 0 (ya fue asignado)
+            # Si tiene fecha promesa, verificar si alguna tarea ya está iniciada
+            has_started_tasks = any(task.state != 'pending' for task in record.task_ids)
+            
+            # Si ya inició alguna tarea → 0
+            if has_started_tasks:
                 record.hours_unassigned = 0.0
+            else:
+                # Si tiene fecha promesa pero NO ha iniciado tareas
+                # Calcular tiempo desde promise_date hasta ahora
+                now = fields.Datetime.now()
+                delta = now - record.promise_date
+                record.hours_unassigned = delta.total_seconds() / 3600.0
     
     @api.depends('task_ids.state')
     def _compute_progress(self):

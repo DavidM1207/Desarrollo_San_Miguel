@@ -6,7 +6,7 @@
             <field name="name">tracker.project.tree</field>
             <field name="model">tracker.project</field>
             <field name="arch" type="xml">
-                <tree string="Proyectos Tracker" create="0" decoration-info="state=='pending'" decoration-warning="state=='processing'" decoration-primary="state=='pending_delivery'" decoration-success="state=='delivered'" decoration-danger="state=='cancel'">
+                <tree string="Proyectos Tracker" create="0" default_order="create_date desc" decoration-info="state=='pending'" decoration-warning="state=='processing'" decoration-primary="state=='pending_delivery'" decoration-success="state=='delivered'" decoration-danger="state=='cancel'">
                     <field name="name"/>
                     <field name="partner_id"/>
                     <field name="analytic_account_id"/>
@@ -146,12 +146,13 @@
                         default_group_by="state" 
                         groups_draggable="false" 
                         records_draggable="false"
-                        default_order="state_sequence,promise_date desc"
+                        default_order="create_date desc,state_sequence"
                         on_create="quick_create">
                     <field name="name"/>
                     <field name="partner_id"/>
                     <field name="analytic_account_id"/>
                     <field name="promise_date"/>
+                    <field name="create_date"/>
                     <field name="state"/>
                     <field name="state_sequence"/>
                     <field name="task_count"/>
