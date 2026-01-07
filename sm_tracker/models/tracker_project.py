@@ -693,6 +693,24 @@ class TrackerProject(models.Model):
         #     'context': {'default_project_id': self.id}
         # }
     
+    def action_change_store(self):
+        """Abrir wizard para cambiar tienda del proyecto"""
+        self.ensure_one()
+        if self.state in ['delivered', 'cancel']:
+            raise UserError(_('No se puede cambiar la tienda de un proyecto entregado o anulado.'))
+        
+        return {
+            'name': _('Cambiar Tienda'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'tracker.project.change.store.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'active_id': self.id,
+                'active_model': 'tracker.project',
+            }
+        }
+    
     
     def action_view_tasks(self):
         self.ensure_one()

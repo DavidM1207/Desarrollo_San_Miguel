@@ -27,20 +27,21 @@
         'point_of_sale',
     ],
      'data': [
-        'security/tracker_security.xml',
+       'security/tracker_security.xml',
         'security/ir.model.access.csv',
         'data/tracker_data.xml',
         'views/tracker_task_views.xml',
         'views/tracker_task_pin_wizard_views.xml',
-        'views/tracker_boleta_despacho.xml',
+        'views/tracker_boleta_despacho.xml',  # DEBE IR ANTES de project_views
         'views/tracker_project_views.xml',
-        'views/tracker_project_cancel_wizard_views.xml',
-        'views/tracker_project_change_store_wizard_views.xml',
         'views/tracker_timesheet_views.xml',
         'views/tracker_employee_views.xml',
-        'views/account_analytic_account_views.xml',
+        'views/account_analytic_account_views.xml',  # Campo warehouse en tienda
         'views/tracker_menus.xml',
+        # 'views/tracker_migration_action.xml',  # Ya no necesario
         'views/tracker_reports.xml',
+        'views/tracker_project_cancel_wizard_views.xml',
+        'views/tracker_project_change_store_wizard_views.xml',
         'views/sale_order_views.xml',
         'views/account_move_views.xml',
         'views/pos_order_views.xml',
