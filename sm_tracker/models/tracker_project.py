@@ -165,11 +165,16 @@ class TrackerProject(models.Model):
         help='Días de diferencia entre fecha prometida y entregada'
     )
     
+    hours_unassigned_stored = fields.Float(
+        string='Horas sin Asignar (Guardado)',
+        default=0.0,
+        readonly=True,
+        help='Valor guardado de horas sin asignar cuando se inició el trabajo'
+    )
+    
     hours_unassigned = fields.Float(
         string='Horas sin Asignar',
         compute='_compute_hours_unassigned',
-        store=True,
-        readonly=True,
         help='Horas transcurridas desde la asignación de fecha promesa hasta el inicio de trabajo'
     )
     
@@ -407,10 +412,15 @@ class TrackerProject(models.Model):
             else:
                 record.delay_days = 0
     
-    @api.depends('promise_date', 'task_ids.state')
+    @api.depends('promise_date', 'task_ids.state', 'hours_unassigned_stored')
     def _compute_hours_unassigned(self):
         """Calcular horas desde asignación de fecha promesa hasta inicio de trabajo"""
         for record in self:
+            # Si ya tiene un valor guardado, usar ese
+            if record.hours_unassigned_stored > 0:
+                record.hours_unassigned = record.hours_unassigned_stored
+                continue
+            
             # Si NO tiene fecha promesa → 0
             if not record.promise_date:
                 record.hours_unassigned = 0.0
@@ -419,38 +429,63 @@ class TrackerProject(models.Model):
             # Verificar si alguna tarea ya está iniciada
             has_started_tasks = any(task.state != 'pending' for task in record.task_ids)
             
-            # Si ya inició tareas Y ya tiene un valor guardado → mantener ese valor
-            if has_started_tasks and record.hours_unassigned > 0:
-                continue  # No recalcular, mantener el valor
-            
-            # Si ya inició tareas pero NO tiene valor guardado → calcular y guardar ahora
-            # O si NO ha iniciado tareas → calcular en tiempo real
-            # Buscar en el tracking cuando se asignó promise_date por primera vez
-            tracking = self.env['mail.message'].search([
-                ('model', '=', 'tracker.project'),
-                ('res_id', '=', record.id),
-                ('tracking_value_ids', '!=', False)
-            ], order='date asc')
-            
-            promise_date_assigned_at = None
-            for message in tracking:
-                for tracking_value in message.tracking_value_ids:
-                    if tracking_value.field_id.name == 'promise_date' and tracking_value.new_value_char:
-                        promise_date_assigned_at = message.date
+            # Si ya inició tareas, calcular y guardar el valor final
+            if has_started_tasks:
+                # Buscar en el tracking cuando se asignó promise_date
+                tracking = self.env['mail.message'].search([
+                    ('model', '=', 'tracker.project'),
+                    ('res_id', '=', record.id),
+                    ('tracking_value_ids', '!=', False)
+                ], order='date asc')
+                
+                promise_date_assigned_at = None
+                for message in tracking:
+                    for tracking_value in message.tracking_value_ids:
+                        if tracking_value.field_id.name == 'promise_date' and tracking_value.new_value_char:
+                            promise_date_assigned_at = message.date
+                            break
+                    if promise_date_assigned_at:
                         break
-                if promise_date_assigned_at:
-                    break
-            
-            # Si encontramos cuando se asignó, calcular tiempo transcurrido
-            if promise_date_assigned_at:
-                now = fields.Datetime.now()
-                delta = now - promise_date_assigned_at
-                record.hours_unassigned = delta.total_seconds() / 3600.0
+                
+                # Buscar cuando se inició la primera tarea
+                first_task_started_at = None
+                for task in record.task_ids.sorted('start_date'):
+                    if task.start_date:
+                        first_task_started_at = task.start_date
+                        break
+                
+                # Calcular y guardar
+                if promise_date_assigned_at and first_task_started_at:
+                    delta = first_task_started_at - promise_date_assigned_at
+                    final_hours = delta.total_seconds() / 3600.0
+                    record.sudo().write({'hours_unassigned_stored': final_hours})
+                    record.hours_unassigned = final_hours
+                else:
+                    record.hours_unassigned = 0.0
             else:
-                # Si no hay tracking (caso raro), usar create_date como referencia
-                now = fields.Datetime.now()
-                delta = now - record.create_date
-                record.hours_unassigned = delta.total_seconds() / 3600.0
+                # Si NO ha iniciado tareas → calcular en tiempo real
+                tracking = self.env['mail.message'].search([
+                    ('model', '=', 'tracker.project'),
+                    ('res_id', '=', record.id),
+                    ('tracking_value_ids', '!=', False)
+                ], order='date asc')
+                
+                promise_date_assigned_at = None
+                for message in tracking:
+                    for tracking_value in message.tracking_value_ids:
+                        if tracking_value.field_id.name == 'promise_date' and tracking_value.new_value_char:
+                            promise_date_assigned_at = message.date
+                            break
+                    if promise_date_assigned_at:
+                        break
+                
+                # Calcular tiempo transcurrido hasta ahora
+                if promise_date_assigned_at:
+                    now = fields.Datetime.now()
+                    delta = now - promise_date_assigned_at
+                    record.hours_unassigned = delta.total_seconds() / 3600.0
+                else:
+                    record.hours_unassigned = 0.0
     
     @api.depends('task_ids.state')
     def _compute_progress(self):
