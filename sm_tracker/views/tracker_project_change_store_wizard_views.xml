@@ -27,5 +27,14 @@
             </field>
         </record>
 
+        <record id="action_change_store_wizard" model="ir.actions.act_window">
+            <field name="name">Cambiar Tienda</field>
+            <field name="res_model">tracker.project.change.store.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+            <field name="binding_model_id" ref="model_tracker_project"/>
+            <field name="binding_view_types">form</field>
+        </record>
+
     </data>
 </odoo>

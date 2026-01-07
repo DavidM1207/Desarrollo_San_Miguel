@@ -2,57 +2,244 @@
 <odoo>
     <data>
         
-        <record id="view_hr_employee_form_tracker" model="ir.ui.view">
-            <field name="name">hr.employee.form.tracker</field>
-            <field name="model">hr.employee</field>
-            <field name="inherit_id" ref="hr.view_employee_form"/>
+        <record id="view_tracker_project_tree" model="ir.ui.view">
+            <field name="name">tracker.project.tree</field>
+            <field name="model">tracker.project</field>
             <field name="arch" type="xml">
-                
-                <xpath expr="//div[@name='button_box']" position="inside">
-                    <button name="action_view_tracker_tasks" type="object" class="oe_stat_button" icon="fa-tasks">
-                        <field name="tracker_task_count" widget="statinfo" string="Tareas Tracker"/>
-                    </button>
-                    <button name="action_view_tracker_timesheets" type="object" class="oe_stat_button" icon="fa-clock-o">
-                        <div class="o_field_widget o_stat_info">
-                            <span class="o_stat_value">
-                                <field name="tracker_total_hours" widget="float_time"/>
-                            </span>
-                            <span class="o_stat_text">Horas Tracker</span>
-                        </div>
-                    </button>
-                </xpath>
+                <tree string="Proyectos Tracker" create="0" default_order="create_date desc" decoration-info="state=='pending'" decoration-warning="state=='processing'" decoration-primary="state=='pending_delivery'" decoration-success="state=='delivered'" decoration-danger="state=='cancel'">
+                    <field name="name"/>
+                    <field name="partner_id"/>
+                    <field name="analytic_account_id"/>
+                    <field name="order_reference" string="Orden"/>
+                    <field name="origen_type"/>
+                    <field name="promise_date"/>
+                    <field name="completion_date"/>
+                    <field name="delivery_date"/>
+                    <field name="state" widget="badge" decoration-info="state=='pending'" decoration-warning="state=='processing'" decoration-primary="state=='pending_delivery'" decoration-success="state=='delivered'" decoration-danger="state=='cancel'"/>
+                    <field name="task_count"/>
+                    <field name="total_hours" widget="float_time"/>
+                    <field name="hours_unassigned" widget="float_time"/>
+                    <field name="delay_days"/>
+                    <field name="progress" widget="progressbar"/>
+                </tree>
+            </field>
+        </record>
 
-                <xpath expr="//notebook" position="inside">
-                    <page string="Tracker" name="tracker">
+        <record id="view_tracker_project_form" model="ir.ui.view">
+            <field name="name">tracker.project.form</field>
+            <field name="model">tracker.project</field>
+            <field name="arch" type="xml">
+                <form string="Proyecto Tracker">
+                    <header>
+                        <button name="%(action_report_boleta_despacho)d" string="Imprimir Boleta de Despacho" type="action" invisible="state != 'delivered'" class="btn-primary"/>
+                        <button name="action_mark_delivered" string="Marcar Entregado" type="object" invisible="state != 'pending_delivery'" class="oe_highlight"/>
+                        <button name="%(action_change_store_wizard)d" string="Cambiar Tienda" type="action" invisible="state in ['delivered', 'cancel']" class="btn-warning" groups="sm_tracker.group_tracker_manager"/>
+                        <button name="action_cancel_project" string="Anular" type="object" invisible="state in ['delivered', 'cancel']" class="btn-danger" groups="sm_tracker.group_tracker_manager"/>
+                        <field name="state" widget="statusbar" statusbar_visible="pending,processing,pending_delivery,delivered"/>
+                        <field name="all_tasks_done" invisible="1"/>
+                    </header>
+                    <sheet>
+                        <div class="oe_button_box" name="button_box">
+                            <button name="action_view_tasks" type="object" class="oe_stat_button" icon="fa-tasks">
+                                <field name="task_count" widget="statinfo" string="Tareas"/>
+                            </button>
+                        </div>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name" readonly="1"/>
+                            </h1>
+                        </div>
                         <group>
                             <group>
-                                <field name="is_tracker_manager"/>
+                                <field name="partner_id" readonly="1"/>
+                                <field name="order_reference" readonly="1"/>
+                                <field name="origen_type" readonly="1"/>
+                                <field name="sale_order_id" readonly="1" invisible="not sale_order_id"/>
+                                <field name="pos_order_id" readonly="1" invisible="not pos_order_id"/>
+                                <field name="invoice_ids" widget="many2many_tags"/>
+                                <field name="user_id" readonly="state != 'pending_delivery'"/>
+                            </group>
+                            <group>
+                                <field name="analytic_account_id" options="{'no_create': True}" readonly="1"/>
+                                <field name="promise_date" readonly="state != 'pending'"/>
+                                <field name="completion_date" readonly="1" invisible="not completion_date"/>
+                                <field name="delivery_date" readonly="1" invisible="not delivery_date"/>
+                                <field name="own_transport" readonly="state != 'delivered'"/>
+                                <field name="company_id" groups="base.group_multi_company"/>
                             </group>
                         </group>
-                        
-                        <group string="Tiendas como Operario">
-                            <field name="tracker_analytic_account_operario_ids" widget="many2many_tags" nolabel="1"/>
-                            <p class="text-muted">Tiendas donde puede ser asignado como operario de tareas</p>
+                        <group invisible="state != 'cancel'">
+                            <field name="cancellation_reason" readonly="1" nolabel="1"/>
                         </group>
-                        
-                        <group string="Servicios que Realiza">
-                            <field name="tracker_product_ids" widget="many2many_tags" nolabel="1" 
-                                   options="{'no_create': True, 'no_create_edit': True}"/>
-                            <p class="text-muted">Servicios/productos que puede realizar: Corte, Pegado, Barnizado, etc.</p>
+                        <group>
+                            <group>
+                                <field name="total_hours" widget="float_time"/>
+                                <field name="hours_unassigned" widget="float_time"/>
+                                <field name="delay_days"/>
+                            </group>
+                            <group>
+                                <field name="progress" widget="progressbar"/>
+                                <field name="state_changed_by" readonly="1"/>
+                                <field name="state_changed_date" readonly="1"/>
+                            </group>
                         </group>
-                        
-                        <group string="Tiendas como Responsable de Proyectos">
-                            <field name="tracker_analytic_account_responsable_ids" widget="many2many_tags" nolabel="1"/>
-                            <p class="text-muted">Tiendas donde puede ser responsable de proyectos</p>
-                        </group>
-                        
-                        <group string="Tiendas para Visualización">
-                            <field name="tracker_analytic_account_visualizacion_ids" widget="many2many_tags" nolabel="1"/>
-                            <p class="text-muted">Tiendas que puede ver sin necesariamente ejecutar tareas o ser responsable (para supervisores, gerentes, etc.)</p>
-                        </group>
-                    </page>
-                </xpath>
+                        <notebook>
+                            <page string="Tareas de Servicio">
+                                <field name="task_ids" nolabel="1">
+                                    <tree decoration-muted="state=='cancel'" decoration-success="state=='done'" decoration-warning="state=='in_progress'" decoration-info="state in ['paused', 'pending']" create="0" delete="0">
+                                        <field name="name"/>
+                                        <field name="product_id"/>
+                                        <field name="quantity"/>
+                                        <field name="employee_id"/>
+                                        <field name="state" widget="badge" decoration-muted="state=='cancel'" decoration-success="state=='done'" decoration-warning="state=='in_progress'" decoration-info="state in ['paused', 'pending']"/>
+                                        <field name="total_hours" widget="float_time"/>
+                                    </tree>
+                                </field>
+                            </page>
+                            <page string="Abasto">
+                                <field name="pending_stock_move_ids" nolabel="1">
+                                    <tree create="0" delete="0" edit="0" decoration-warning="state in ['waiting', 'confirmed']" decoration-info="state == 'assigned'" decoration-muted="state == 'draft'">
+                                        <field name="picking_id" string="# Movimiento"/>
+                                        <field name="product_id" string="Producto"/>
+                                        <field name="product_uom_qty" string="Demanda"/>
+                                        <field name="quantity" string="Cantidad"/>
+                                        <field name="state" string="Estado" widget="badge" 
+                                               decoration-muted="state == 'draft'" 
+                                               decoration-danger="state == 'waiting'"
+                                               decoration-warning="state == 'confirmed'" 
+                                               decoration-success="state == 'assigned'"/>
+                                    </tree>
+                                </field>
+                            </page>
+                            <page string="Notas">
+                                <field name="notes" placeholder="Notas adicionales..."/>
+                            </page>
+                            <page string="Cambios de Tienda" invisible="not previous_analytic_account_id">
+                                <group>
+                                    <group>
+                                        <field name="previous_analytic_account_id" readonly="1"/>
+                                        <field name="analytic_account_id" string="Tienda Actual" readonly="1"/>
+                                    </group>
+                                    <group>
+                                        <field name="store_change_reason" readonly="1"/>
+                                    </group>
+                                </group>
+                                <group string="Historial Completo">
+                                    <field name="store_change_history" readonly="1" nolabel="1"/>
+                                </group>
+                            </page>
+                        </notebook>
+                    </sheet>
+                    <div class="oe_chatter">
+                        <field name="message_follower_ids"/>
+                        <field name="activity_ids"/>
+                        <field name="message_ids"/>
+                    </div>
+                </form>
+            </field>
+        </record>
 
+        <record id="view_tracker_project_kanban" model="ir.ui.view">
+            <field name="name">tracker.project.kanban</field>
+            <field name="model">tracker.project</field>
+            <field name="arch" type="xml">
+                <kanban class="o_kanban_mobile" 
+                        default_group_by="state" 
+                        groups_draggable="false" 
+                        records_draggable="false"
+                        default_order="create_date desc,state_sequence"
+                        on_create="quick_create">
+                    <field name="name"/>
+                    <field name="partner_id"/>
+                    <field name="analytic_account_id"/>
+                    <field name="promise_date"/>
+                    <field name="create_date"/>
+                    <field name="state"/>
+                    <field name="state_sequence"/>
+                    <field name="task_count"/>
+                    <field name="progress"/>
+                    <progressbar field="state" colors='{"pending": "info", "processing": "warning", "pending_delivery": "primary", "delivered": "success", "cancel": "danger"}' sum_field="task_count"/>
+                    <templates>
+                        <t t-name="kanban-box">
+                            <div class="oe_kanban_global_click">
+                                <div class="o_kanban_record_top">
+                                    <div class="o_kanban_record_headings">
+                                        <strong class="o_kanban_record_title"><field name="name"/></strong>
+                                    </div>
+                                    <span class="badge badge-pill">
+                                        <i class="fa fa-tasks"/> <field name="task_count"/>
+                                    </span>
+                                </div>
+                                <div class="o_kanban_record_body">
+                                    <field name="partner_id"/>
+                                    <br/>
+                                    <field name="analytic_account_id"/>
+                                    <br/>
+                                    <i class="fa fa-calendar"/> <field name="promise_date"/>
+                                </div>
+                                <div class="o_kanban_record_bottom">
+                                    <div class="oe_kanban_bottom_left">
+                                        <field name="progress" widget="progressbar"/>
+                                    </div>
+                                    <div class="oe_kanban_bottom_right">
+                                        <field name="user_id" widget="many2one_avatar_user"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </t>
+                    </templates>
+                </kanban>
+            </field>
+        </record>
+
+        <record id="view_tracker_project_search" model="ir.ui.view">
+            <field name="name">tracker.project.search</field>
+            <field name="model">tracker.project</field>
+            <field name="arch" type="xml">
+                <search string="Buscar Proyectos">
+                    <field name="name"/>
+                    <field name="partner_id"/>
+                    <field name="analytic_account_id"/>
+                    <field name="sale_order_id"/>
+                    <separator/>
+                    <filter string="Sin Fecha Asignada" name="no_promise_date" domain="[('promise_date','=',False)]"/>
+                    <filter string="Con Fecha - Sin Iniciar" name="ready_to_start" domain="[('state','=','pending'),('promise_date','!=',False)]"/>
+                    <separator/>
+                    <filter string="Pendientes" name="pending" domain="[('state','=','pending')]"/>
+                    <filter string="En Proceso" name="processing" domain="[('state','=','processing')]"/>
+                    <filter string="Pendiente de Entrega" name="pending_delivery" domain="[('state','=','pending_delivery')]"/>
+                    <filter string="Entregados" name="delivered" domain="[('state','=','delivered')]"/>
+                    <filter string="Anulados" name="cancel" domain="[('state','=','cancel')]"/>
+                    <separator/>
+                    <filter string="DESPACHO HOST" name="despacho_host" domain="[('is_despacho_host','=',True)]"/>
+                    <filter string="CNC" name="cnc" domain="[('is_cnc','=',True)]"/>
+                    <separator/>
+                    <filter string="En espera de disponibilidad" name="waiting_stock" domain="[('has_waiting_stock','=',True)]"/>
+                    <separator/>
+                    <filter string="Con Retraso" name="delayed" domain="[('delay_days','>',0)]"/>
+                    <filter string="A Tiempo" name="on_time" domain="[('delay_days','&lt;=',0)]"/>
+                    <separator/>
+                    <filter string="Fecha Prometida" name="group_promise_date" context="{'group_by':'promise_date'}"/>
+                    <filter string="Estado" name="group_state" context="{'group_by':'state'}"/>
+                    <filter string="Tienda" name="group_analytic" context="{'group_by':'analytic_account_id'}"/>
+                </search>
+            </field>
+        </record>
+
+        <record id="action_tracker_project" model="ir.actions.act_window">
+            <field name="name">Proyectos Tracker</field>
+            <field name="res_model">tracker.project</field>
+            <field name="view_mode">kanban,tree,form</field>
+            <field name="search_view_id" ref="view_tracker_project_search"/>
+            <field name="context">{'create': False, 'group_by': 'state'}</field>
+            <field name="domain">[]</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    No hay proyectos tracker
+                </p>
+                <p>
+                    Los proyectos se crean automáticamente cuando confirmas una orden de venta con servicios.
+                </p>
             </field>
         </record>
 

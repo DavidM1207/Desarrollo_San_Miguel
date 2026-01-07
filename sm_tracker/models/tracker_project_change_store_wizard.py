@@ -34,6 +34,22 @@ class TrackerProjectChangeStoreWizard(models.TransientModel):
         help='Explique por qué se está cambiando la tienda del proyecto'
     )
     
+    @api.model
+    def default_get(self, fields_list):
+        """Obtener valores por defecto incluyendo el proyecto actual"""
+        res = super(TrackerProjectChangeStoreWizard, self).default_get(fields_list)
+        
+        # Obtener el proyecto del contexto
+        project_id = self.env.context.get('active_id')
+        if project_id:
+            project = self.env['tracker.project'].browse(project_id)
+            res.update({
+                'project_id': project.id,
+                'old_store_id': project.analytic_account_id.id if project.analytic_account_id else False,
+            })
+        
+        return res
+    
     def action_confirm_change(self):
         """Confirmar el cambio de tienda"""
         self.ensure_one()

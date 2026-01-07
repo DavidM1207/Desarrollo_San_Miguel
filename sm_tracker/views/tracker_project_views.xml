@@ -33,6 +33,7 @@
                     <header>
                         <button name="%(action_report_boleta_despacho)d" string="Imprimir Boleta de Despacho" type="action" invisible="state != 'delivered'" class="btn-primary"/>
                         <button name="action_mark_delivered" string="Marcar Entregado" type="object" invisible="state != 'pending_delivery'" class="oe_highlight"/>
+                        <button name="%(action_change_store_wizard)d" string="Cambiar Tienda" type="action" invisible="state in ['delivered', 'cancel']" class="btn-warning" groups="sm_tracker.group_tracker_manager"/>
                         <button name="action_cancel_project" string="Anular" type="object" invisible="state in ['delivered', 'cancel']" class="btn-danger" groups="sm_tracker.group_tracker_manager"/>
                         <field name="state" widget="statusbar" statusbar_visible="pending,processing,pending_delivery,delivered"/>
                         <field name="all_tasks_done" invisible="1"/>
